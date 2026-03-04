@@ -66,27 +66,49 @@ class NakamaService {
     return false;
   }
 
+  private connectionPromise: Promise<Socket> | null = null;
+
   // 3. Conectar al WebSocket
   async connectSocket(): Promise<Socket> {
     if (!this.session) {
       throw new Error("No hay sesión activa para conectar el socket");
     }
 
-    // El socket requiere appearOnline: true para que otros nos vean
-    this.socket = this.client.createSocket(USE_SSL, false);
+    // Si ya hay un intento en curso, esperar a ese intento
+    if (this.connectionPromise) {
+      return this.connectionPromise;
+    }
 
-    // Configurar listeners antes de conectar
-    this.socket.ondisconnect = (event) => {
-      console.log("Socket desconectado:", event);
-    };
+    this.connectionPromise = (async () => {
+      try {
+        // El socket requiere appearOnline: true para que otros nos vean
+        this.socket = this.client.createSocket(USE_SSL, false);
 
-    this.socket.onerror = (error) => {
-      console.error("Error en Socket:", error);
-    };
+        // Configurar listeners antes de conectar
+        this.socket.ondisconnect = (event) => {
+          console.log("Socket desconectado:", event);
+          this.connectionPromise = null;
+          this.socket = null;
+        };
 
-    await this.socket.connect(this.session, true);
-    console.log("¡Socket Nakama conectado exitosamente!");
-    return this.socket;
+        this.socket.onerror = (error) => {
+          console.error("Error en Socket:", error);
+        };
+
+        // this.session! es seguro aquí porque lo validamos arriba
+        await this.socket.connect(this.session!, true);
+        console.log("¡Socket Nakama conectado exitosamente!");
+
+        // Mantener la promesa como resuelta para futuros llamados rápidos
+        return this.socket;
+      } catch (error) {
+        this.connectionPromise = null;
+        this.socket = null;
+        throw error;
+      }
+    })();
+
+    return this.connectionPromise;
   }
 }
 

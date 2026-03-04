@@ -98,8 +98,8 @@ Este documento es la guía maestra para el desarrollo de la plataforma estilo Fi
 - [x] 5.05. Actualizar lista de usuarios cuando alguien sale. [MEDIO]
 - [x] 5.06. Filtrar usuario propio de la lista / Indicar cuál es propio. [FACIL]
 - [x] 5.07. Mostrar estado del usuario (Online/Playing). [MEDIO]
-- [ ] 5.08. Implementar click en usuario para ver detalles. [FACIL]
-- [ ] 5.09. Testear con 2 clientes simulados. [MEDIO]
+- [x] 5.08. Implementar click en usuario para ver detalles. [FACIL]
+- [x] 5.09. Testear con 2 clientes simulados. [MEDIO]
 - [x] 5.10. Optimizar renderizado de lista (memoization/estado unificado). [MEDIO]
 
 ---
@@ -121,16 +121,16 @@ Este documento es la guía maestra para el desarrollo de la plataforma estilo Fi
 
 ## FASE 7: EMULADOR - SETUP Y CONTROL (10 Tareas)
 
-- [ ] 7.01. Descargar FBNeo adaptable a CLI. [FACIL]
-- [ ] 7.02. Organizar carpeta `emulator/`. [FACIL]
-- [ ] 7.03. Configurar ruta relativa en el código. [MEDIO]
-- [ ] 7.04. Probar lanzamiento manual: `fbneo.exe kof98`. [FACIL]
-- [ ] 7.05. En Electron Main: Importar `spawn`. [FACIL]
-- [ ] 7.06. Crear IPC Handler `launch-game`. [MEDIO]
-- [ ] 7.07. Pasar argumentos al proceso spawn. [MEDIO]
-- [ ] 7.08. Manejar errores "Archivo no encontrado". [FACIL]
-- [ ] 7.09. Exponer `launchGame` en `preload.ts`. [FACIL]
-- [ ] 7.10. Botón "Test Game" en UI. [FACIL]
+- [x] 7.01. Descargar FBNeo adaptable a CLI. [FACIL]
+- [x] 7.02. Organizar carpeta `emulator/`. [FACIL]
+- [x] 7.03. Configurar ruta relativa en el código. [MEDIO]
+- [x] 7.04. Probar lanzamiento manual: `fbneo.exe kof98`. [FACIL]
+- [x] 7.05. En Electron Main: Importar `spawn`. [FACIL]
+- [x] 7.06. Crear IPC Handler `launch-game`. [MEDIO]
+- [x] 7.07. Pasar argumentos al proceso spawn. [MEDIO]
+- [x] 7.08. Manejar errores "Archivo no encontrado". [FACIL]
+- [x] 7.09. Exponer `launchGame` en `preload.ts`. [FACIL]
+- [x] 7.10. Botón "Test Game" en UI. [FACIL]
 
 ---
 

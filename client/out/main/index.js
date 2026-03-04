@@ -42,8 +42,13 @@ if (!gotTheLock) {
   });
 }
 electron.ipcMain.handle("launch-game", async (_event, args) => {
-  const emulatorPath = path.join(process.cwd(), "..", "emulator", "fbneo.exe");
+  const emulatorPath = path.join(
+    process.cwd(),
+    "..",
+    "emulator",
+    "fbneo64.exe"
+  );
   const romName = args?.rom || "kof98";
-  console.log(`Lanzando: ${emulatorPath}`);
-  child_process.spawn(emulatorPath, [romName], { cwd: path.dirname(emulatorPath) });
+  console.log(`Lanzando: ${emulatorPath} ${romName}`);
+  child_process.spawn(emulatorPath, [romName, "-w"], { cwd: path.dirname(emulatorPath) });
 });

@@ -3,8 +3,9 @@ import React, {
   useContext,
   useEffect,
   useState,
-  ReactNode,
+  useRef,
 } from "react";
+import type { ReactNode } from "react";
 import { nakamaService } from "../lib/nakama";
 
 interface AuthContextType {
@@ -33,9 +34,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
+  // Keep track of connection attempts
+  const isConnecting = useRef(false);
+
   // Intentar restaurar sesión al montar el app
   useEffect(() => {
     const initAuth = async () => {
+      if (isConnecting.current) return;
+
       const restored = nakamaService.restoreSession();
       if (restored && nakamaService.session) {
         console.log("Sesión previa recuperada");
@@ -44,10 +50,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         setIsAuthenticated(true);
 
         try {
+          isConnecting.current = true;
           await nakamaService.connectSocket();
           setIsConnected(true);
         } catch (e) {
           console.error("Fallo conectando el WebSocket restaurado:", e);
+        } finally {
+          isConnecting.current = false;
         }
       }
     };
@@ -56,7 +65,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   // Función pública para login anónimo (Device ID)
   const loginGhost = async () => {
+    if (isConnecting.current) return;
+
     try {
+      isConnecting.current = true;
       const session = await nakamaService.authenticateDevice();
       setUserId(session.user_id || null);
       setUsername(session.username || null);
@@ -73,6 +85,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     } catch (e) {
       console.error("Fallo durante loginGhost:", e);
       alert("Error intentando conectar con Nakama Server local.");
+    } finally {
+      isConnecting.current = false;
     }
   };
 
