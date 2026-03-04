@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useRef,
+} from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "./AuthContext";
 import type { ChannelMessage, Presence } from "@heroiclabs/nakama-js";
@@ -10,7 +16,7 @@ interface SocialContextType {
   sendMessage: (text: string) => Promise<void>;
 }
 
-const SocialContext = createContext<SocialContextType>({
+export const SocialContext = createContext<SocialContextType>({
   onlineUsers: [],
   messages: [],
   sendMessage: async () => {}, // placeholder
@@ -26,20 +32,38 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
   const [messages, setMessages] = useState<ChannelMessage[]>([]);
   const [lobbyChannelId, setLobbyChannelId] = useState<string | null>(null);
 
+  // Use a ref to track if we're already initializing to avoid race conditions
+  const isInitializing = useRef(false);
+
   useEffect(() => {
-    if (isConnected && isAuthenticated && nakamaService.socket) {
+    // Only run if authenticated and connected, and if not already initializing
+    if (
+      isConnected &&
+      isAuthenticated &&
+      nakamaService.socket &&
+      !isInitializing.current
+    ) {
       const socket = nakamaService.socket;
+      isInitializing.current = true;
 
-      // Update status globally
-      socket
-        .updateStatus("Online")
-        .then(() => console.log("Status updated to Online"))
-        .catch((e) => console.error("Failed to update status", e));
+      const runSocialinit = async () => {
+        try {
+          // Extra wait just in case to ensure SDK internal state is fully updated
+          await new Promise((r) => setTimeout(r, 500));
 
-      // 1. Join Global Lobby Channel (Type 1 = Room)
-      socket
-        .joinChat("Global_Lobby", 1, false, false)
-        .then((channel) => {
+          console.log("--- SocialContext: Inicializando canal lobby ---");
+
+          // Update status globally
+          await socket.updateStatus("Online");
+          console.log("Status updated to Online");
+
+          // 1. Join Global Lobby Channel (Type 1 = Room)
+          const channel = await socket.joinChat(
+            "Global_Lobby",
+            1,
+            false,
+            false,
+          );
           console.log("¡Canal Global Lobby unido!", channel);
           setLobbyChannelId(channel.id);
 
@@ -55,53 +79,64 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
               return prev;
             });
           }
-        })
-        .catch((e) => console.error("Error al unirse al canal:", e));
 
-      // Listen for presence changes
-      socket.onchannelpresence = (presenceEvent) => {
-        setOnlineUsers((currentUsers) => {
-          let updatedUsers = [...currentUsers];
-          if (presenceEvent.leaves) {
-            presenceEvent.leaves.forEach((leftUser) => {
-              updatedUsers = updatedUsers.filter(
-                (u) => u.session_id !== leftUser.session_id,
-              );
-            });
-          }
-          if (presenceEvent.joins) {
-            presenceEvent.joins.forEach((joinedUser) => {
-              if (
-                !updatedUsers.find(
-                  (u) => u.session_id === joinedUser.session_id,
-                )
-              ) {
-                updatedUsers.push(joinedUser);
+          // Register event handlers
+          socket.onchannelpresence = (presenceEvent) => {
+            setOnlineUsers((currentUsers) => {
+              let updatedUsers = [...currentUsers];
+              if (presenceEvent.leaves) {
+                presenceEvent.leaves.forEach((leftUser) => {
+                  updatedUsers = updatedUsers.filter(
+                    (u) => u.session_id !== leftUser.session_id,
+                  );
+                });
               }
+              if (presenceEvent.joins) {
+                presenceEvent.joins.forEach((joinedUser) => {
+                  if (
+                    !updatedUsers.find(
+                      (u) => u.session_id === joinedUser.session_id,
+                    )
+                  ) {
+                    updatedUsers.push(joinedUser);
+                  }
+                });
+              }
+              return updatedUsers;
             });
-          }
-          return updatedUsers;
-        });
-      };
+          };
 
-      // Listen for messages
-      socket.onchannelmessage = (message) => {
-        setMessages((prev) => [...prev, message]);
-      };
-
-      return () => {
-        // Leave channel on unmount or disconnect
-        if (nakamaService.socket) {
-          // Note: we can't easily track lobbyChannelId across the closure update without a ref
-          // but for now, disconnecting the socket usually cleans up server-side presence.
+          socket.onchannelmessage = (message) => {
+            setMessages((prev) => [...prev, message]);
+          };
+        } catch (e) {
+          console.error("Error inicializando SocialContext:", e);
+          // If it failed, allow retry in next cycle
+          isInitializing.current = false;
         }
       };
+
+      runSocialinit();
+
+      return () => {
+        // Not resetting isInitializing here as we don't want it to rerun unless connection state flips
+      };
     }
-  }, [isConnected, isAuthenticated]); // Removed lobbyChannelId from deps to avoid infinite loop
+
+    if (!isConnected) {
+      // Reset if we lose connection
+      isInitializing.current = false;
+      setLobbyChannelId(null);
+    }
+  }, [isConnected, isAuthenticated]);
 
   const sendMessage = async (text: string) => {
     if (nakamaService.socket && lobbyChannelId) {
-      await nakamaService.socket.writeChatMessage(lobbyChannelId, { text });
+      try {
+        await nakamaService.socket.writeChatMessage(lobbyChannelId, { text });
+      } catch (e) {
+        console.error("Error enviando mensaje:", e);
+      }
     }
   };
 
