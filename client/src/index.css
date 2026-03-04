@@ -1,0 +1,4 @@
+/* Global styles are now handled by GlobalStyles.ts in styled-components */
+:root {
+  background-color: #050505;
+}
