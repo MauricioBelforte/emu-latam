@@ -14,12 +14,12 @@ import { nakamaService } from "../lib/nakama";
 // --- Tipos ---
 
 export type ChallengeStatus =
-  | "idle" // Sin reto activo
-  | "sent" // Reto enviado, esperando respuesta
-  | "received" // Reto recibido, esperando decisión del usuario
-  | "accepted" // Reto aceptado por ambos
-  | "rejected" // Reto rechazado
-  | "timeout"; // Reto expirado
+  | "idle"
+  | "sent"
+  | "received"
+  | "accepted"
+  | "rejected"
+  | "timeout";
 
 export interface ChallengeData {
   challengerId: string;
@@ -49,27 +49,28 @@ const ChallengeContext = createContext<ChallengeContextType>({
 
 export const useChallenge = () => useContext(ChallengeContext);
 
-// --- Tipos de Mensajes ---
 const CHALLENGE_MSG_TYPE = "challenge";
 const CHALLENGE_ACCEPT_MSG_TYPE = "challenge_accept";
 const CHALLENGE_REJECT_MSG_TYPE = "challenge_reject";
 const CHALLENGE_CANCEL_MSG_TYPE = "challenge_cancel";
-
 const CHALLENGE_TIMEOUT_MS = 30000;
 
 export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const { userId, username, isConnected } = useAuth();
+  const { userId, username } = useAuth();
+  const { channelId } = useSocial();
   const [challengeStatus, setChallengeStatus] =
     useState<ChallengeStatus>("idle");
   const [currentChallenge, setCurrentChallenge] =
     useState<ChallengeData | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isLaunchingRef = useRef(false); // Evitar doble lanzamiento
 
   const resetChallenge = useCallback(() => {
     setChallengeStatus("idle");
     setCurrentChallenge(null);
+    isLaunchingRef.current = false;
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
@@ -79,40 +80,32 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({
   const startTimeout = useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
-      console.log("⏰ Reto expirado por timeout");
       setChallengeStatus("timeout");
       setTimeout(() => resetChallenge(), 3000);
     }, CHALLENGE_TIMEOUT_MS);
   }, [resetChallenge]);
 
-  // --- Sistema de Envío de Mensajes a Recipiente Específico ---
-  const sendToUser = useCallback(
-    async (recipientId: string, type: string, payload: any) => {
-      if (!nakamaService.socket || !userId) return;
-      const socket = nakamaService.socket;
-
+  const sendToLobby = useCallback(
+    async (type: string, payload: any) => {
+      if (!nakamaService.socket || !userId || !channelId) {
+        console.warn("⚠️ No se pudo enviar señal: Datos no listos.");
+        return;
+      }
       try {
-        const messageContent = {
-          _type: type,
-          senderId: userId,
-          ...payload,
-        };
-
-        console.log(`📡 Enviando ${type} a ${recipientId}...`);
-        const dmChannel = await socket.joinChat(recipientId, 2, false, false);
-        await socket.writeChatMessage(dmChannel.id, messageContent);
+        const messageContent = { _type: type, senderId: userId, ...payload };
+        console.log(`📡 Difundiendo señal: ${type}`);
+        await nakamaService.socket.writeChatMessage(channelId, messageContent);
       } catch (e) {
         console.error(`Error enviando ${type}:`, e);
       }
     },
-    [userId],
+    [userId, channelId],
   );
-
-  // --- Acciones del Retador (A) ---
 
   const sendChallenge = useCallback(
     (targetId: string, targetName: string) => {
       if (!userId || !username || challengeStatus !== "idle") return;
+      if (targetId === userId) return; // PROHIBIDO: Auto-reto
 
       const challenge: ChallengeData = {
         challengerId: userId,
@@ -125,93 +118,84 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({
       setCurrentChallenge(challenge);
       setChallengeStatus("sent");
       startTimeout();
-
-      sendToUser(targetId, CHALLENGE_MSG_TYPE, challenge);
-      console.log(`⚔️ Reto enviado a ${targetName}`);
+      sendToLobby(CHALLENGE_MSG_TYPE, challenge);
     },
-    [userId, username, challengeStatus, startTimeout, sendToUser],
+    [userId, username, challengeStatus, startTimeout, sendToLobby],
   );
 
   const cancelChallenge = useCallback(() => {
     if (currentChallenge && userId) {
-      sendToUser(currentChallenge.targetId, CHALLENGE_CANCEL_MSG_TYPE, {
+      sendToLobby(CHALLENGE_CANCEL_MSG_TYPE, {
         challengerId: userId,
+        targetId: currentChallenge.targetId,
       });
     }
     resetChallenge();
-  }, [currentChallenge, userId, sendToUser, resetChallenge]);
+  }, [currentChallenge, userId, sendToLobby, resetChallenge]);
 
-  // --- Acciones del Retado (B) ---
-
-  const acceptChallenge = useCallback(() => {
-    if (!currentChallenge || !userId) return;
+  const acceptChallenge = useCallback(async () => {
+    if (!currentChallenge || !userId || isLaunchingRef.current) return;
+    isLaunchingRef.current = true;
 
     const challengerId = currentChallenge.challengerId;
-
-    // Notificar al retador que aceptamos
-    sendToUser(challengerId, CHALLENGE_ACCEPT_MSG_TYPE, {
-      targetId: userId, // Yo (B) acepté
-      targetName: username || "Tu oponente",
-    });
-
     setChallengeStatus("accepted");
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
-    console.log("✅ Reto aceptado! Iniciando emulador...");
+    console.log("✅ ACEPTANDO RETO. Lanzando HOST...");
 
-    setTimeout(async () => {
-      try {
-        // @ts-ignore
-        await window.electron.ipcRenderer.invoke("launch-game", {
-          rom: "kof98",
-        });
-      } catch (e) {
-        console.error(e);
+    try {
+      // @ts-ignore
+      const res = await window.electron.ipcRenderer.invoke("launch-game", {
+        isNetplay: true,
+        isHost: true,
+      });
+
+      const myIp = res?.myIp || "127.0.0.1";
+
+      if (res?.error) {
+        console.error("Error IPC:", res.error);
       }
-      setTimeout(() => resetChallenge(), 2000);
-    }, 1500);
-  }, [currentChallenge, userId, username, sendToUser, resetChallenge]);
+      // Notificamos al retador enviándole nuestra IP
+      await sendToLobby(CHALLENGE_ACCEPT_MSG_TYPE, {
+        targetId: challengerId,
+        hostIp: myIp,
+      });
+    } catch (e) {
+      console.error("Error al lanzar Host:", e);
+    }
+
+    setTimeout(() => resetChallenge(), 5000);
+  }, [currentChallenge, userId, sendToLobby, resetChallenge]);
 
   const rejectChallenge = useCallback(() => {
     if (!currentChallenge) return;
-
-    sendToUser(currentChallenge.challengerId, CHALLENGE_REJECT_MSG_TYPE, {
-      targetId: userId,
+    sendToLobby(CHALLENGE_REJECT_MSG_TYPE, {
+      targetId: currentChallenge.challengerId,
     });
-
     setChallengeStatus("rejected");
     setTimeout(() => resetChallenge(), 2500);
-  }, [currentChallenge, userId, sendToUser, resetChallenge]);
+  }, [currentChallenge, sendToLobby, resetChallenge]);
 
-  // --- Listener de Socket ---
+  // --- ESCUCHA DE EVENTOS GLOBAL ---
   useEffect(() => {
-    if (!isConnected || !nakamaService.socket || !userId) return;
-
-    const socket = nakamaService.socket;
-    // Guardamos el handler por si hay otros
-    const originalHandler = socket.onchannelmessage;
-
-    socket.onchannelmessage = (message) => {
+    const handleNakamaMessage = (event: Event) => {
+      const message = (event as CustomEvent).detail;
       try {
         const content =
           typeof message.content === "string"
             ? JSON.parse(message.content)
             : message.content;
 
-        if (!content._type) {
-          if (originalHandler) originalHandler(message);
-          return;
-        }
+        // --- FILTROS DE SEGURIDAD ---
+        if (!content._type || content.senderId === userId) return;
+        const isForMe = content.targetId === userId;
+        if (!isForMe) return;
 
-        console.log(`📩 Mensaje de sistema recibido: ${content._type}`);
+        console.log(`📦 Señal recibida del Lobby: ${content._type}`);
 
         // 1. Recibimos un reto (Somos B)
-        if (
-          content._type === CHALLENGE_MSG_TYPE &&
-          content.targetId === userId
-        ) {
-          if (challengeStatus !== "idle") return; // Ignorar si ya estamos en algo
-
+        if (content._type === CHALLENGE_MSG_TYPE) {
+          if (challengeStatus !== "idle") return;
           setCurrentChallenge(content);
           setChallengeStatus("received");
           startTimeout();
@@ -219,65 +203,55 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({
         }
 
         // 2. El otro aceptó el reto (Somos A)
-        // IMPORTANTE: Solo procesamos si el que envía NO soy yo (evita el 3er emulador)
-        if (
-          content._type === CHALLENGE_ACCEPT_MSG_TYPE &&
-          content.senderId === currentChallenge?.targetId &&
-          content.senderId !== userId
-        ) {
-          console.log("🔥 ¡Reto aceptado por el oponente!");
+        if (content._type === CHALLENGE_ACCEPT_MSG_TYPE) {
+          if (isLaunchingRef.current) return;
+          isLaunchingRef.current = true;
+
           setChallengeStatus("accepted");
           if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
+          console.log(
+            `🔥 ¡Reto aceptado! Lanzando CLIENTE conectando a: ${content.hostIp}`,
+          );
+
+          // Lanzar Cliente con pequeno delay para asegurar que el Host este listo
           setTimeout(async () => {
-            try {
-              // @ts-ignore
-              await window.electron.ipcRenderer.invoke("launch-game", {
-                rom: "kof98",
-              });
-            } catch (e) {
-              console.error(e);
-            }
-            setTimeout(() => resetChallenge(), 2000);
-          }, 1500);
+            // @ts-ignore
+            await window.electron.ipcRenderer
+              .invoke("launch-game", {
+                isNetplay: true,
+                isHost: false,
+                peerIp: content.hostIp,
+              })
+              .catch(console.error);
+          }, 500);
+
+          setTimeout(() => resetChallenge(), 5000);
           return;
         }
 
-        // 3. El otro rechazó el reto
+        // 3. El otro rechazó o canceló
         if (
-          content._type === CHALLENGE_REJECT_MSG_TYPE &&
-          content.senderId === currentChallenge?.targetId
+          content._type === CHALLENGE_REJECT_MSG_TYPE ||
+          content._type === CHALLENGE_CANCEL_MSG_TYPE
         ) {
-          setChallengeStatus("rejected");
-          setTimeout(() => resetChallenge(), 2500);
-          return;
-        }
-
-        // 4. El otro canceló el reto
-        if (
-          content._type === CHALLENGE_CANCEL_MSG_TYPE &&
-          content.senderId === currentChallenge?.challengerId
-        ) {
-          resetChallenge();
+          if (content._type === CHALLENGE_REJECT_MSG_TYPE)
+            setChallengeStatus("rejected");
+          else resetChallenge();
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+          if (content._type === CHALLENGE_REJECT_MSG_TYPE)
+            setTimeout(() => resetChallenge(), 2500);
           return;
         }
       } catch (e) {
-        if (originalHandler) originalHandler(message);
+        // Si no es JSON valido, ignorar silenciosamente
       }
     };
 
-    return () => {
-      socket.onchannelmessage = originalHandler;
-    };
-  }, [
-    isConnected,
-    userId,
-    username,
-    challengeStatus,
-    currentChallenge,
-    startTimeout,
-    resetChallenge,
-  ]);
+    window.addEventListener("nakama_message", handleNakamaMessage);
+    return () =>
+      window.removeEventListener("nakama_message", handleNakamaMessage);
+  }, [userId, challengeStatus, resetChallenge, startTimeout]);
 
   return (
     <ChallengeContext.Provider

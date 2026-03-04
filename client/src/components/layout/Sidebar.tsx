@@ -132,15 +132,15 @@ export const Sidebar: React.FC = () => {
         </span>
       ) : (
         onlineUsers.map((user) => {
-          const isSelf = user.user_id === userId;
-          const isSelected = selectedUserId === user.user_id;
+          const isSelf = user.userId === userId;
+          const isSelected = selectedUserId === user.userId;
 
           return (
-            <React.Fragment key={user.session_id}>
+            <div key={user.userId}>
               <UserItem
                 $isSelf={isSelf}
                 $isSelected={isSelected}
-                onClick={() => handleUserClick(user.user_id)}
+                onClick={() => handleUserClick(user.userId)}
               >
                 {user.username} {isSelf && "(TÚ)"}
                 {!isSelf && <StatusBadge>ONLINE</StatusBadge>}
@@ -149,13 +149,13 @@ export const Sidebar: React.FC = () => {
               {/* Mostrar botón de reto si el usuario está seleccionado */}
               {isSelected && !isSelf && (
                 <ChallengeButton
-                  onClick={() => handleChallenge(user.user_id, user.username)}
+                  onClick={() => handleChallenge(user.userId, user.username)}
                   disabled={isBusy}
                 >
                   {isBusy ? "RETO EN CURSO..." : "⚔️ RETAR"}
                 </ChallengeButton>
               )}
-            </React.Fragment>
+            </div>
           );
         })
       )}
