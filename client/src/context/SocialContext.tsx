@@ -1,25 +1,34 @@
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  useRef,
-} from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "./AuthContext";
-import type { ChannelMessage, Presence } from "@heroiclabs/nakama-js";
 import { nakamaService } from "../lib/nakama";
 
+export interface UserPresence {
+  userId: string;
+  username: string;
+  isOnline: boolean;
+}
+
+export interface ChatMessage {
+  messageId: string;
+  senderId: string;
+  username: string;
+  content: string;
+  timestamp: number;
+}
+
 interface SocialContextType {
-  onlineUsers: Presence[];
-  messages: ChannelMessage[];
+  onlineUsers: UserPresence[];
+  messages: ChatMessage[];
   sendMessage: (text: string) => Promise<void>;
+  channelId: string | null;
 }
 
 export const SocialContext = createContext<SocialContextType>({
   onlineUsers: [],
   messages: [],
-  sendMessage: async () => {}, // placeholder
+  sendMessage: async () => {},
+  channelId: null,
 });
 
 export const useSocial = () => useContext(SocialContext);
@@ -27,121 +36,120 @@ export const useSocial = () => useContext(SocialContext);
 export const SocialProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const { isConnected, isAuthenticated } = useAuth();
-  const [onlineUsers, setOnlineUsers] = useState<Presence[]>([]);
-  const [messages, setMessages] = useState<ChannelMessage[]>([]);
+  const { userId, username, isConnected } = useAuth();
+  const [onlineUsers, setOnlineUsers] = useState<UserPresence[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [lobbyChannelId, setLobbyChannelId] = useState<string | null>(null);
 
-  // Use a ref to track if we're already initializing to avoid race conditions
-  const isInitializing = useRef(false);
-
   useEffect(() => {
-    // Only run if authenticated and connected, and if not already initializing
-    if (
-      isConnected &&
-      isAuthenticated &&
-      nakamaService.socket &&
-      !isInitializing.current
-    ) {
-      const socket = nakamaService.socket;
-      isInitializing.current = true;
+    if (!isConnected || !userId || !nakamaService.socket) return;
 
-      const runSocialinit = async () => {
-        try {
-          // Extra wait just in case to ensure SDK internal state is fully updated
-          await new Promise((r) => setTimeout(r, 500));
+    const socket = nakamaService.socket;
 
-          console.log("--- SocialContext: Inicializando canal lobby ---");
+    const initSocial = async () => {
+      try {
+        console.log("🎮 Uniéndose al Lobby Global...");
+        const channel = await socket.joinChat("Lobby", 1, true, false);
+        setLobbyChannelId(channel.id);
 
-          // Update status globally
-          await socket.updateStatus("Online");
-          console.log("Status updated to Online");
+        // --- CARGA INICIAL DE USUARIOS ---
+        const presences = Object.values(channel.presences || {}).map(
+          (p: any) => ({
+            userId: p.user_id,
+            username: p.username,
+            isOnline: true,
+          }),
+        );
 
-          // 1. Join Global Lobby Channel (Type 1 = Room)
-          const channel = await socket.joinChat(
-            "Global_Lobby",
-            1,
-            false,
-            false,
-          );
-          console.log("¡Canal Global Lobby unido!", channel);
-          setLobbyChannelId(channel.id);
-
-          if (channel.presences) {
-            setOnlineUsers(channel.presences);
-          }
-
-          if (channel.self) {
-            setOnlineUsers((prev) => {
-              if (!prev.find((u) => u.user_id === channel.self.user_id)) {
-                return [...prev, channel.self];
-              }
-              return prev;
-            });
-          }
-
-          // Register event handlers
-          socket.onchannelpresence = (presenceEvent) => {
-            setOnlineUsers((currentUsers) => {
-              let updatedUsers = [...currentUsers];
-              if (presenceEvent.leaves) {
-                presenceEvent.leaves.forEach((leftUser) => {
-                  updatedUsers = updatedUsers.filter(
-                    (u) => u.session_id !== leftUser.session_id,
-                  );
-                });
-              }
-              if (presenceEvent.joins) {
-                presenceEvent.joins.forEach((joinedUser) => {
-                  if (
-                    !updatedUsers.find(
-                      (u) => u.session_id === joinedUser.session_id,
-                    )
-                  ) {
-                    updatedUsers.push(joinedUser);
-                  }
-                });
-              }
-              return updatedUsers;
-            });
-          };
-
-          socket.onchannelmessage = (message) => {
-            setMessages((prev) => [...prev, message]);
-          };
-        } catch (e) {
-          console.error("Error inicializando SocialContext:", e);
-          // If it failed, allow retry in next cycle
-          isInitializing.current = false;
+        // --- ASEGURARNOS DE QUE NOSOTROS ESTAMOS EN LA LISTA ---
+        const list = [...presences];
+        if (userId && username && !list.find((u) => u.userId === userId)) {
+          list.push({ userId, username, isOnline: true });
         }
-      };
 
-      runSocialinit();
+        setOnlineUsers(list);
+      } catch (e) {
+        console.error("Error al inicializar SocialContext:", e);
+      }
+    };
 
-      return () => {
-        // Not resetting isInitializing here as we don't want it to rerun unless connection state flips
-      };
-    }
+    initSocial();
 
-    if (!isConnected) {
-      // Reset if we lose connection
-      isInitializing.current = false;
-      setLobbyChannelId(null);
-    }
-  }, [isConnected, isAuthenticated]);
+    // ESCUCHA DE MENSAJES
+    const handleNakamaMessage = (event: Event) => {
+      const message = (event as CustomEvent).detail;
+      try {
+        const content =
+          typeof message.content === "string"
+            ? JSON.parse(message.content)
+            : message.content;
+        if (content._type) return;
+
+        const chatMsg: ChatMessage = {
+          messageId: message.message_id,
+          senderId: message.sender_id,
+          username: message.username,
+          content: content.text || "",
+          timestamp: message.create_time
+            ? new Date(message.create_time).getTime()
+            : Date.now(),
+        };
+
+        setMessages((prev) => [...prev, chatMsg]);
+      } catch (e) {}
+    };
+
+    window.addEventListener("nakama_message", handleNakamaMessage);
+
+    // GESTIÓN DE PRESENCIAS EN VIVO
+    socket.onchannelpresence = (presence) => {
+      setOnlineUsers((prev) => {
+        let nextUsers = [...prev];
+
+        presence.joins?.forEach((join: any) => {
+          if (!nextUsers.find((u) => u.userId === join.user_id)) {
+            nextUsers.push({
+              userId: join.user_id,
+              username: join.username,
+              isOnline: true,
+            });
+          }
+        });
+
+        presence.leaves?.forEach((leave: any) => {
+          if (leave.user_id !== userId) {
+            // No nos borramos a nosotros mismos
+            nextUsers = nextUsers.filter((u) => u.userId !== leave.user_id);
+          }
+        });
+
+        return nextUsers;
+      });
+    };
+
+    return () => {
+      window.removeEventListener("nakama_message", handleNakamaMessage);
+    };
+  }, [isConnected, userId, username]);
 
   const sendMessage = async (text: string) => {
-    if (nakamaService.socket && lobbyChannelId) {
-      try {
-        await nakamaService.socket.writeChatMessage(lobbyChannelId, { text });
-      } catch (e) {
-        console.error("Error enviando mensaje:", e);
-      }
+    if (!lobbyChannelId || !nakamaService.socket) return;
+    try {
+      await nakamaService.socket.writeChatMessage(lobbyChannelId, { text });
+    } catch (e) {
+      console.error("Error enviando mensaje:", e);
     }
   };
 
   return (
-    <SocialContext.Provider value={{ onlineUsers, messages, sendMessage }}>
+    <SocialContext.Provider
+      value={{
+        onlineUsers,
+        messages,
+        sendMessage,
+        channelId: lobbyChannelId,
+      }}
+    >
       {children}
     </SocialContext.Provider>
   );

@@ -17,11 +17,9 @@ class NakamaService {
 
   // 1. Autenticar dispositivo anónimo
   async authenticateDevice(customId?: string): Promise<Session> {
-    // Para pruebas locales: Generamos UN ID ÚNICO por CADA ejecucción
-    // Esto evita que dos ventanas en la misma PC compartan la misma cuenta
     const deviceId =
       customId ||
-      `dev-${crypto.randomUUID()}-${Math.floor(Math.random() * 1000)}`;
+      `dev-${crypto.randomUUID()}-${window.location.port || "default"}`;
 
     // Guardamos este ID solo para esta sesión de la ventana
     console.log("Autenticando con Device ID Único:", deviceId);
@@ -92,6 +90,12 @@ class NakamaService {
 
         this.socket.onerror = (error) => {
           console.error("Error en Socket:", error);
+        };
+
+        // Sistema de distribución de mensajes (multicast)
+        this.socket.onchannelmessage = (message) => {
+          const event = new CustomEvent("nakama_message", { detail: message });
+          window.dispatchEvent(event);
         };
 
         // this.session! es seguro aquí porque lo validamos arriba
