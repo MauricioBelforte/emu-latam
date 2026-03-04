@@ -4,6 +4,7 @@ import { useAuth } from "./context/AuthContext";
 import { theme } from "./styles/theme";
 import { GlobalStyles } from "./styles/GlobalStyles";
 import { AppShell } from "./components/layout/AppShell";
+import { ChallengeModal } from "./components/ui/ChallengeModal";
 
 const GameCard = styled.div`
   background: linear-gradient(
@@ -135,6 +136,7 @@ function App() {
           )}
         </GameCard>
       </AppShell>
+      <ChallengeModal />
     </ThemeProvider>
   );
 }

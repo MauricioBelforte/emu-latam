@@ -2,8 +2,8 @@ import { app, BrowserWindow, ipcMain } from "electron";
 import path from "path";
 import { spawn } from "child_process";
 
-// Prevent multiple instances
-const gotTheLock = app.requestSingleInstanceLock();
+// Prevent multiple instances (DISABLED FOR TESTING CHALLENGE SYSTEM)
+const gotTheLock = true; // app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
   app.quit();

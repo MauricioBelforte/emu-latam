@@ -17,15 +17,14 @@ class NakamaService {
 
   // 1. Autenticar dispositivo anónimo
   async authenticateDevice(customId?: string): Promise<Session> {
+    // Para pruebas locales: Generamos UN ID ÚNICO por CADA ejecucción
+    // Esto evita que dos ventanas en la misma PC compartan la misma cuenta
     const deviceId =
       customId ||
-      localStorage.getItem("nakama_device_id") ||
-      crypto.randomUUID();
+      `dev-${crypto.randomUUID()}-${Math.floor(Math.random() * 1000)}`;
 
-    // Guardar para futuros logins
-    if (!localStorage.getItem("nakama_device_id")) {
-      localStorage.setItem("nakama_device_id", deviceId);
-    }
+    // Guardamos este ID solo para esta sesión de la ventana
+    console.log("Autenticando con Device ID Único:", deviceId);
 
     try {
       this.session = await this.client.authenticateDevice(deviceId, true);
