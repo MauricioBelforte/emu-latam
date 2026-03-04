@@ -1,0 +1,20 @@
+name: nakama-node-1
+database:
+  address: 
+    - "postgres:localdb@127.0.0.1:5432/nakama"
+logger:
+  level: "DEBUG"
+session:
+  token_expiry_sec: 7200
+  encryption_key: "v3ry-secret-encryption-key"
+socket:
+  server_key: "defaultkey"
+  port: 7350
+console:
+  port: 7351
+  username: "admin"
+  password: "password"
+  signing_key: "v3ry-secret-signing-key"
+cluster:
+  gossip_bindaddr: "127.0.0.1:7349"
+  gossip_port: 7349
