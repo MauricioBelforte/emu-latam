@@ -5,12 +5,15 @@ import App from "./App.tsx";
 
 import { AuthProvider } from "./context/AuthContext";
 import { SocialProvider } from "./context/SocialContext";
+import { ChallengeProvider } from "./context/ChallengeContext";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <AuthProvider>
       <SocialProvider>
-        <App />
+        <ChallengeProvider>
+          <App />
+        </ChallengeProvider>
       </SocialProvider>
     </AuthProvider>
   </StrictMode>,

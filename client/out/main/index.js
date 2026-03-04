@@ -2,10 +2,7 @@
 const electron = require("electron");
 const path = require("path");
 const child_process = require("child_process");
-const gotTheLock = electron.app.requestSingleInstanceLock();
-if (!gotTheLock) {
-  electron.app.quit();
-} else {
+{
   async function createWindow() {
     const win = new electron.BrowserWindow({
       width: 1400,

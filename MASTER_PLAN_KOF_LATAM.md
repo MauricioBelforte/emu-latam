@@ -136,16 +136,16 @@ Este documento es la guía maestra para el desarrollo de la plataforma estilo Fi
 
 ## FASE 8: SISTEMA DE RETOS (MATCHMAKING) (10 Tareas)
 
-- [ ] 8.01. Definir estructura de MatchData para retos. [AVANZADO]
-- [ ] 8.02. UI: Botón "Retar" en perfil de usuario. [FACIL]
-- [ ] 8.03. Enviar solicitud de reto directo a usuario B. [AVANZADO]
-- [ ] 8.04. Usuario B recibe evento y muestra Modal. [MEDIO]
-- [ ] 8.05. Usuario B acepta: Enviar confirmación. [MEDIO]
-- [ ] 8.06. Usuario B rechaza: Enviar rechazo. [FACIL]
-- [ ] 8.07. Usuario A recibe respuesta. [MEDIO]
-- [ ] 8.08. Si aceptado: Ambos clientes inician preparación. [AVANZADO]
-- [ ] 8.09. Determinar quién es HOST y quién es CLIENT. [MEDIO]
-- [ ] 8.10. Timeout de reto (30s). [MEDIO]
+- [x] 8.01. Definir estructura de MatchData para retos. [AVANZADO]
+- [x] 8.02. UI: Botón "Retar" en perfil de usuario. [FACIL]
+- [x] 8.03. Enviar solicitud de reto directo a usuario B. [AVANZADO]
+- [x] 8.04. Usuario B recibe evento y muestra Modal. [MEDIO]
+- [x] 8.05. Usuario B acepta: Enviar confirmación. [MEDIO]
+- [x] 8.06. Usuario B rechaza: Enviar rechazo. [FACIL]
+- [x] 8.07. Usuario A recibe respuesta. [MEDIO]
+- [x] 8.08. Si aceptado: Ambos clientes inician preparación. [AVANZADO]
+- [x] 8.09. Determinar quién es HOST y quién es CLIENT. [MEDIO]
+- [x] 8.10. Timeout de reto (30s). [MEDIO]
 
 ---
 

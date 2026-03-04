@@ -42,7 +42,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     const initAuth = async () => {
       if (isConnecting.current) return;
 
-      const restored = nakamaService.restoreSession();
+      // DESACTIVADO TEMPORALMENTE PARA PRUEBAS MULTI-JUGADOR LOCAL
+      // Queremos que siempre nos pida "Insert Coin" o nos cree usuario nuevo
+      const restored = false; // nakamaService.restoreSession();
       if (restored && nakamaService.session) {
         console.log("Sesión previa recuperada");
         setUserId(nakamaService.session.user_id || null);
