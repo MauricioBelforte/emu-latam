@@ -12,6 +12,13 @@ dist
 dist-ssr
 *.local
 
+# RetroArch
+/retroarch/
+/client/out/
+/client/dist/
+/client/release/
+/client/.env
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
