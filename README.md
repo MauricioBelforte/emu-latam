@@ -1,47 +1,39 @@
-# 🕹️ EMU-LATAM: KOF '98 Netplay (v1.0 - Conexión Directa P2P)
+# ☁️ EMU-LATAM: KOF '98 Netplay (v2.0 - Relay & Cloud - RAMA EXPERIMENTAL)
 
-> **ESTA RAMA (`main`) CONTIENE LA VERSIÓN 1.0 (CONEXIÓN DIRECTA PC A PC).**
+> **ESTA RAMA (`feature/relay-cloud`) CONTIENE LA VERSIÓN EXPERIMENTAL DE "CERO CONFIGURACIÓN".**
 
-Bienvenido a la primera versión funcional del proyecto EMU-LATAM, un launcher de KOF '98 inspirado en Fightcade.
+Bienvenido a la versión de desarrollo inspirada 100% en Fightcade y GGPO. El objetivo de esta rama es eliminar la necesidad de que los usuarios configuren sus routers o abran puertos.
 
-## 📌 Sobre esta versión (v1.0 - P2P)
+## 📌 Sobre esta versión (v2.0 - NAT Traversal)
 
-Esta versión se basa en un modelo de **conexión directa (P2P)**. Esto significa que **las dos PCs se conectan directamente entre sí** sin pasar por servidores intermediarios (relays).
+A diferencia de la rama `main` que usa conexión directa, esta versión utiliza servidores intermediarios para "esquivar" los firewalls de los jugadores (NAT Traversal).
 
-### ✅ Ventajas:
+### ✅ Ventajas (Próximamente):
 
-- **Latencia mínima real**: Al no haber intermediarios, el ping es el más bajo posible entre los dos jugadores.
-- **Independencia total**: Todo corre localmente, no dependes de servidores externos que puedan caerse.
+- **Cero Configuración**: Descargar y jugar. Ningún jugador necesita tocar su router (Port Forwarding).
+- **Nakama Server Global**: El chat y emparejamiento vivirán en la nube de forma permanente, no en la PC de un jugador.
 
 ### ⚠️ Desventajas:
 
-- **Requiere configuración de Red**: El Host debe abrir puertos en su Router (Port Forwarding) y en el Firewall de Windows.
-- **Las IPs deben conocerse**: Los jugadores deben compartir sus IPs públicas para interactuar.
+- **Latencia Agregada**: Al depender de servidores de Relevo (RetroArch Relays), la señal hace un viaje un poco más largo, lo cual podría sumar algunos milisegundos de Ping frente a la rama P2P.
 
 ---
 
-## 🛠️ ¿Cómo funciona?
+## 🏗️ Estado Actual del Desarrollo
 
-El proyecto tiene dos componentes clave:
+Esté código se encuentra en **Construcción**.
 
-1. **Nakama Server**: El backend de emparejamiento y chat de voz/texto. (Usa el puerto `7350`).
-2. **RetroArch (FBNeo)**: El emulador que corre el juego usando el protocolo nativo de Netplay. (Usa el puerto `55435`).
+**Fases Planeadas para esta rama:**
 
----
-
-## 📖 Guías de Usuario
-
-Si quieres probar esta versión y hostear una partida, sigue los siguientes manuales:
-
-1. **[Guia de Instalación](GUIA_INSTALACION.md)**: Cómo instalar y ejecutar por primera vez.
-2. **[Guía de Port Forwarding](GUIA_PORT_FORWARDING.md)**: Obligatorio si quieres invitar a un amigo que no esté en tu misma casa.
-3. **[Reporte Técnico](REPORTE_TECNICO_NETPLAY.md)**: El registro completo de cómo se construyó esta arquitectura en su interior.
+1. [ ] Cambiar el lanzador (`index.ts`) para usar banderas `--mitm` (Man-in-the-Middle / Relay Server).
+2. [ ] Configurar RetroArch para conectarse a Relays públicos (ej: Nueva York o Madrid).
+3. [ ] Migrar el backend Docker de Nakama a un servicio en la nube gratuito (Render, Railway o Fly.io).
 
 ---
 
 ## 🔀 Ramas del Proyecto (Git)
 
-Este proyecto fue diseñado para escalar. Si estás buscando la versión que no requiere configurar puertos (estilo Fightcade), por favor cambia a la rama experimental:
+Si buscas la versión estable 1vs1 que ya funciona (pero requiere abrir puertos), regresa a la rama principal:
 
-- `main` ➔ **Versión Actual:** Conexión estricta punto a punto P2P (Require Port Forwarding).
-- `feature/relay-cloud` ➔ **Próxima Versión:** (En desarrollo) Uso de Servidores de Relevo (RetroArch Relays) y Nakama Cloud (Cero configuración para el usuario final).
+- `main` ➔ **Versión Estable:** Conexión estricta punto a punto P2P (Require Port Forwarding).
+- `feature/relay-cloud` ➔ **Estás aquí:** Desarrollo experimental para evitar abrir puertos usando Servidores Relay.
