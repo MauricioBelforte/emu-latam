@@ -6,11 +6,11 @@
 
 ## 📋 Checklist General
 
-- [ ] **Fase 1:** Automatizar el arranque de Nakama con Docker — **Dificultad: BAJA** 🟢
-- [ ] **Fase 2:** Preparar el paquete de RetroArch para distribución — **Dificultad: BAJA** 🟢
-- [ ] **Fase 3:** Hacer que el Launcher apunte a una IP de servidor configurable — **Dificultad: BAJA** 🟢
+- [x] **Fase 1:** Automatizar el arranque de Nakama con Docker — **Dificultad: BAJA** 🟢
+- [x] **Fase 2:** Preparar el paquete de RetroArch para distribución — **Dificultad: BAJA** 🟢
+- [x] **Fase 3:** Hacer que el Launcher apunte a una IP de servidor configurable — **Dificultad: BAJA** 🟢
 - [ ] **Fase 4:** Configurar la red (Firewall + Port Forwarding) — **Dificultad: ALTA** 🔴
-- [ ] **Fase 5:** Escribir la guía de instalación para la segunda PC — **Dificultad: BAJA** 🟢
+- [x] **Fase 5:** Escribir la guía de instalación para la segunda PC — **Dificultad: BAJA** 🟢
 - [ ] **Fase 6:** Prueba de conexión real entre dos PCs — **Dificultad: MEDIA/ALTA** 🟡🔴
 
 ---
