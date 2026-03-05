@@ -68,11 +68,11 @@ Guarda los cambios y reinicia el router si te lo pide.
 
 ## 🎮 PASO 5: Que tu amigo se conecte
 
-Una vez hechos estos pasos, tú ejecutas tu ambiente normalmente con `start.bat`.
+Una vez hechos estos pasos, tú ejecutas tu ambiente normalmente con `start_host.bat`.
 
 Tu oponente (en otra casa) debe hacer lo siguiente:
 
 1. Editar su archivo `client/.env`.
 2. Escribir allí **TU IP PÚBLICA**. Debería verse así:
    `VITE_NAKAMA_HOST=181.45.XXX.XX` (la que sacaste en el Paso 2).
-3. Lanzar su juego. Verá tu nombre en el lobby. Cuando se reten, conectarán directamente.
+3. Hacer doble clic en **`start_cliente.bat`**. Verá tu nombre en el lobby. Cuando se reten, conectarán directamente.
