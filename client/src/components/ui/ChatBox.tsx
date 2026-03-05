@@ -77,22 +77,13 @@ export const ChatBox: React.FC = () => {
     <ChatContainer>
       <MessageList>
         {messages.map((msg) => {
-          const isSelf = msg.sender_id === userId;
-          let content = msg.content;
-
-          try {
-            if (typeof content === "string") {
-              content = JSON.parse(content);
-            }
-          } catch (e) {
-            console.error("Error parseando contenido:", e);
-          }
+          const isSelf = msg.senderId === userId;
+          const content = msg.content;
 
           return (
-            <MessageLine key={msg.message_id} $isSelf={isSelf}>
+            <MessageLine key={msg.messageId} $isSelf={isSelf}>
               <User $isSelf={isSelf}>{msg.username}:</User>
-              {content?.text ||
-                (typeof content === "string" ? content : "Mensaje sin texto")}
+              {content || "Mensaje sin texto"}
             </MessageLine>
           );
         })}

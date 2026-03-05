@@ -2,7 +2,7 @@ import { Client, Session } from "@heroiclabs/nakama-js";
 import type { Socket } from "@heroiclabs/nakama-js";
 
 const USE_SSL = false; // Localhost sin HTTPS
-const HOST = "127.0.0.1";
+const HOST = import.meta.env.VITE_NAKAMA_HOST || "127.0.0.1";
 const PORT = "7350";
 const SERVER_KEY = "defaultkey";
 
