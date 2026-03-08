@@ -1,39 +1,32 @@
-# ☁️ EMU-LATAM: KOF '98 Netplay (v2.0 - Relay & Cloud - RAMA EXPERIMENTAL)
+# EMU LATAM - V2 (Arquitectura en Servidor Relay)
 
-> **ESTA RAMA (`feature/relay-cloud`) CONTIENE LA VERSIÓN EXPERIMENTAL DE "CERO CONFIGURACIÓN".**
+¡Bienvenido a la rama V2 del proyecto **Emu Latam**!
 
-Bienvenido a la versión de desarrollo inspirada 100% en Fightcade y GGPO. El objetivo de esta rama es eliminar la necesidad de que los usuarios configuren sus routers o abran puertos.
+Esta versión representa una evolución significativa de nuestro cliente de emparejamiento y lanzamiento para KOF '98 (y títulos retro). Hemos transicionado de un modelo P2P directo (PC a PC) a un **Modelo basado en Servidores Relay**.
 
-## 📌 Sobre esta versión (v2.0 - NAT Traversal)
+## ¿Por qué esta bifurcación / etapa V2?
 
-A diferencia de la rama `main` que usa conexión directa, esta versión utiliza servidores intermediarios para "esquivar" los firewalls de los jugadores (NAT Traversal).
+En la Versión 1 (P2P), uno de los jugadores (el Host de la partida) estaba obligado a realizar **Port Forwarding** (apertura de puertos) manualmente en la configuración de su Router para que el jugador contrario pudiera conectarse. Esto generó fricción técnica intolerable y una barrera de entrada alta para gran parte de los usuarios, además de posibles inseguridades en sus redes locales.
 
-### ✅ Ventajas (Próximamente):
+En esta **V2**, **ningún usuario necesita configurar su router**.
+Toda la lógica de red ahora pasa por un **Servidor Intermediario (Relay)** ubicado en la nube, que acepta las conexiones salientes de ambos emuladores y funciona como puente transparente para cruzar datos.
 
-- **Cero Configuración**: Descargar y jugar. Ningún jugador necesita tocar su router (Port Forwarding).
-- **Nakama Server Global**: El chat y emparejamiento vivirán en la nube de forma permanente, no en la PC de un jugador.
+### Pilares Fundamentales de la V2:
 
-### ⚠️ Desventajas:
+1. **Cero Configuración de Router**: Iniciar y conectarse a una partida multijugador será tan rápido como hacer "Clic". El port forwarding desaparece.
+2. **Infraestructura Gratuita (Free Tier)**: Aprovecharemos instancias en la nube que ofrezcan capas gratuitas (Como Oracle Cloud Always Free, Render o Fly.io) para contener el pequeño núcleo UDP del Relay, conservando el proyecto 100% libre de costos de mantenimiento.
+3. **Altamente Modular**: La lógica de Relay Server se programa de forma abstraída. El cliente (la app) sencillamente consultará qué IP usar. Si un servidor Relay deja de funcionar o tiene alta latencia (lag), simplemente se remueve de un listado y se conecta otro.
+4. **Selector de Servidores**: Más adelante, el jugador tendrá la capacidad de elegir o probar pings contra diversos Relay gratuitos distribuidos globalmente, asegurando una conexión ideal con su contrincante.
 
-- **Latencia Agregada**: Al depender de servidores de Relevo (RetroArch Relays), la señal hace un viaje un poco más largo, lo cual podría sumar algunos milisegundos de Ping frente a la rama P2P.
+## Estructura del Proyecto
 
----
+- `/documentacion_v1`: Contiene exclusivamente todo el gran historial de documentación conceptual y guías técnicas referidas a la V1 y el enfoque PC to PC si en el futuro se quiere investigar o retomar.
+- `/backend`: Nuestro servidor **Nakama** encargado de emparejamientos (Matchmaking), usuarios, chat global y emisión de Relay dinámico.
+- `/client`: Aplicación Desktop desarrollada en **React + Electron** que sirve de Launcher principal.
+- `/emulator`: Binarios, assets y configuraciones base del emulador seleccionado.
 
-## 🏗️ Estado Actual del Desarrollo
+## Plan Maestro
 
-Esté código se encuentra en **Construcción**.
+Para comprender de cerca el listado de tareas exhaustivo, el progreso y los niveles de dificultad que integran el desarrollo de la arquitectura Relay, debes consultar el documento raíz **`PLAN_V2.md`**.
 
-**Fases Planeadas para esta rama:**
-
-1. [ ] Cambiar el lanzador (`index.ts`) para usar banderas `--mitm` (Man-in-the-Middle / Relay Server).
-2. [ ] Configurar RetroArch para conectarse a Relays públicos (ej: Nueva York o Madrid).
-3. [ ] Migrar el backend Docker de Nakama a un servicio en la nube gratuito (Render, Railway o Fly.io).
-
----
-
-## 🔀 Ramas del Proyecto (Git)
-
-Si buscas la versión estable 1vs1 que ya funciona (pero requiere abrir puertos), regresa a la rama principal:
-
-- `main` ➔ **Versión Estable:** Conexión estricta punto a punto P2P (Require Port Forwarding).
-- `feature/relay-cloud` ➔ **Estás aquí:** Desarrollo experimental para evitar abrir puertos usando Servidores Relay.
+> **Estado Actual**: Refactorización de red y modularidad en progreso. Generando scripts de despliegue Relay.
