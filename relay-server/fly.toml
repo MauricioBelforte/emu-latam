@@ -1,0 +1,14 @@
+# fly.toml configuration for emu-latam-relay
+
+app = "emu-latam-relay"
+primary_region = "gru" # Sao Paulo, mejor latitud para LATAM. Cambiar si es necesario.
+
+[build]
+  dockerfile = "Dockerfile"
+
+[[services]]
+  internal_port = 55435
+  protocol = "udp"
+
+  [[services.ports]]
+    port = 55435

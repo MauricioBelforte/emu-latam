@@ -39,7 +39,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   ipcMain.handle("launch-game", async (_event, args) => {
-    const { isHost, peerIp } = args;
+    const { isHost, peerIp, useRelay, relayIp, relaySessionId } = args;
 
     const projectRoot = path.resolve(process.cwd(), "..");
     const retroArchDir = path.join(projectRoot, "retroarch");
@@ -48,7 +48,7 @@ app.whenReady().then(() => {
     const romPath = path.join(retroArchDir, "roms", "kof98.zip");
 
     console.log("-----------------------------------------");
-    console.log("🎮 INTENTANDO SPAWN DIRECTO");
+    console.log("🎮 SISTEMA DE LANZAMIENTO V2 - RELAY");
     console.log("🚀 EXE:", retroArchPath);
 
     if (!fs.existsSync(retroArchPath)) {
@@ -56,13 +56,40 @@ app.whenReady().then(() => {
       return { success: false, error: "EXE no existe" };
     }
 
-    // Argumentos limpios (Node los escapa automáticamente)
-    const spawnArgs = ["-L", corePath, romPath, "--port", "55435"];
+    // ARGUMENTOS DE NETPLAY (TCP NATIVO)
+    // El modo host SIEMPRE debe abrir el puerto 55435
+    const spawnArgs = ["-L", corePath, romPath];
 
-    if (isHost) {
-      spawnArgs.push("--host");
+    if (useRelay) {
+      console.log("🚀 MODO TUNEL ACTIVADO (bypassing puertos cerrados)");
+      
+      if (isHost) {
+        console.log("🎮 Iniciando como HOST en el puerto TCP 55435...");
+        spawnArgs.push("--host", "--port", "55435");
+      } else {
+        console.log(`🎮 Conectando como CLIENTE a: ${relayIp}`);
+        
+        // CORRECCIÓN CRÍTICA: RetroArch se rompe si usas "--connect host:port". 
+        // Hay que enviarlos por separado: "--connect host --port port".
+        let connectHost = relayIp;
+        let connectPort = "55435"; // defecto
+        
+        if (relayIp.includes(":")) {
+          const parts = relayIp.split(":");
+          connectHost = parts[0];
+          connectPort = parts[1];
+        }
+        
+        spawnArgs.push("--connect", connectHost);
+        spawnArgs.push("--port", connectPort);
+      }
     } else {
-      spawnArgs.push("--connect", peerIp || "127.0.0.1");
+      // Modo LAN estándar (sin túnel)
+      if (isHost) {
+        spawnArgs.push("--host", "--port", "55435");
+      } else {
+        spawnArgs.push("--connect", peerIp || "127.0.0.1", "--port", "55435");
+      }
     }
 
     try {
