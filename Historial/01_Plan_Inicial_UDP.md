@@ -16,7 +16,22 @@ La nueva arquitectura se basará en un **Servidor Relay / Servidor Intermedio** 
 - [x] 1.02. Crear el nuevo `README.md` alineado con la visión V2 (Arquitectura en base a Relay). [FACIL]
 - [x] 1.03. Crear este documento (`PLAN_V2.md`) detallando las nuevas fases y tareas. [FACIL]
 - [ ] 1.04. Crear una rama en git específica para la V2 (`git checkout -b v2-relay-architecture`). [FACIL]
-- [ ] 1.05. Investigar y documentar las opciones gratuitas de Relay Servers compatibles (Coturn, Netplay MITM de RetroArch, u opciones custom UDP sobre Fly.io/Oracle). [MEDIO]
+- [x] 1.05. Investigar y documentar las opciones gratuitas de Hosting No-CC (Sin tarjeta) optimizadas para Argentina y LATAM. [MEDIO]
+
+---
+
+## INVESTIGACIÓN DE HOSTING (LATAM + NO-CC)
+
+Para cumplir con el requisito de **sistema gratuito y sin tarjeta de crédito**, se han evaluado las siguientes opciones optimizadas para la latencia de Argentina (~30-50ms):
+
+| Opción                      | Región LATAM      | Requiere Tarjeta | Tipo de Servicio  | Latencia Est. (ARG) |
+| :-------------------------- | :---------------- | :--------------- | :---------------- | :------------------ |
+| **Playit.gg**               | Sao Paulo (SA-1)  | **NO**           | Túnel UDP/Anycast | 35ms - 50ms         |
+| **RetroArch Public Relays** | Sao Paulo         | **NO**           | Relay Integrado   | 40ms - 60ms         |
+| **VPSWala (Trial)**         | **Argentina**     | **NO**           | VPS (15 días)     | **10ms - 20ms**     |
+| **Fly.io / Oracle**         | Chile / Sao Paulo | SÍ               | Cloud PaaS        | 25ms - 45ms         |
+
+**Recomendación V2**: Utilizar **Playit.gg** como solución modular para el Relay custom, o los **Relays de Sao Paulo** de RetroArch para pruebas inmediatas, ya que garantizan el "No-CC" y latencias bajas.
 
 ---
 

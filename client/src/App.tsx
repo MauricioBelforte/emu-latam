@@ -64,6 +64,14 @@ const InsertCoinButton = styled.button`
 
 function App() {
   const { isAuthenticated, isConnected, loginGhost, username } = useAuth();
+  const [customRelay, setCustomRelay] = React.useState(
+    localStorage.getItem("emu_latam_relay") || "along-lamps.gl.at.ply.gg:23065",
+  );
+
+  const handleSaveRelay = () => {
+    localStorage.setItem("emu_latam_relay", customRelay);
+    alert("Configuración de Relay guardada!");
+  };
 
   const handleInsertCoin = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -71,13 +79,19 @@ function App() {
     await loginGhost();
   };
 
-  const handleTestGame = async () => {
+  const handleTestGame = async (isHost: boolean) => {
     try {
       // @ts-ignore - window.electron comes from preload
-      await window.electron.ipcRenderer.invoke("launch-game", { rom: "kof98" });
+      await window.electron.ipcRenderer.invoke("launch-game", {
+        rom: "kof98",
+        useRelay: true,
+        isHost: isHost,
+        relayIp: customRelay,
+        relaySessionId: "test-session-" + Date.now(),
+      });
     } catch (e) {
       console.error("Error al lanzar el juego:", e);
-      alert("Error: Asegúrate de tener fbneo.exe en la carpeta emulator/");
+      alert("Error: Asegúrate de tener el emulador configurado.");
     }
   };
 
@@ -96,28 +110,98 @@ function App() {
               INSERT COIN
             </InsertCoinButton>
           ) : (
-            <div style={{ textAlign: "center", marginTop: "20px" }}>
+            <div
+              style={{ textAlign: "center", marginTop: "10px", width: "100%" }}
+            >
               <p
                 style={{
                   color: theme.colors.primary,
                   fontFamily: theme.fonts.arcade,
                   fontSize: "1.2rem",
-                  marginBottom: "15px",
+                  marginBottom: "20px",
                 }}
               >
                 WELCOME, {username}
               </p>
 
-              <InsertCoinButton
-                onClick={handleTestGame}
+              <div
                 style={{
-                  padding: "15px 40px",
-                  fontSize: "1.2rem",
-                  marginBottom: "15px",
+                  background: "rgba(255,255,255,0.05)",
+                  padding: "20px",
+                  borderRadius: "8px",
+                  marginBottom: "25px",
+                  border: "1px solid #333",
                 }}
               >
-                TEST EMULATOR
-              </InsertCoinButton>
+                <p
+                  style={{
+                    color: "#aaa",
+                    fontSize: "0.7rem",
+                    marginBottom: "10px",
+                    textAlign: "left",
+                    fontFamily: "monospace",
+                  }}
+                >
+                  CONFIGURACIÓN DE RELAY (V2):
+                </p>
+                <input
+                  type="text"
+                  value={customRelay}
+                  onChange={(e) => setCustomRelay(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px",
+                    background: "#000",
+                    border: "1px solid #555",
+                    color: "#0f0",
+                    fontFamily: "monospace",
+                    marginBottom: "10px",
+                  }}
+                  placeholder="ej: mi-relay.playit.gg:23065"
+                />
+                <button
+                  onClick={handleSaveRelay}
+                  style={{
+                    width: "100%",
+                    padding: "8px",
+                    background: "#333",
+                    color: "#fff",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: "0.8rem",
+                  }}
+                >
+                  GUARDAR CONFIGURACIÓN
+                </button>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "10px",
+                  marginBottom: "20px",
+                }}
+              >
+                <InsertCoinButton
+                  onClick={() => handleTestGame(true)}
+                  style={{
+                    padding: "15px 10px",
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  1. HOST GAME
+                </InsertCoinButton>
+                <InsertCoinButton
+                  onClick={() => handleTestGame(false)}
+                  style={{
+                    padding: "15px 10px",
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  2. JOIN GAME
+                </InsertCoinButton>
+              </div>
 
               <p
                 style={{

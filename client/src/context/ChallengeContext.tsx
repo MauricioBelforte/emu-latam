@@ -141,27 +141,33 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({
     setChallengeStatus("accepted");
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
-    console.log("✅ ACEPTANDO RETO. Lanzando HOST...");
+    console.log("✅ ACEPTANDO RETO (MODO RELAY).");
+
+    // En V2, cargamos el relay configurado por el usuario o usamos el default
+    const savedRelay =
+      localStorage.getItem("emu_latam_relay") ||
+      "along-lamps.gl.at.ply.gg:23065";
+    const relaySessionId = `relay-${challengerId.slice(0, 5)}-${userId.slice(0, 5)}-${Date.now()}`;
+    const targetRelayIp = savedRelay;
 
     try {
       // @ts-ignore
-      const res = await window.electron.ipcRenderer.invoke("launch-game", {
+      await window.electron.ipcRenderer.invoke("launch-game", {
         isNetplay: true,
-        isHost: true,
+        useRelay: true,
+        relayIp: targetRelayIp,
+        relaySessionId: relaySessionId,
       });
 
-      const myIp = res?.myIp || "127.0.0.1";
-
-      if (res?.error) {
-        console.error("Error IPC:", res.error);
-      }
-      // Notificamos al retador enviándole nuestra IP
+      // Notificamos al retador enviándole los datos del Relay
       await sendToLobby(CHALLENGE_ACCEPT_MSG_TYPE, {
         targetId: challengerId,
-        hostIp: myIp,
+        useRelay: true,
+        relayIp: targetRelayIp,
+        relaySessionId: relaySessionId,
       });
     } catch (e) {
-      console.error("Error al lanzar Host:", e);
+      console.error("Error al lanzar Relay como Respondiente:", e);
     }
 
     setTimeout(() => resetChallenge(), 5000);
@@ -211,17 +217,18 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({
           if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
           console.log(
-            `🔥 ¡Reto aceptado! Lanzando CLIENTE conectando a: ${content.hostIp}`,
+            `🔥 ¡Reto aceptado! Lanzando CLIENTE vía RELAY: ${content.relayIp}`,
           );
 
-          // Lanzar Cliente con pequeno delay para asegurar que el Host este listo
+          // Lanzar Cliente conectando al mismo Relay y Sesión
           setTimeout(async () => {
             // @ts-ignore
             await window.electron.ipcRenderer
               .invoke("launch-game", {
                 isNetplay: true,
-                isHost: false,
-                peerIp: content.hostIp,
+                useRelay: true,
+                relayIp: content.relayIp,
+                relaySessionId: content.relaySessionId,
               })
               .catch(console.error);
           }, 500);
