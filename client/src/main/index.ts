@@ -3,6 +3,59 @@ import path from "path";
 import { spawn } from "child_process";
 import os from "os";
 import fs from "fs";
+import http from "http";
+import { ChildProcess } from "child_process";
+
+let nakamaProcess: ChildProcess | null = null;
+
+async function isNakamaRunning(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const req = http.get("http://127.0.0.1:7350", (res) => {
+      resolve(true);
+      res.resume();
+    });
+    req.on("error", () => {
+      resolve(false);
+    });
+    req.setTimeout(1000, () => {
+      req.destroy();
+      resolve(false);
+    });
+  });
+}
+
+function launchNakama(): void {
+  const projectRoot = path.resolve(process.cwd(), "..");
+  const nakamaDir = path.join(projectRoot, "backend");
+  const nakamaPath = path.join(nakamaDir, "nakama.exe");
+
+  if (!fs.existsSync(nakamaPath)) {
+    console.error("❌ Nakama server not found at:", nakamaPath);
+    return;
+  }
+
+  isNakamaRunning().then((running) => {
+    if (running) {
+      console.log("✅ Nakama is already running.");
+      return;
+    }
+
+    console.log("🚀 Launching Nakama (Hidden Mode)...");
+    nakamaProcess = spawn(nakamaPath, ["--config", "local.yml"], {
+      cwd: nakamaDir,
+      windowsHide: true,
+      stdio: "ignore",
+    });
+
+    nakamaProcess.on("error", (err) => {
+      console.error("❌ Failed to start Nakama:", err);
+    });
+
+    if (nakamaProcess.pid) {
+      console.log(`✅ Nakama started (PID: ${nakamaProcess.pid})`);
+    }
+  });
+}
 
 function createWindow(): void {
   if (!app.requestSingleInstanceLock()) {
@@ -138,9 +191,17 @@ app.whenReady().then(() => {
     }
   });
 
+  launchNakama();
   createWindow();
 });
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
+});
+
+app.on("before-quit", () => {
+  if (nakamaProcess) {
+    console.log("🛑 Stopping Nakama...");
+    nakamaProcess.kill();
+  }
 });
