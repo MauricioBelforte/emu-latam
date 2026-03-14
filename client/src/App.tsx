@@ -65,8 +65,9 @@ const InsertCoinButton = styled.button`
 function App() {
   const { isAuthenticated, isConnected, loginGhost, username } = useAuth();
   const [customRelay, setCustomRelay] = React.useState(
-    localStorage.getItem("emu_latam_relay") || "along-lamps.gl.at.ply.gg:23065",
+    localStorage.getItem("emu_latam_relay") || "bore.pub:18863",
   );
+  const [isLaunchingRelay, setIsLaunchingRelay] = React.useState(false);
 
   const handleSaveRelay = () => {
     localStorage.setItem("emu_latam_relay", customRelay);
@@ -80,17 +81,40 @@ function App() {
   };
 
   const handleTestGame = async (isHost: boolean) => {
+    let finalRelayIp = customRelay;
+
     try {
+      if (isHost) {
+        setIsLaunchingRelay(true);
+        console.log("🛠️ Solicitando Túnel Automático...");
+        // @ts-ignore
+        const result = await window.electron.ipcRenderer.invoke("start-relay-tunnel");
+        
+        if (result.success) {
+          console.log("✅ Túnel obtenido:", result.url);
+          finalRelayIp = result.url;
+          setCustomRelay(result.url);
+          localStorage.setItem("emu_latam_relay", result.url);
+        } else {
+          console.error("❌ Error en túnel:", result.error);
+          alert("Error al iniciar túnel: " + result.error);
+          setIsLaunchingRelay(false);
+          return;
+        }
+        setIsLaunchingRelay(false);
+      }
+
       // @ts-ignore - window.electron comes from preload
       await window.electron.ipcRenderer.invoke("launch-game", {
         rom: "kof98",
         useRelay: true,
         isHost: isHost,
-        relayIp: customRelay,
+        relayIp: finalRelayIp,
         relaySessionId: "test-session-" + Date.now(),
       });
     } catch (e) {
       console.error("Error al lanzar el juego:", e);
+      setIsLaunchingRelay(false);
       alert("Error: Asegúrate de tener el emulador configurado.");
     }
   };
@@ -185,12 +209,15 @@ function App() {
               >
                 <InsertCoinButton
                   onClick={() => handleTestGame(true)}
+                  disabled={isLaunchingRelay}
                   style={{
                     padding: "15px 10px",
                     fontSize: "0.9rem",
+                    opacity: isLaunchingRelay ? 0.5 : 1,
+                    position: "relative"
                   }}
                 >
-                  1. HOST GAME
+                  {isLaunchingRelay ? "CREANDO TÚNEL..." : "1. HOST GAME"}
                 </InsertCoinButton>
                 <InsertCoinButton
                   onClick={() => handleTestGame(false)}

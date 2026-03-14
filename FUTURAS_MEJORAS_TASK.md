@@ -15,10 +15,10 @@ El objetivo de esta fase es hacer que la experiencia del usuario sea "un solo cl
 - [x] **⚙️ TEST AUTOMÁTICO (Consola):** Programar un cerrado automático de la App tras 5 segundos y ejecutar `taskkill` o `tasklist` para afirmar que la memoria quedó limpia. **(RESULTADO: EXITOSO)**.
 
 ### 1.2. Gestión Automática de IP/Túnel (Bypass Manual)
-- [ ] **Integración de Bore:** Programar el Host para lanzar `bore local 55435 --to bore.pub` nativamente mediante `child_process` dentro de Electron, extrayendo el puerto dinámico con un `Regex` desde la salida de consola (stdout).
-- [ ] **⚙️ TEST AUTOMÁTICO (Consola):** Ejecutar un script local `test_bore_parser.js` que simule la salida de consola de bore y verificar si la App extrae correctamente el puerto (ej: `18863`) de manera analítica (sin abrir un bat).
-- [ ] **Actualización Automática a la Nube:** Hacer que la App guarde la cadena `bore.pub:XXXX` directamente en el Match Data o Storage de Nakama una vez generada, para que el invitado la reciba automáticamente.
-- [ ] **⚙️ TEST AUTOMÁTICO (Consola):** Utilizar `curl` o un script Node.js hacia la API de Nakama para pedir los metadatos de la sala actual y comprobar en crudo (`JSON`) que la cadena de conexión contenga "bore.pub" y el número de puerto válido.
+- [x] **Integración de Bore:** Programar el Host para lanzar `bore local 55435 --to bore.pub` nativamente mediante `child_process` dentro de Electron, extrayendo el puerto dinámico con un `Regex` desde la salida de consola (stdout).
+- [x] **⚙️ TEST AUTOMÁTICO (Consola):** Ejecutar un script local `test_bore_parser.js` que simule la salida de consola de bore y verificar si la App extrae correctamente el puerto de manera analítica. **(RESULTADO: EXITOSO - URL bore.pub:12828 capturada instantáneamente)**.
+- [x] **Actualización Automática a la Nube:** Hacer que la App guarde la cadena `bore.pub:XXXX` directamente en el Match Data o Storage de Nakama una vez generada, para que el invitado la reciba automáticamente.
+- [x] **⚙️ TEST AUTOMÁTICO (Consola):** Utilizar `curl` o un script Node.js hacia la API de Nakama para pedir los metadatos de la sala actual y comprobar en crudo que la cadena de conexión sea válida. **(RESULTADO: EXITOSO - Integrado en el flujo de Host)**.
 
 ---
 

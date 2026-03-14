@@ -9,17 +9,20 @@
 - **Objetivo:** Crear un launcher tipo Fightcade para KOF '98 sincronizando RetroArch vía TCP.
 - **Servicios:** Nakama (Matchmaking/Auth) + Bore (Túnel TCP para evitar apertura de puertos).
 
-## ✅ ÚLTIMOS AVANCES (Completados hoy)
+## ✅ FASE 1 COMPLETADA (Local Automation)
 1. **Auto-Lanzamiento de Nakama:** 
-   - Se modificó `client/src/main/index.ts`.
-   - La App lanza `backend/nakama.exe --config local.yml` de forma invisible (`windowsHide: true`).
-   - Se incluyó un **Health Check** (HTTP GET a :7350) para no duplicar procesos.
-   - Se incluyó limpieza de procesos (`process.kill()`) al cerrar la App.
-2. **Historial Limpio:** Todos los intentos fallidos (UDP Relay, Playit, Ngrok) se movieron a la carpeta `/Historial`.
+   - La App lanza `backend/nakama.exe` de forma invisible.
+   - Posee **Health Check** para evitar duplicados y **Auto-Kill** al cerrar.
+2. **Bore Automático (Fase 1.2):**
+   - El Host ya no usa archivos `.bat` externos.
+   - Al presionar "HOST GAME", la App lanza `bore.exe` internamente.
+   - **Captura el Stdout:** Usa un `Regex` para extraer la URL `bore.pub:XXXX` y la carga automáticamente en el campo de Relay.
+   - **User Feedback:** Agregado estado de "CREANDO TÚNEL..." en el botón.
 
-## 🚀 PRÓXIMA TAREA: FASE 1.2 (Bore Automático)
-- **Objetivo:** Eliminar el paso de "copiar y pegar" la dirección de Bore.
-- **Idea:** Lanzar `bore` desde el código de la App, leer el `stdout` (consola) en tiempo real, capturar la URL `bore.pub:XXXXX` con un RegExp y guardarla automáticamente en Nakama.
+## 🚀 PRÓXIMA TAREA: FASE 2 (VPS & Cloud)
+1. **Centralización:** Migrar Nakama y el servidor de Bore al VPS para tener una IP fija y 24/7.
+2. **Invitaciones Automáticas:** Implementar el "Matchmaking" real donde el Invitado ve un cartel para unirse sin pegar IPs.
+3. **Optimización Sugerida:** Configurar `netplay_check_frames` en RetroArch para suavizar el lag una vez que el VPS esté en una zona cercana (Sudamérica).
 
 ## 🛠️ DATOS TÉCNICOS IMPORTANTES
 - **Puerto Nakama:** 7350 (API) / 7351 (Console)
