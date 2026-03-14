@@ -9,6 +9,13 @@ import { ChildProcess } from "child_process";
 let nakamaProcess: ChildProcess | null = null;
 let boreProcess: ChildProcess | null = null;
 
+function getProjectRoot(): string {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, "extraResources");
+  }
+  return path.resolve(__dirname, "../../..");
+}
+
 async function isNakamaRunning(): Promise<boolean> {
   return new Promise((resolve) => {
     const req = http.get("http://127.0.0.1:7350", (res) => {
@@ -26,7 +33,7 @@ async function isNakamaRunning(): Promise<boolean> {
 }
 
 function launchNakama(): void {
-  const projectRoot = path.resolve(process.cwd(), "..");
+  const projectRoot = getProjectRoot();
   const nakamaDir = path.join(projectRoot, "backend");
   const nakamaPath = path.join(nakamaDir, "nakama.exe");
 
@@ -95,7 +102,7 @@ app.whenReady().then(() => {
   ipcMain.handle("launch-game", async (_event, args) => {
     const { isHost, peerIp, useRelay, relayIp } = args;
 
-    const projectRoot = path.resolve(process.cwd(), "..");
+    const projectRoot = getProjectRoot();
     const retroArchDir = path.join(projectRoot, "retroarch");
     const retroArchPath = path.join(retroArchDir, "retroarch.exe");
     const corePath = path.join(retroArchDir, "cores", "fbneo_libretro.dll");
@@ -194,7 +201,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle("start-relay-tunnel", async () => {
     return new Promise((resolve) => {
-      const projectRoot = path.resolve(process.cwd(), "..");
+      const projectRoot = getProjectRoot();
       const relayDir = path.join(projectRoot, "relay-server");
       const borePath = path.join(relayDir, "bore.exe");
 
