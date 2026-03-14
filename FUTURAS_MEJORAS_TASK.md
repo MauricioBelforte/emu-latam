@@ -22,6 +22,20 @@ El objetivo de esta fase es hacer que la experiencia del usuario sea "un solo cl
 
 ---
 
+## Fase 1.3: Pulido de Estabilidad y UX (Pendiente)
+
+- [ ] **Prevención de Login Rápido:** Implementar un indicador de carga ("Iniciando Servidor...") hasta que el Health Check de Nakama dé OK, evitando errores si se presiona "Insert Coin" antes de tiempo.
+- [ ] **Join Directo (IP Express):** Modificar la función `handleTestGame` para que el botón "JOIN" tome automáticamente el valor del input de Relay, eliminando la obligación de presionar "Guardar" primero.
+- [ ] **Configuración Anti-Lag:** Agregar argumentos de lanzamiento como `--runahead` y ajustes de `netplay_check_frames` en Electron para mitigar los 500ms de latencia actuales.
+
+---
+
+## 🛠️ NOTA TÉCNICA: PC SECUNDARIA (MAURICIO)
+- **Puerto Postgres:** En esta PC específica, la base de datos corre en el puerto **5433**.
+- **Acción:** Asegurar que `backend/local.yml` apunte a `127.0.0.1:5433` antes de ejecutar.
+
+---
+
 ## Fase 2: Infraestructura Central (Nube / VPS)
 
 El objetivo de esta fase es centralizar los servicios para que los usuarios (incluso el Host) no necesiten hospedar Nakama ni abrir túneles en sus propias máquinas, garantizando el mejor ping posible.

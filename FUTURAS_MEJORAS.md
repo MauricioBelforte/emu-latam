@@ -16,9 +16,14 @@ Este documento detalla las ideas y optimizaciones planificadas para las siguient
 
 3. **Optimización de Latencia (Ping)**
    - Si se usa un VPS, elegir una ubicación en Sudamérica (ej. San Pablo o Buenos Aires) para reducir el destiempo.
+   - **Mejoras de Software:** Configurar ajustes de RetroArch (Run-Ahead, Max Swapchain Images) para compensar el lag actual de 500ms hasta que tengamos el VPS.
    - Configurar parámetros de RetroArch por defecto para Netplay:
      - `netplay_check_frames = 30` (o ajustado según ping).
      - `netplay_input_latency_frames_min = 1`.
+
+4. **Pulido de Estabilidad y UX**
+   - **Join Directo:** Que el Invitado pueda unirse usando la IP del cuadro de texto sin necesidad de presionar "Guardar" manualmente (hacer que el botón Join tome el valor actual del input).
+   - **Indicador de Carga:** Agregar un "Loading Spinner" al inicio para esperar a que Nakama despierte antes de permitir el login ("Insert Coin").
 
 ## 🎨 INTERFAZ Y EXPERIENCIA DE USUARIO (UX)
 
