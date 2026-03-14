@@ -7,6 +7,7 @@ import http from "http";
 import { ChildProcess } from "child_process";
 
 let nakamaProcess: ChildProcess | null = null;
+let boreProcess: ChildProcess | null = null;
 
 async function isNakamaRunning(): Promise<boolean> {
   return new Promise((resolve) => {
@@ -92,7 +93,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   ipcMain.handle("launch-game", async (_event, args) => {
-    const { isHost, peerIp, useRelay, relayIp, relaySessionId } = args;
+    const { isHost, peerIp, useRelay, relayIp } = args;
 
     const projectRoot = path.resolve(process.cwd(), "..");
     const retroArchDir = path.join(projectRoot, "retroarch");
@@ -191,6 +192,61 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle("start-relay-tunnel", async () => {
+    return new Promise((resolve) => {
+      const projectRoot = path.resolve(process.cwd(), "..");
+      const relayDir = path.join(projectRoot, "relay-server");
+      const borePath = path.join(relayDir, "bore.exe");
+
+      if (!fs.existsSync(borePath)) {
+        console.error("❌ Bore binary not found at:", borePath);
+        return resolve({ success: false, error: "Bore no encontrado" });
+      }
+
+      if (boreProcess) {
+        boreProcess.kill();
+        boreProcess = null;
+      }
+
+      console.log("🚀 Launching Bore Tunnel...");
+      boreProcess = spawn(borePath, ["local", "55435", "--to", "bore.pub"], {
+        cwd: relayDir,
+        windowsHide: true,
+      });
+
+      let tunnelAddress = "";
+      const timeout = setTimeout(() => {
+        if (!tunnelAddress) {
+          console.error("❌ Bore tunnel timeout");
+          resolve({ success: false, error: "Timeout al iniciar túnel" });
+        }
+      }, 10000);
+
+      boreProcess.stdout?.on("data", (data) => {
+        const output = data.toString();
+        console.log(`💬 [BORE LOG]: ${output}`);
+        
+        // Match "listening at bore.pub:XXXXX"
+        const match = output.match(/listening at (bore\.pub:\d+)/);
+        if (match && !tunnelAddress) {
+          tunnelAddress = match[1];
+          clearTimeout(timeout);
+          console.log(`✅ Bore tunnel ready: ${tunnelAddress}`);
+          resolve({ success: true, url: tunnelAddress });
+        }
+      });
+
+      boreProcess.stderr?.on("data", (data) => {
+        console.error(`🔥 [BORE ERROR]: ${data}`);
+      });
+
+      boreProcess.on("close", (code) => {
+        console.log(`🛑 Bore process exited with code ${code}`);
+        boreProcess = null;
+      });
+    });
+  });
+
   launchNakama();
   createWindow();
 });
@@ -203,5 +259,9 @@ app.on("before-quit", () => {
   if (nakamaProcess) {
     console.log("🛑 Stopping Nakama...");
     nakamaProcess.kill();
+  }
+  if (boreProcess) {
+    console.log("🛑 Stopping Bore...");
+    boreProcess.kill();
   }
 });
