@@ -24,7 +24,7 @@
 1. **UX Improvements:** 
    - Hacer que "JOIN" use la IP del campo de texto automáticamente (sin presionar Guardar).
    - Agregar "Loading Spinner" en el inicio para esperar a que Nakama despierte.
-   - Optimizar RetroArch (Run-Ahead) para mitigar los 500ms de ping.
+   - Optimizar RetroArch (Run-Ahead) para mitigar los 500ms de ping. **📄 Investigación completa en `RUNAHEAD_PLAN.md`**.
 2. **Centralización (FASE 2):** Migrar Nakama y Bore al VPS para bajar el ping a <60ms.
 
 ## ⚠️ NOTA DE HARDWARE (PC 2)
