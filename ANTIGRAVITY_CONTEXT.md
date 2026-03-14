@@ -20,10 +20,15 @@
    - **Captura el Stdout:** Usa un `Regex` para extraer la URL `bore.pub:XXXX` y la carga automáticamente en el campo de Relay.
    - **User Feedback:** Agregado estado de "CREANDO TÚNEL..." en el botón.
 
-## 🚀 PRÓXIMA TAREA: FASE 2 (VPS & Cloud)
-1. **Centralización:** Migrar Nakama y el servidor de Bore al VPS para tener una IP fija y 24/7.
-2. **Invitaciones Automáticas:** Implementar el "Matchmaking" real donde el Invitado ve un cartel para unirse sin pegar IPs.
-3. **Optimización Sugerida:** Configurar `netplay_check_frames` en RetroArch para suavizar el lag una vez que el VPS esté en una zona cercana (Sudamérica).
+## 🚀 PRÓXIMA TAREA: FASE 1.3 & 2 (Estabilidad & VPS)
+1. **UX Improvements:** 
+   - Hacer que "JOIN" use la IP del campo de texto automáticamente (sin presionar Guardar).
+   - Agregar "Loading Spinner" en el inicio para esperar a que Nakama despierte.
+   - Optimizar RetroArch (Run-Ahead) para mitigar los 500ms de ping.
+2. **Centralización (FASE 2):** Migrar Nakama y Bore al VPS para bajar el ping a <60ms.
+
+## ⚠️ NOTA DE HARDWARE (PC 2)
+- **POSTGRES PORT:** En la computadora secundaria de Mauricio, Postgres usa el puerto **5433** (no el estándar 5432). Ajustar `local.yml` antes de testear allá.
 
 ## 🛠️ DATOS TÉCNICOS IMPORTANTES
 - **Puerto Nakama:** 7350 (API) / 7351 (Console)
