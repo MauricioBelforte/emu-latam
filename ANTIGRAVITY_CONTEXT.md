@@ -8,6 +8,7 @@
 - **Rama Git:** `feature/relay-cloud`
 - **Objetivo:** Crear un launcher tipo Fightcade para KOF '98 sincronizando RetroArch vía TCP.
 - **Servicios:** Nakama (Matchmaking/Auth) + Bore (Túnel TCP para evitar apertura de puertos).
+- **⚠️ NOTA SOBRE DOCKER:** **NO estamos usando Docker.** Usamos los binarios nativos (`nakama.exe`) y un servicio de Postgres instalado directamente en Windows para mantener el proyecto liviano y evitar configuraciones complejas de contenedores.
 
 ## ✅ FASE 1 COMPLETADA (Local Automation)
 1. **Auto-Lanzamiento de Nakama:** 
