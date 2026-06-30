@@ -22,11 +22,11 @@ El objetivo de esta fase es hacer que la experiencia del usuario sea "un solo cl
 
 ---
 
-## Fase 1.3: Pulido de Estabilidad y UX (Pendiente)
+## Fase 1.3: Pulido de Estabilidad y UX (Completado)
 
-- [ ] **Prevención de Login Rápido:** Implementar un indicador de carga ("Iniciando Servidor...") hasta que el Health Check de Nakama dé OK, evitando errores si se presiona "Insert Coin" antes de tiempo.
-- [ ] **Join Directo (IP Express):** Modificar la función `handleTestGame` para que el botón "JOIN" tome automáticamente el valor del input de Relay, eliminando la obligación de presionar "Guardar" primero.
-- [ ] **Configuración Anti-Lag:** Agregar argumentos de lanzamiento como `--runahead` y ajustes de `netplay_check_frames` en Electron para mitigar los 500ms de latencia actuales. **📄 Ver investigación completa en [`RUNAHEAD_PLAN.md`](./RUNAHEAD_PLAN.md)**.
+- [x] **Prevención de Login Rápido:** Implementar un indicador de carga ("Iniciando Servidor...") hasta que el Health Check de Nakama dé OK, evitando errores si se presiona "Insert Coin" antes de tiempo.
+- [x] **Join Directo (IP Express):** Modificar la función `handleTestGame` para que el botón "JOIN" tome automáticamente el valor del input de Relay, eliminando la obligación de presionar "Guardar" primero.
+- [x] **Configuración Anti-Lag:** Agregar argumentos de lanzamiento como `--runahead` y ajustes de `netplay_check_frames` en Electron para mitigar los 500ms de latencia actuales. **📄 Ver investigación completa en [`RUNAHEAD_PLAN.md`](./RUNAHEAD_PLAN.md)**.
 
 ---
 
