@@ -4,7 +4,7 @@ import { spawn } from "child_process";
 import os from "os";
 import fs from "fs";
 import http from "http";
-import { ChildProcess } from "child_process";
+import type { ChildProcess } from "child_process";
 
 let nakamaProcess: ChildProcess | null = null;
 let boreProcess: ChildProcess | null = null;
@@ -120,6 +120,13 @@ app.whenReady().then(() => {
     // ARGUMENTOS DE NETPLAY (TCP NATIVO)
     // El modo host SIEMPRE debe abrir el puerto 55435
     const spawnArgs = ["-L", corePath, romPath];
+
+    // Inyectar configuración optimizada de Netplay (Anti-Lag / Run-Ahead)
+    const optimizedCfg = path.join(retroArchDir, "netplay_optimized.cfg");
+    if (fs.existsSync(optimizedCfg)) {
+      console.log("⚡ Aplicando configuración Anti-Lag:", optimizedCfg);
+      spawnArgs.push("--appendconfig", optimizedCfg);
+    }
 
     if (useRelay) {
       console.log("🚀 MODO TUNEL ACTIVADO (bypassing puertos cerrados)");
@@ -252,6 +259,10 @@ app.whenReady().then(() => {
         boreProcess = null;
       });
     });
+  });
+
+  ipcMain.handle("check-nakama-health", async () => {
+    return await isNakamaRunning();
   });
 
   launchNakama();

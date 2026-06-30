@@ -60,6 +60,21 @@ const InsertCoinButton = styled.button`
     color: #fff;
     transform: scale(1.05);
   }
+
+  &:disabled {
+    border-color: #555;
+    color: #555;
+    box-shadow: none;
+    cursor: not-allowed;
+    pointer-events: none;
+    animation: pulse 1.5s infinite ease-in-out;
+  }
+
+  @keyframes pulse {
+    0% { opacity: 0.5; }
+    50% { opacity: 1; }
+    100% { opacity: 0.5; }
+  }
 `;
 
 function App() {
@@ -68,6 +83,33 @@ function App() {
     localStorage.getItem("emu_latam_relay") || "bore.pub:18863",
   );
   const [isLaunchingRelay, setIsLaunchingRelay] = React.useState(false);
+  const [isServerReady, setIsServerReady] = React.useState(false);
+
+  React.useEffect(() => {
+    let interval: NodeJS.Timeout;
+    let active = true;
+
+    const checkHealth = async () => {
+      try {
+        // @ts-ignore
+        const isUp = await window.electron.ipcRenderer.invoke("check-nakama-health");
+        if (isUp && active) {
+          setIsServerReady(true);
+          clearInterval(interval);
+        }
+      } catch (error) {
+        console.error("Health check error:", error);
+      }
+    };
+
+    checkHealth();
+    interval = setInterval(checkHealth, 1000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   const handleSaveRelay = () => {
     localStorage.setItem("emu_latam_relay", customRelay);
@@ -102,6 +144,9 @@ function App() {
           return;
         }
         setIsLaunchingRelay(false);
+      } else {
+        // Guardar automáticamente para el invitado para evitar requerir "Guardar" manual
+        localStorage.setItem("emu_latam_relay", customRelay);
       }
 
       // @ts-ignore - window.electron comes from preload
@@ -130,8 +175,8 @@ function App() {
           <DebugInfo>SISTEMA ACTUALIZADO - VERSIÓN 2.0</DebugInfo>
 
           {!isAuthenticated ? (
-            <InsertCoinButton onClick={handleInsertCoin}>
-              INSERT COIN
+            <InsertCoinButton onClick={handleInsertCoin} disabled={!isServerReady}>
+              {isServerReady ? "INSERT COIN" : "INICIANDO SERVIDOR..."}
             </InsertCoinButton>
           ) : (
             <div
