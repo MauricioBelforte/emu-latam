@@ -65,6 +65,64 @@ class NakamaService {
 
   private connectionPromise: Promise<Socket> | null = null;
 
+  // 4. Guardar URL del relay en Nakama Storage (público)
+  async saveRelayUrl(url: string): Promise<boolean> {
+    if (!this.session) return false;
+    try {
+      await this.client.writeStorageObjects(this.session, [
+        {
+          collection: "active_relay",
+          key: "latest",
+          value: {
+            url,
+            user_id: this.session.user_id,
+            username: this.session.username,
+            timestamp: Date.now(),
+          },
+          permission_read: 2, // público
+          permission_write: 1, // solo owner
+        },
+      ]);
+      console.log("✅ Relay URL guardada en Nakama:", url);
+      return true;
+    } catch (e) {
+      console.error("❌ Error guardando relay URL:", e);
+      return false;
+    }
+  }
+
+  // 5. Leer la última URL de relay de cualquier usuario
+  async getLatestRelayUrl(): Promise<string | null> {
+    if (!this.session) return null;
+    try {
+      const result = await this.client.listStorageObjects(
+        this.session,
+        "active_relay",
+        undefined,
+        10,
+      );
+      if (result.objects && result.objects.length > 0) {
+        const objects = result.objects
+          .map((obj) => ({
+            ...obj,
+            parsed:
+              typeof obj.value === "string" ? JSON.parse(obj.value) : obj.value,
+          }))
+          .sort(
+            (a, b) => (b.parsed?.timestamp ?? 0) - (a.parsed?.timestamp ?? 0),
+          );
+        if (objects[0]?.parsed?.url) {
+          console.log("✅ Relay URL leída de Nakama:", objects[0].parsed.url);
+          return objects[0].parsed.url as string;
+        }
+      }
+      return null;
+    } catch (e) {
+      console.error("❌ Error leyendo relay URL:", e);
+      return null;
+    }
+  }
+
   // 3. Conectar al WebSocket
   async connectSocket(): Promise<Socket> {
     if (!this.session) {

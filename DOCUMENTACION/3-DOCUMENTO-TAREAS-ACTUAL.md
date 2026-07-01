@@ -19,6 +19,8 @@ El objetivo de esta fase es hacer que la experiencia del usuario sea "un solo cl
 - [x] **⚙️ TEST AUTOMÁTICO (Consola):** Ejecutar un script local `test_bore_parser.js` que simule la salida de consola de bore y verificar si la App extrae correctamente el puerto de manera analítica. **(RESULTADO: EXITOSO - URL bore.pub:12828 capturada instantáneamente)**.
 - [x] **Actualización Automática a la Nube:** Hacer que la App guarde la cadena `bore.pub:XXXX` directamente en el Match Data o Storage de Nakama una vez generada, para que el invitado la reciba automáticamente.
 - [x] **⚙️ TEST AUTOMÁTICO (Consola):** Utilizar `curl` o un script Node.js hacia la API de Nakama para pedir los metadatos de la sala actual y comprobar en crudo que la cadena de conexión sea válida. **(RESULTADO: EXITOSO - Integrado en el flujo de Host)**.
+- [x] **🐛 Fix: Conexión Bore (Proxy TCP):** RetroArch ignora `--port` en modo cliente. Se implementó un proxy TCP local en `index.ts` que escucha en `127.0.0.1:55435` y reenvía al túnel bore. El host con relay usa `--host --port 55436` para liberar el puerto 55435 para el proxy. **(RESULTADO: Ambos modos funcionan correctamente)**.
+- [x] **🐛 Fix: Host directo sin relay:** Se mantuvo el flujo original `--host --port 55435` en host directo y `--connect 127.0.0.1 --port 55435` en guest directo. **(RESULTADO: Funciona correctamente)**.
 
 ---
 

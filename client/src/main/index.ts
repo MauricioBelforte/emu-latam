@@ -1,13 +1,28 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import path from "path";
-import { spawn } from "child_process";
+import { spawn, execSync } from "child_process";
+import dns from "dns";
 import os from "os";
 import fs from "fs";
 import http from "http";
+import net from "net";
 import type { ChildProcess } from "child_process";
+
+const logFile = path.resolve(__dirname, "../../../logs/main_process.log");
+const logStream = fs.createWriteStream(logFile, { flags: "a" });
+const origLog = console.log;
+const origError = console.error;
+console.log = (...args) => { origLog(...args); logStream.write(`[LOG ${new Date().toISOString()}] ${args.join(" ")}\n`); };
+console.error = (...args) => { origError(...args); logStream.write(`[ERR ${new Date().toISOString()}] ${args.join(" ")}\n`); };
+console.log("=== MAIN PROCESS STARTED ===");
 
 let nakamaProcess: ChildProcess | null = null;
 let boreProcess: ChildProcess | null = null;
+
+process.on("uncaughtException", (err) => {
+  if (err instanceof Error && err.message.includes("EPIPE")) return;
+  console.error("Uncaught exception:", err);
+});
 
 function getProjectRoot(): string {
   if (app.isPackaged) {
@@ -16,19 +31,41 @@ function getProjectRoot(): string {
   return path.resolve(__dirname, "../../..");
 }
 
+function waitForPort(port: number, timeoutMs = 5000): Promise<boolean> {
+  return new Promise((resolve) => {
+    const deadline = Date.now() + timeoutMs;
+    const check = () => {
+      const socket = new net.Socket();
+      socket.once("connect", () => { socket.destroy(); resolve(true); });
+      socket.once("error", () => {
+        socket.destroy();
+        if (Date.now() < deadline) setTimeout(check, 200);
+        else resolve(false);
+      });
+      socket.connect(port, "127.0.0.1");
+    };
+    check();
+  });
+}
+
+function waitForPortClosed(port: number, timeoutMs = 5000): Promise<boolean> {
+  return new Promise((resolve) => {
+    const deadline = Date.now() + timeoutMs;
+    const check = () => {
+      const socket = new net.Socket();
+      socket.once("connect", () => { socket.destroy(); if (Date.now() < deadline) setTimeout(check, 200); else resolve(false); });
+      socket.once("error", () => { socket.destroy(); resolve(true); });
+      socket.connect(port, "127.0.0.1");
+    };
+    check();
+  });
+}
+
 async function isNakamaRunning(): Promise<boolean> {
   return new Promise((resolve) => {
-    const req = http.get("http://127.0.0.1:7350", (res) => {
-      resolve(true);
-      res.resume();
-    });
-    req.on("error", () => {
-      resolve(false);
-    });
-    req.setTimeout(1000, () => {
-      req.destroy();
-      resolve(false);
-    });
+    const req = http.get("http://127.0.0.1:7350", (res) => { resolve(true); res.resume(); });
+    req.on("error", () => resolve(false));
+    req.setTimeout(1000, () => { req.destroy(); resolve(false); });
   });
 }
 
@@ -36,250 +73,236 @@ function launchNakama(): void {
   const projectRoot = getProjectRoot();
   const nakamaDir = path.join(projectRoot, "backend");
   const nakamaPath = path.join(nakamaDir, "nakama.exe");
-
-  if (!fs.existsSync(nakamaPath)) {
-    console.error("❌ Nakama server not found at:", nakamaPath);
-    return;
-  }
-
+  if (!fs.existsSync(nakamaPath)) { console.error("❌ Nakama server not found at:", nakamaPath); return; }
   isNakamaRunning().then((running) => {
-    if (running) {
-      console.log("✅ Nakama is already running.");
-      return;
-    }
-
+    if (running) { console.log("✅ Nakama is already running."); return; }
     console.log("🚀 Launching Nakama (Hidden Mode)...");
-    nakamaProcess = spawn(nakamaPath, ["--config", "local.yml"], {
-      cwd: nakamaDir,
-      windowsHide: true,
-      stdio: "ignore",
-    });
-
-    nakamaProcess.on("error", (err) => {
-      console.error("❌ Failed to start Nakama:", err);
-    });
-
-    if (nakamaProcess.pid) {
-      console.log(`✅ Nakama started (PID: ${nakamaProcess.pid})`);
-    }
+    nakamaProcess = spawn(nakamaPath, ["--config", "local.yml"], { cwd: nakamaDir, windowsHide: true, stdio: "ignore" });
+    nakamaProcess.on("error", (err) => console.error("❌ Failed to start Nakama:", err));
+    if (nakamaProcess.pid) console.log(`✅ Nakama started (PID: ${nakamaProcess.pid})`);
   });
 }
 
-function createWindow(): void {
+function createWindow(sessionName = "default"): void {
   if (!app.requestSingleInstanceLock()) {
     const randomSuffix = Math.floor(Math.random() * 1000);
-    app.setPath(
-      "userData",
-      path.join(app.getPath("userData"), `dev-instance-${randomSuffix}`),
-    );
+    app.setPath("userData", path.join(app.getPath("userData"), `dev-instance-${randomSuffix}`));
   }
+  const prefs: Electron.WebPreferences = {
+    preload: path.join(__dirname, "../preload/index.js"),
+    sandbox: false,
+    contextIsolation: true,
+  };
+  if (sessionName !== "default") prefs.partition = `persist:${sessionName}`;
+  const mainWindow = new BrowserWindow({ width: 1400, height: 900, show: true, autoHideMenuBar: true, webPreferences: prefs });
+  mainWindow.webContents.openDevTools();
+  mainWindow.focus();
+  if (process.env["ELECTRON_RENDERER_URL"]) mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
+  else mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
+}
 
-  const mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    show: false,
-    autoHideMenuBar: true,
-    webPreferences: {
-      preload: path.join(__dirname, "../preload/index.js"),
-      sandbox: false,
-      contextIsolation: true,
-    },
+// Proxy TCP: redirige conexiones locales a un host remoto
+let proxyServers: net.Server[] = [];
+
+function startProxy(targetHost: string, targetPort: number): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer((localSocket) => {
+      console.log(`🔌 Proxy: conexión entrante, redirigiendo a ${targetHost}:${targetPort}`);
+      const remoteSocket = new net.Socket();
+      remoteSocket.connect(targetPort, targetHost, () => {
+        localSocket.pipe(remoteSocket);
+        remoteSocket.pipe(localSocket);
+      });
+      remoteSocket.on("error", (err) => {
+        console.error(`🔥 Proxy: error remoto: ${err.message}`);
+        localSocket.destroy();
+      });
+      localSocket.on("error", (err) => {
+        if (err.message.includes("ECONNRESET")) return;
+        console.error(`🔥 Proxy: error local: ${err.message}`);
+        remoteSocket.destroy();
+      });
+    });
+    server.listen(55435, "127.0.0.1", () => {
+      proxyServers.push(server);
+      console.log(`✅ Proxy TCP en 127.0.0.1:55435 → ${targetHost}:${targetPort}`);
+      resolve(55435);
+    });
+    server.on("error", (err) => { console.error("❌ Proxy: error de listen:", err); reject(err); });
   });
+}
 
-  mainWindow.on("ready-to-show", () => {
-    mainWindow.show();
-    // mainWindow.webContents.openDevTools();
-  });
-
-  if (process.env["ELECTRON_RENDERER_URL"]) {
-    mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
-  } else {
-    mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
-  }
+function stopAllProxies(): void {
+  for (const s of proxyServers) { try { s.close(); } catch {} }
+  proxyServers = [];
 }
 
 app.whenReady().then(() => {
   ipcMain.handle("launch-game", async (_event, args) => {
-    const { isHost, peerIp, useRelay, relayIp } = args;
-
+    const { isHost, useRelay, relayIp, relayUrl } = args;
     const projectRoot = getProjectRoot();
     const retroArchDir = path.join(projectRoot, "retroarch");
     const retroArchPath = path.join(retroArchDir, "retroarch.exe");
     const corePath = path.join(retroArchDir, "cores", "fbneo_libretro.dll");
     const romPath = path.join(retroArchDir, "roms", "kof98.zip");
-
-    console.log("-----------------------------------------");
-    console.log("🎮 SISTEMA DE LANZAMIENTO V2 - RELAY");
-    console.log("🚀 EXE:", retroArchPath);
-
-    if (!fs.existsSync(retroArchPath)) {
-      console.error("❌ NO EXISTE EL EXE");
-      return { success: false, error: "EXE no existe" };
-    }
-
-    // ARGUMENTOS DE NETPLAY (TCP NATIVO)
-    // El modo host SIEMPRE debe abrir el puerto 55435
+    console.log("🎮 SISTEMA DE LANZAMIENTO");
+    if (!fs.existsSync(retroArchPath)) return { success: false, error: "EXE no existe" };
     const spawnArgs = ["-L", corePath, romPath];
-
-    // Inyectar configuración optimizada de Netplay (Anti-Lag / Run-Ahead)
     const optimizedCfg = path.join(retroArchDir, "netplay_optimized.cfg");
-    if (fs.existsSync(optimizedCfg)) {
-      console.log("⚡ Aplicando configuración Anti-Lag:", optimizedCfg);
-      spawnArgs.push("--appendconfig", optimizedCfg);
-    }
-
+    if (fs.existsSync(optimizedCfg)) { spawnArgs.push("--appendconfig", optimizedCfg); }
     if (useRelay) {
-      console.log("🚀 MODO TUNEL ACTIVADO (bypassing puertos cerrados)");
-      
       if (isHost) {
-        console.log("🎮 Iniciando como HOST en el puerto TCP 55435...");
-        spawnArgs.push("--host", "--port", "55435");
+        // Host con relay: usa puerto 55436 para liberar 55435 para el proxy del guest
+        spawnArgs.push("--host", "--port", "55436");
       } else {
-        console.log(`🎮 Conectando como CLIENTE a: ${relayIp}`);
-        
-        // CORRECCIÓN CRÍTICA: RetroArch se rompe si usas "--connect host:port". 
-        // Hay que enviarlos por separado: "--connect host --port port".
+        // Guest con relay: necesita proxy porque RetroArch ignora --port en client mode
         let connectHost = relayIp;
-        let connectPort = "55435"; // defecto
-        
-        if (relayIp.includes(":")) {
+        let connectPort = 55435;
+        if (relayIp && relayIp.includes(":")) {
           const parts = relayIp.split(":");
           connectHost = parts[0];
-          connectPort = parts[1];
+          connectPort = parseInt(parts[1], 10);
         }
-        
-        spawnArgs.push("--connect", connectHost);
-        spawnArgs.push("--port", connectPort);
+        // Si es conexión local directa (127.0.0.1:55435), no necesita proxy
+        if (connectHost === "127.0.0.1" && connectPort === 55435) {
+          spawnArgs.push("--connect", "127.0.0.1", "--port", "55435");
+        } else {
+          // Resolver hostname a IPv4
+          if (connectHost && !connectHost.match(/^\d+\.\d+\.\d+\.\d+$/)) {
+            try {
+              const addresses = await dns.promises.resolve4(connectHost);
+              if (addresses && addresses.length > 0) {
+                console.log(`🌐 ${connectHost} resuelto a IPv4: ${addresses[0]}`);
+                connectHost = addresses[0];
+              }
+            } catch (e) {
+              console.error(`⚠️ No se pudo resolver ${connectHost}:`, e);
+            }
+          }
+          // Iniciar proxy local en 55435 → relayHost:relayPort
+          await startProxy(connectHost, connectPort);
+          // RA conecta a 127.0.0.1 (puerto 55435), que es el proxy
+          spawnArgs.push("--connect", "127.0.0.1");
+        }
       }
     } else {
-      // Modo LAN estándar (sin túnel)
-      if (isHost) {
-        spawnArgs.push("--host", "--port", "55435");
-      } else {
-        spawnArgs.push("--connect", peerIp || "127.0.0.1", "--port", "55435");
-      }
+      if (isHost) spawnArgs.push("--host", "--port", "55435");
+      else spawnArgs.push("--connect", "127.0.0.1", "--port", "55435");
     }
-
     try {
-      // Usamos spawn sin shell para ver la salida cruda
-      const child = spawn(retroArchPath, spawnArgs, {
-        cwd: retroArchDir,
-        detached: true,
-        stdio: ["ignore", "pipe", "pipe"], // Capturamos salida y error
+      console.log("🚀 SPAWNING:", retroArchPath, spawnArgs.join(" "));
+      const child = spawn(retroArchPath, spawnArgs, { cwd: retroArchDir, detached: true, stdio: ["ignore", "pipe", "pipe"] });
+      child.on("error", (err) => console.error("❌ FALLO DE SPAWN:", err));
+      child.on("close", (code) => {
+        console.log(`🛑 RetroArch exited with code ${code}`);
+        stopAllProxies();
+        if (code !== null && code !== undefined) console.error(`🔥 RetroArch terminó con código ${code} — posible error de conexión`);
       });
-
-      // Escuchamos ERRORES del emulador
-      child.stderr?.on("data", (data) => {
-        console.error(`🔥 [RETROARCH ERROR]: ${data}`);
-      });
-
-      child.stdout?.on("data", (data) => {
-        console.log(`💬 [RETROARCH LOG]: ${data}`);
-      });
-
-      child.on("error", (err) => {
-        console.error("❌ FALLO DE SPAWN:", err);
-      });
-
+      child.stdout?.on("data", (data) => { try { console.log(`💬 [RETROARCH]: ${data}`); } catch {} });
+      child.stderr?.on("data", (data) => { try { console.error(`🔥 [RETROARCH]: ${data}`); } catch {} });
+      child.stdout?.on("error", () => {});
+      child.stderr?.on("error", () => {});
       child.unref();
-
       if (child.pid) {
-        console.log(`✅ PROCESO LANZADO (PID: ${child.pid})`);
-
+        console.log(`✅ RetroArch lanzado (PID: ${child.pid})`);
+        if (isHost) {
+          const hostPort = useRelay ? 55436 : 55435;
+          console.log(`⏳ Esperando puerto ${hostPort}...`);
+          const portReady = await waitForPort(hostPort, 8000);
+          if (!portReady) console.error(`❌ Puerto ${hostPort} no disponible después de 8s`);
+          else {
+            console.log(`✅ Puerto ${hostPort} listo`);
+            if (relayUrl) {
+              const relayFilePath = path.join(getProjectRoot(), "relay-server", "active_relay.txt");
+              fs.writeFileSync(relayFilePath, relayUrl, "utf8");
+              console.log("✅ Relay URL guardada en archivo (host listo):", relayUrl);
+            }
+          }
+        }
         let myIp = "127.0.0.1";
         const nets = os.networkInterfaces();
         for (const name of Object.keys(nets)) {
           for (const net of nets[name]!) {
-            if (net.family === "IPv4" && !net.internal) {
-              myIp = net.address;
-              break;
-            }
+            if (net.family === "IPv4" && !net.internal) { myIp = net.address; break; }
           }
         }
         return { success: true, myIp };
       }
-
       return { success: false, error: "No se obtuvo PID" };
-    } catch (e) {
-      console.error("❌ EXCEPCION:", e);
-      return { success: false, error: String(e) };
-    }
+    } catch (e) { console.error("❌ EXCEPCION:", e); return { success: false, error: String(e) }; }
   });
 
   ipcMain.handle("start-relay-tunnel", async () => {
-    return new Promise((resolve) => {
+    return new Promise(async (resolve) => {
       const projectRoot = getProjectRoot();
       const relayDir = path.join(projectRoot, "relay-server");
       const borePath = path.join(relayDir, "bore.exe");
+      if (!fs.existsSync(borePath)) return resolve({ success: false, error: "Bore no encontrado" });
+      
+      // Matar cualquier bore previo forzosamente
+      try { execSync("taskkill /f /im bore.exe 2>nul", { stdio: "ignore" }); } catch {}
+      await new Promise(r => setTimeout(r, 1500));
 
-      if (!fs.existsSync(borePath)) {
-        console.error("❌ Bore binary not found at:", borePath);
-        return resolve({ success: false, error: "Bore no encontrado" });
+      console.log("🚀 Spawning Bore Tunnel...");
+      let resolved = false;
+      let boreChild;
+      let stderrLog = "";
+      try {
+        // Bore tuneliza PUERTO 55436 (el host con relay escucha ahí)
+        boreChild = spawn(borePath, ["local", "55436", "--to", "bore.pub"], { cwd: relayDir, windowsHide: true });
+      } catch (e) {
+        return resolve({ success: false, error: "Error al spawn bore: " + String(e) });
       }
-
-      if (boreProcess) {
-        boreProcess.kill();
-        boreProcess = null;
-      }
-
-      console.log("🚀 Launching Bore Tunnel...");
-      boreProcess = spawn(borePath, ["local", "55435", "--to", "bore.pub"], {
-        cwd: relayDir,
-        windowsHide: true,
-      });
-
-      let tunnelAddress = "";
+      if (!boreChild || !boreChild.stdout) return resolve({ success: false, error: "bore stdout no disponible" });
+      boreProcess = boreChild;
+      console.log(`[bore] PID: ${boreProcess.pid}`);
       const timeout = setTimeout(() => {
-        if (!tunnelAddress) {
-          console.error("❌ Bore tunnel timeout");
-          resolve({ success: false, error: "Timeout al iniciar túnel" });
-        }
+        if (!resolved) { resolved = true; console.error("❌ Bore tunnel timeout (10s)"); if (boreProcess) boreProcess.kill(); resolve({ success: false, error: "Timeout" }); }
       }, 10000);
-
-      boreProcess.stdout?.on("data", (data) => {
-        const output = data.toString();
-        console.log(`💬 [BORE LOG]: ${output}`);
-        
-        // Match "listening at bore.pub:XXXXX"
-        const match = output.match(/listening at (bore\.pub:\d+)/);
-        if (match && !tunnelAddress) {
-          tunnelAddress = match[1];
-          clearTimeout(timeout);
-          console.log(`✅ Bore tunnel ready: ${tunnelAddress}`);
-          resolve({ success: true, url: tunnelAddress });
-        }
+      boreProcess.stdout.on("data", (data) => {
+        try {
+          const output = data.toString();
+          console.log(`💬 [BORE LOG]: ${output.trim()}`);
+          const match = output.match(/listening at (bore\.pub:\d+)/);
+          if (match && !resolved) { resolved = true; clearTimeout(timeout); resolve({ success: true, url: match[1] }); }
+        } catch (e) { console.error("[bore] Error en stdout handler:", e); }
       });
-
       boreProcess.stderr?.on("data", (data) => {
-        console.error(`🔥 [BORE ERROR]: ${data}`);
+        const msg = data.toString().trim();
+        stderrLog += msg + " | ";
+        console.error(`🔥 [BORE STDERR]: ${msg}`);
       });
-
-      boreProcess.on("close", (code) => {
-        console.log(`🛑 Bore process exited with code ${code}`);
-        boreProcess = null;
-      });
+      boreProcess.on("error", (err) => { if (!resolved) { resolved = true; clearTimeout(timeout); resolve({ success: false, error: err.message + " | stderr: " + stderrLog }); } });
+      boreProcess.on("close", (code) => { boreProcess = null; if (!resolved) { resolved = true; clearTimeout(timeout); resolve({ success: false, error: `Bore terminó con código ${code} | stderr: ${stderrLog}` }); } });
     });
   });
 
-  ipcMain.handle("check-nakama-health", async () => {
-    return await isNakamaRunning();
+  ipcMain.handle("save-relay-url", async (_event, url: string) => {
+    try {
+      const projectRoot = getProjectRoot();
+      fs.writeFileSync(path.join(projectRoot, "relay-server", "active_relay.txt"), url, "utf8");
+      console.log("✅ Relay URL guardada en archivo:", url);
+      return true;
+    } catch (e) { console.error("❌ Error guardando relay URL:", e); return false; }
+  });
+
+  ipcMain.handle("get-relay-url", async () => {
+    try {
+      const projectRoot = getProjectRoot();
+      const filePath = path.join(projectRoot, "relay-server", "active_relay.txt");
+      if (fs.existsSync(filePath)) return fs.readFileSync(filePath, "utf8");
+      return null;
+    } catch (e) { console.error("❌ Error leyendo relay URL:", e); return null; }
   });
 
   launchNakama();
   createWindow();
+  createWindow("guest");
 });
 
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
-});
+app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 
 app.on("before-quit", () => {
-  if (nakamaProcess) {
-    console.log("🛑 Stopping Nakama...");
-    nakamaProcess.kill();
-  }
-  if (boreProcess) {
-    console.log("🛑 Stopping Bore...");
-    boreProcess.kill();
-  }
+  if (nakamaProcess) nakamaProcess.kill();
+  if (boreProcess) { console.log("🛑 Stopping Bore..."); boreProcess.kill(); }
 });
