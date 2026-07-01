@@ -86,7 +86,7 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({
   }, [resetChallenge]);
 
   const sendToLobby = useCallback(
-    async (type: string, payload: any) => {
+    async (type: string, payload: Record<string, unknown>) => {
       if (!nakamaService.socket || !userId || !channelId) {
         console.warn("⚠️ No se pudo enviar señal: Datos no listos.");
         return;
@@ -95,8 +95,8 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({
         const messageContent = { _type: type, senderId: userId, ...payload };
         console.log(`📡 Difundiendo señal: ${type}`);
         await nakamaService.socket.writeChatMessage(channelId, messageContent);
-      } catch (e) {
-        console.error(`Error enviando ${type}:`, e);
+      } catch (err) {
+        console.error(`Error enviando ${type}:`, err);
       }
     },
     [userId, channelId],
@@ -141,37 +141,21 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({
     setChallengeStatus("accepted");
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
-    console.log("✅ ACEPTANDO RETO (MODO RELAY).");
-
-    // En V2, cargamos el relay configurado por el usuario o usamos el default
-    const savedRelay =
-      localStorage.getItem("emu_latam_relay") ||
-      "along-lamps.gl.at.ply.gg:23065";
-    const relaySessionId = `relay-${challengerId.slice(0, 5)}-${userId.slice(0, 5)}-${Date.now()}`;
-    const targetRelayIp = savedRelay;
+    console.log("✅ RETO ACEPTADO - Esperando bore URL del Challenger...");
 
     try {
-      // @ts-ignore
-      await window.electron.ipcRenderer.invoke("launch-game", {
-        isNetplay: true,
-        useRelay: true,
-        relayIp: targetRelayIp,
-        relaySessionId: relaySessionId,
-      });
-
-      // Notificamos al retador enviándole los datos del Relay
+      // Notificamos al retador que aceptamos. Él creará el túnel bore.
       await sendToLobby(CHALLENGE_ACCEPT_MSG_TYPE, {
         targetId: challengerId,
-        useRelay: true,
-        relayIp: targetRelayIp,
-        relaySessionId: relaySessionId,
+        acceptedBy: userId,
+        acceptedByName: username,
       });
     } catch (e) {
-      console.error("Error al lanzar Relay como Respondiente:", e);
+      console.error("Error notificando aceptación:", e);
     }
 
-    setTimeout(() => resetChallenge(), 5000);
-  }, [currentChallenge, userId, sendToLobby, resetChallenge]);
+    // No lanzamos nada aquí. El challenger (HOST) crea el túnel y nos avisa.
+  }, [currentChallenge, userId, username, sendToLobby]);
 
   const rejectChallenge = useCallback(() => {
     if (!currentChallenge) return;
@@ -184,7 +168,7 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({
 
   // --- ESCUCHA DE EVENTOS GLOBAL ---
   useEffect(() => {
-    const handleNakamaMessage = (event: Event) => {
+    const handleNakamaMessage = async (event: Event) => {
       const message = (event as CustomEvent).detail;
       try {
         const content =
@@ -208,7 +192,7 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({
           return;
         }
 
-        // 2. El otro aceptó el reto (Somos A)
+        // 2. El otro aceptó el reto (Somos A = Challenger = HOST)
         if (content._type === CHALLENGE_ACCEPT_MSG_TYPE) {
           if (isLaunchingRef.current) return;
           isLaunchingRef.current = true;
@@ -217,23 +201,80 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({
           if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
           console.log(
-            `🔥 ¡Reto aceptado! Lanzando CLIENTE vía RELAY: ${content.relayIp}`,
+            `🔥 ¡Reto aceptado por ${content.acceptedByName}! Creando túnel bore...`,
           );
 
-          // Lanzar Cliente conectando al mismo Relay y Sesión
-          setTimeout(async () => {
-            // @ts-ignore
-            await window.electron.ipcRenderer
-              .invoke("launch-game", {
-                isNetplay: true,
-                useRelay: true,
-                relayIp: content.relayIp,
-                relaySessionId: content.relaySessionId,
-              })
-              .catch(console.error);
-          }, 500);
+          try {
+            // 1. Crear túnel bore (Host = Challenger)
+            // @ts-expect-error - IPC bridge types
+            const tunnel = await window.electron.ipcRenderer.invoke("start-relay-tunnel");
 
-          setTimeout(() => resetChallenge(), 5000);
+            if (!tunnel.success) {
+              console.error("❌ Error creando túnel:", tunnel.error);
+              alert("Error al crear túnel: " + tunnel.error);
+              resetChallenge();
+              return;
+            }
+
+            const boreUrl = tunnel.url;
+            console.log(`✅ Túnel bore listo: ${boreUrl}`);
+
+            // 2. Guardar URL del relay
+            localStorage.setItem("emu_latam_relay", boreUrl);
+            // @ts-expect-error - IPC bridge types
+            await window.electron.ipcRenderer.invoke("save-relay-url", boreUrl);
+
+            // 3. Lanzar RetroArch como HOST
+            // @ts-expect-error - IPC bridge types
+            await window.electron.ipcRenderer.invoke("launch-game", {
+              isHost: true,
+              useRelay: true,
+              relayIp: boreUrl,
+            });
+
+            // 4. Enviar la URL del bore al Target (B) para que se conecte
+            await sendToLobby(CHALLENGE_ACCEPT_MSG_TYPE + "_bore_url", {
+              targetId: content.acceptedBy,
+              boreUrl: boreUrl,
+              challengerName: username,
+            });
+
+            setTimeout(() => resetChallenge(), 5000);
+          } catch (e) {
+            console.error("Error en flujo HOST:", e);
+            resetChallenge();
+          }
+          return;
+        }
+
+        // 2b. Recibimos la URL bore del Challenger (Somos B = Target = CLIENT)
+        if (content._type === CHALLENGE_ACCEPT_MSG_TYPE + "_bore_url") {
+          if (isLaunchingRef.current) return;
+          isLaunchingRef.current = true;
+
+          console.log(
+            `🔥 ¡Recibido bore URL del Challenger: ${content.boreUrl}! Conectando...`,
+          );
+
+          try {
+            // 1. Guardar URL del relay
+            localStorage.setItem("emu_latam_relay", content.boreUrl);
+            // @ts-expect-error - IPC bridge types
+            await window.electron.ipcRenderer.invoke("save-relay-url", content.boreUrl);
+
+            // 2. Lanzar RetroArch como CLIENT conectándose al bore del Host
+            // @ts-expect-error - IPC bridge types
+            await window.electron.ipcRenderer.invoke("launch-game", {
+              isHost: false,
+              useRelay: true,
+              relayIp: content.boreUrl,
+            });
+
+            setTimeout(() => resetChallenge(), 5000);
+          } catch (e) {
+            console.error("Error en flujo CLIENT:", e);
+            resetChallenge();
+          }
           return;
         }
 
@@ -250,7 +291,7 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({
             setTimeout(() => resetChallenge(), 2500);
           return;
         }
-      } catch (e) {
+      } catch {
         // Si no es JSON valido, ignorar silenciosamente
       }
     };

@@ -1,3 +1,6 @@
 - [x] Integrar bore localmente
 - [x] Regex para capturar puerto
 - [x] Guardar en Nakama Match Data
+- [x] Fix: proxy TCP local para bypass del bug `--port` en RetroArch (guest siempre conecta a 55435)
+- [x] Fix: host con relay usa puerto 55436 para liberar 55435 para el proxy del guest
+- [x] Fix: directorio de logs con timestamp en main process
