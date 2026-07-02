@@ -205,9 +205,19 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({
           );
 
           try {
-            // 1. Crear túnel bore (Host = Challenger)
+            // 1. Matar RAs previos para liberar puerto
             // @ts-expect-error - IPC bridge types
-            const tunnel = await window.electron.ipcRenderer.invoke("start-relay-tunnel");
+            await window.electron.ipcRenderer.invoke("kill-retroarch");
+
+            // 2. Crear túnel bore con reintento (Host = Challenger)
+            let tunnel = null;
+            for (let attempt = 1; attempt <= 3; attempt++) {
+              // @ts-expect-error - IPC bridge types
+              tunnel = await window.electron.ipcRenderer.invoke("start-relay-tunnel-v2");
+              if (tunnel.success) break;
+              console.log(`⏳ Intento ${attempt}/3 de túnel bore falló: ${tunnel.error}. Reintentando...`);
+              await new Promise(r => setTimeout(r, 2000));
+            }
 
             if (!tunnel.success) {
               console.error("❌ Error creando túnel:", tunnel.error);
@@ -249,7 +259,6 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({
 
         // 2b. Recibimos la URL bore del Challenger (Somos B = Target = CLIENT)
         if (content._type === CHALLENGE_ACCEPT_MSG_TYPE + "_bore_url") {
-          if (isLaunchingRef.current) return;
           isLaunchingRef.current = true;
 
           console.log(
@@ -262,7 +271,7 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({
             // @ts-expect-error - IPC bridge types
             await window.electron.ipcRenderer.invoke("save-relay-url", content.boreUrl);
 
-            // 2. Lanzar RetroArch como CLIENT conectándose al bore del Host
+            // 3. Lanzar RetroArch como CLIENT conectándose al bore del Host
             // @ts-expect-error - IPC bridge types
             await window.electron.ipcRenderer.invoke("launch-game", {
               isHost: false,

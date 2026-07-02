@@ -103,12 +103,15 @@ function createWindow(sessionName = "default"): void {
 
 // Proxy TCP: redirige conexiones locales a un host remoto
 let proxyServers: net.Server[] = [];
+let forwarderServers: net.Server[] = [];
 
 function startProxy(targetHost: string, targetPort: number): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = net.createServer((localSocket) => {
       console.log(`🔌 Proxy: conexión entrante, redirigiendo a ${targetHost}:${targetPort}`);
       const remoteSocket = new net.Socket();
+      localSocket.setNoDelay(true);
+      remoteSocket.setNoDelay(true);
       remoteSocket.connect(targetPort, targetHost, () => {
         localSocket.pipe(remoteSocket);
         remoteSocket.pipe(localSocket);
@@ -137,6 +140,47 @@ function stopAllProxies(): void {
   proxyServers = [];
 }
 
+// Forwarder: escucha en listenPort, reenvía a 127.0.0.1:targetPort
+// Útil para que bore (que usa 55436) pueda alcanzar al host RA (55435)
+function getLanIp(): string {
+  const nets = os.networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]!) {
+      if (net.family === "IPv4" && !net.internal) return net.address;
+    }
+  }
+  return "127.0.0.1";
+}
+
+function startPortForwarder(listenPort: number, targetPort: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const targetIp = getLanIp();
+    const server = net.createServer((incoming) => {
+      console.log(`🔁 Forwarder: conexión en ${listenPort} → ${targetIp}:${targetPort}`);
+      const target = new net.Socket();
+      incoming.setNoDelay(true);
+      target.setNoDelay(true);
+      target.connect(targetPort, targetIp, () => {
+        incoming.pipe(target);
+        target.pipe(incoming);
+      });
+      target.on("error", (err) => { console.error(`🔥 Forwarder: error target: ${err.message}`); incoming.destroy(); });
+      incoming.on("error", (err) => { if (!err.message.includes("ECONNRESET")) console.error(`🔥 Forwarder: error incoming: ${err.message}`); target.destroy(); });
+    });
+    server.listen(listenPort, "127.0.0.1", () => {
+      forwarderServers.push(server);
+      console.log(`✅ Forwarder activo: ${listenPort} → ${targetPort}`);
+      resolve();
+    });
+    server.on("error", reject);
+  });
+}
+
+function stopAllForwarders(): void {
+  for (const s of forwarderServers) { try { s.close(); } catch {} }
+  forwarderServers = [];
+}
+
 app.whenReady().then(() => {
   ipcMain.handle("launch-game", async (_event, args) => {
     const { isHost, useRelay, relayIp, relayUrl } = args;
@@ -152,8 +196,10 @@ app.whenReady().then(() => {
     if (fs.existsSync(optimizedCfg)) { spawnArgs.push("--appendconfig", optimizedCfg); }
     if (useRelay) {
       if (isHost) {
-        // Host con relay: usa puerto 55436 para liberar 55435 para el proxy del guest
-        spawnArgs.push("--host", "--port", "55436");
+        // Host con relay: escucha en 55435, forwarder 55436→55435
+        // para que bore pueda reenviar a 55436 sin conflicto con proxy del guest
+        spawnArgs.push("--host", "--port", "55435");
+        await startPortForwarder(55436, 55435);
       } else {
         // Guest con relay: necesita proxy porque RetroArch ignora --port en client mode
         let connectHost = relayIp;
@@ -195,7 +241,8 @@ app.whenReady().then(() => {
       child.on("error", (err) => console.error("❌ FALLO DE SPAWN:", err));
       child.on("close", (code) => {
         console.log(`🛑 RetroArch exited with code ${code}`);
-        stopAllProxies();
+        if (isHost) stopAllForwarders();
+        else stopAllProxies();
         if (code !== null && code !== undefined) console.error(`🔥 RetroArch terminó con código ${code} — posible error de conexión`);
       });
       child.stdout?.on("data", (data) => { try { console.log(`💬 [RETROARCH]: ${data}`); } catch {} });
@@ -206,12 +253,12 @@ app.whenReady().then(() => {
       if (child.pid) {
         console.log(`✅ RetroArch lanzado (PID: ${child.pid})`);
         if (isHost) {
-          const hostPort = useRelay ? 55436 : 55435;
-          console.log(`⏳ Esperando puerto ${hostPort}...`);
-          const portReady = await waitForPort(hostPort, 8000);
-          if (!portReady) console.error(`❌ Puerto ${hostPort} no disponible después de 8s`);
+          // RA siempre escucha en 55435 (--port y netplay_port son ignorados)
+          console.log(`⏳ Esperando puerto 55435 (host RA)...`);
+          const portReady = await waitForPort(55435, 8000);
+          if (!portReady) console.error(`❌ Puerto 55435 no disponible después de 8s`);
           else {
-            console.log(`✅ Puerto ${hostPort} listo`);
+            console.log(`✅ Puerto 55435 listo`);
             if (relayUrl) {
               const relayFilePath = path.join(getProjectRoot(), "relay-server", "active_relay.txt");
               fs.writeFileSync(relayFilePath, relayUrl, "utf8");
@@ -248,7 +295,6 @@ app.whenReady().then(() => {
       let boreChild;
       let stderrLog = "";
       try {
-        // Bore tuneliza PUERTO 55436 (el host con relay escucha ahí)
         boreChild = spawn(borePath, ["local", "55436", "--to", "bore.pub"], { cwd: relayDir, windowsHide: true });
       } catch (e) {
         return resolve({ success: false, error: "Error al spawn bore: " + String(e) });
@@ -271,6 +317,60 @@ app.whenReady().then(() => {
         const msg = data.toString().trim();
         stderrLog += msg + " | ";
         console.error(`🔥 [BORE STDERR]: ${msg}`);
+      });
+      boreProcess.on("error", (err) => { if (!resolved) { resolved = true; clearTimeout(timeout); resolve({ success: false, error: err.message + " | stderr: " + stderrLog }); } });
+      boreProcess.on("close", (code) => { boreProcess = null; if (!resolved) { resolved = true; clearTimeout(timeout); resolve({ success: false, error: `Bore terminó con código ${code} | stderr: ${stderrLog}` }); } });
+    });
+  });
+
+  ipcMain.handle("kill-retroarch", async () => {
+    try { execSync("taskkill /f /im retroarch.exe 2>nul", { stdio: "ignore" }); } catch {}
+    await new Promise(r => setTimeout(r, 1000));
+    console.log("🧹 Procesos RetroArch eliminados");
+    return true;
+  });
+
+  ipcMain.handle("start-relay-tunnel-v2", async () => {
+    return new Promise(async (resolve) => {
+      const projectRoot = getProjectRoot();
+      const relayDir = path.join(projectRoot, "relay-server");
+      const borePath = path.join(relayDir, "bore.exe");
+      if (!fs.existsSync(borePath)) return resolve({ success: false, error: "Bore no encontrado" });
+
+      try { execSync("taskkill /f /im bore.exe 2>nul", { stdio: "ignore" }); } catch {}
+      await new Promise(r => setTimeout(r, 1500));
+
+      let boreHost = "bore.pub";
+      try {
+        const addrs = await dns.promises.resolve4("bore.pub");
+        if (addrs && addrs.length > 0) { boreHost = addrs[0]; }
+      } catch (e) {
+        console.error(`⚠️ No se pudo resolver bore.pub:`, e);
+      }
+
+      console.log(`🚀 Bore V2 con IP: ${boreHost}`);
+      let resolved = false;
+      let boreChild;
+      let stderrLog = "";
+      try {
+        boreChild = spawn(borePath, ["local", "55436", "--to", boreHost], { cwd: relayDir, windowsHide: true });
+      } catch (e) {
+        return resolve({ success: false, error: "Error al spawn bore: " + String(e) });
+      }
+      if (!boreChild || !boreChild.stdout) return resolve({ success: false, error: "bore stdout no disponible" });
+      boreProcess = boreChild;
+      const timeout = setTimeout(() => {
+        if (!resolved) { resolved = true; if (boreProcess) boreProcess.kill(); resolve({ success: false, error: "Timeout" }); }
+      }, 10000);
+      boreProcess.stdout.on("data", (data) => {
+        try {
+          const output = data.toString();
+          const match = output.match(/listening at ([\w.-]+:\d+)/);
+          if (match && !resolved) { resolved = true; clearTimeout(timeout); resolve({ success: true, url: match[1] }); }
+        } catch (e) { console.error("[bore V2] Error:", e); }
+      });
+      boreProcess.stderr?.on("data", (data) => {
+        stderrLog += data.toString().trim() + " | ";
       });
       boreProcess.on("error", (err) => { if (!resolved) { resolved = true; clearTimeout(timeout); resolve({ success: false, error: err.message + " | stderr: " + stderrLog }); } });
       boreProcess.on("close", (code) => { boreProcess = null; if (!resolved) { resolved = true; clearTimeout(timeout); resolve({ success: false, error: `Bore terminó con código ${code} | stderr: ${stderrLog}` }); } });
