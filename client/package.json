@@ -9,7 +9,8 @@
     "dev:electron": "wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 npx electron .",
     "build": "electron-vite build",
     "lint": "eslint .",
-    "preview": "electron-vite preview"
+    "preview": "electron-vite preview",
+    "test:stable": "node test_stable_flows.js"
   },
   "dependencies": {
     "react": "^19.2.0",

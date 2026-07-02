@@ -108,6 +108,7 @@ function App() {
           finalRelayIp = result.url;
           setCustomRelay(result.url);
           localStorage.setItem("emu_latam_relay", result.url);
+          await (window as any).electron.ipcRenderer.invoke("save-relay-url", result.url);
         } else {
           alert("Error al iniciar túnel: " + result.error);
           setIsLaunchingRelay(false);

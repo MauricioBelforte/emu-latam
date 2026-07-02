@@ -129,3 +129,33 @@ Este es el **flujo de trabajo obligatorio**:
 4. Actualizar los archivos del módulo/documentación para reflejar el cambio.
 5. Actualizar los `*-ACTUAL.md` de la raíz si el cambio es significativo (arquitectura, flujos principales).
 6. Generar log en `Logs/`.
+
+## 14. Modularización de Flujos Complejos (Nuevo)
+
+Cuando se desarrolle una funcionalidad nueva que comparta lógica con flujos existentes que ya funcionan:
+
+1. **Identificar el flujo nuevo vs existente:** Si el nuevo flujo (ej: desafíos/retos) tiene requisitos diferentes o puede necesitar cambios que afecten a flujos que ya andan (ej: host directo, host con bore manual), se debe crear un módulo/IPC handler/componente separado.
+2. **No tocar lo que funciona:** Si el handler `launch-game` ya funciona correctamente para los modos manuales, no modificarlo para el nuevo flujo. En su lugar:
+   - Agregar **nuevos IPC handlers** en el main process para el nuevo flujo.
+   - El nuevo handler puede REUTILIZAR funciones auxiliares compartidas (ej: `waitForPort`, `startProxy`, `spawn RA`) pero debe tener su propia lógica de orquestación.
+   - Esto permite que el nuevo flujo pueda matar procesos, cambiar puertos, o hacer limpieza agresiva sin riesgo de romper los flujos existentes.
+3. **Documentar la decisión:** En los archivos del componente (`03-Diseno.md` o `04-Codigo.md`), explicar por qué se optó por un flujo separado y qué comparte con los flujos existentes.
+
+## 15. Flujos Bloqueados (Estables) — NO MODIFICAR
+
+Estos flujos han sido verificados y no deben modificarse. Cualquier cambio debe hacerse en un flujo paralelo nuevo.
+
+| Flujo | Botón(es) | Handler/IPC | Args RA | Arquitectura |
+|-------|-----------|-------------|---------|-------------|
+| Host directo (sin bore) | "HOST DIRECTO (sin bore)" | `launch-game` con `useRelay=false` | Host: `--host --port 55435`, Guest: `--connect 127.0.0.1 --port 55435` | Directo, sin proxy ni túnel |
+| Host con bore manual | "1. HOST GAME (BORE)" + "2. JOIN GAME" | `start-relay-tunnel` (V1) + `launch-game` con `useRelay=true` | Host: `--host --port 55435`, Guest: `--connect 127.0.0.1` | Host: forwarder 55436→LAN_IP:55435, bore `local 55436 --to bore.pub`. Guest: proxy 55435→bore.pub:XXXXX |
+| Join directo (lee relay file) | "2. JOIN GAME" | `launch-game` con `useRelay=true, relayIp=del archivo` | Guest: `--connect 127.0.0.1` (con proxy) o `--connect 127.0.0.1 --port 55435` (directo) | Según relayIp: si es IP local → directo, si es externa → proxy + bore |
+
+### Detalle de la arquitectura bore manual
+```
+[Guest RA] → --connect 127.0.0.1 → proxy:55435 (127.0.0.1) → bore.pub:XXXXX → bore tunnel → forwarder:55436 (127.0.0.1) → LAN_IP:55435 → [Host RA]
+```
+- **`--port` es ignorado por RetroArch en ambos modos** (host y cliente). Siempre usa 55435.
+- El forwarder usa `getLanIp()` (LAN IP, ej: 192.168.x.x) para conectar al host RA y evitar el conflicto con el proxy que escucha en `127.0.0.1:55435`.
+- La limpieza de servidores es independiente: `proxyServers[]` se limpia al cerrar guest, `forwarderServers[]` al cerrar host.
+- Test de verificación: `npm run test:stable` (35 tests) en `client/test_stable_flows.js`.
