@@ -528,15 +528,20 @@ app.whenReady().then(() => {
   // ─── TAILSCALE (paralelo, no toca flujos blindados) ───
   ipcMain.handle("tailscale-host", async () => {
     try {
-      const tsIp = getTailscaleIp();
-      if (!tsIp) return { success: false, error: "Tailscale no detectado. Descargalo en https://tailscale.com/download" };
-
       const projectRoot = getProjectRoot();
       const retroArchDir = path.join(projectRoot, "retroarch");
       const retroArchPath = path.join(retroArchDir, "retroarch.exe");
       const corePath = path.join(retroArchDir, "cores", "fbneo_libretro.dll");
       const romPath = path.join(retroArchDir, "roms", "kof98.zip");
       const cfg = path.join(retroArchDir, "netplay_optimized.cfg");
+
+      let tsIp = getTailscaleIp();
+      let isLocalFallback = false;
+      if (!tsIp) {
+        tsIp = "127.0.0.1";
+        isLocalFallback = true;
+        console.log("[TAILSCALE] Tailscale no detectado, usando 127.0.0.1 para test local");
+      }
 
       try { execSync("taskkill /f /im retroarch.exe 2>nul", { stdio: "ignore" }); } catch {}
       await new Promise(r => setTimeout(r, 1000));
@@ -550,8 +555,11 @@ app.whenReady().then(() => {
       const ready = await waitForPort(55435, 8000);
       if (!ready) return { success: false, error: "RA no abrió puerto 55435" };
 
+      const msg = isLocalFallback
+        ? `Host RA activo en localhost. Ingresá 127.0.0.1 en JOIN VÍA TAILSCALE para test local`
+        : `HOST TAILSCALE activo — IP: ${tsIp}`;
       console.log(`[TAILSCALE] Host listo, IP: ${tsIp}`);
-      return { success: true, ip: tsIp };
+      return { success: true, ip: tsIp, message: msg, isLocalFallback };
     } catch (e) {
       console.error("[TAILSCALE] Error host:", e);
       return { success: false, error: String(e) };
@@ -568,9 +576,6 @@ app.whenReady().then(() => {
       const corePath = path.join(retroArchDir, "cores", "fbneo_libretro.dll");
       const romPath = path.join(retroArchDir, "roms", "kof98.zip");
       const cfg = path.join(retroArchDir, "netplay_optimized.cfg");
-
-      try { execSync("taskkill /f /im retroarch.exe 2>nul", { stdio: "ignore" }); } catch {}
-      await new Promise(r => setTimeout(r, 1000));
 
       const args = ["-L", corePath, romPath, "--connect", hostIp, "--port", "55435"];
       if (fs.existsSync(cfg)) args.push("--appendconfig", cfg);
