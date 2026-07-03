@@ -9,8 +9,7 @@ export default defineConfig({
     react(),
     electron([
       {
-        // Main process entry file of the Electron App.
-        entry: "electron/main.ts",
+        entry: "src/main/index.ts",
         vite: {
           build: {
             rollupOptions: {
@@ -23,7 +22,7 @@ export default defineConfig({
         },
       },
       {
-        entry: "electron/preload.ts",
+        entry: "src/preload/index.ts",
         vite: {
           build: {
             rollupOptions: {
