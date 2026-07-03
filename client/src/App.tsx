@@ -64,6 +64,10 @@ function App() {
   const [isServerReady, setIsServerReady] = useState(false);
   const [isLaunchingRelay, setIsLaunchingRelay] = useState(false);
   const [isLaunchingMitm, setIsLaunchingMitm] = useState(false);
+  const [isHostingTailscale, setIsHostingTailscale] = useState(false);
+  const [isJoiningTailscale, setIsJoiningTailscale] = useState(false);
+  const [tailscaleHostIp, setTailscaleHostIp] = useState("");
+  const [tsStatus, setTsStatus] = useState("");
   const [customRelay, setCustomRelay] = useState("");
   const [statusText, setStatusText] = useState("");
 
@@ -184,6 +188,55 @@ function App() {
     setStatusText("");
   };
 
+  const handleTailscaleHost = async () => {
+    setIsHostingTailscale(true);
+    setTsStatus("Detectando Tailscale...");
+    try {
+      const result = await (window as any).electron.ipcRenderer.invoke("tailscale-host");
+      if (result.success) {
+        setTailscaleHostIp(result.ip);
+        setTsStatus(`HOST TAILSCALE activo — IP: ${result.ip} (compartila con tu amigo)`);
+      } else {
+        alert("Error Tailscale: " + result.error);
+        setTsStatus("");
+      }
+    } catch (e) {
+      console.error("Error Tailscale host:", e);
+      alert("Error al iniciar host Tailscale");
+      setTsStatus("");
+    }
+    setIsHostingTailscale(false);
+  };
+
+  const handleTailscaleGuest = async () => {
+    if (!tailscaleHostIp) {
+      alert("Pegá la IP del host en el campo de texto primero");
+      return;
+    }
+    setIsJoiningTailscale(true);
+    setTsStatus("Conectando a host via Tailscale...");
+    try {
+      const result = await (window as any).electron.ipcRenderer.invoke("tailscale-guest", { hostIp: tailscaleHostIp });
+      if (!result.success) {
+        alert("Error Tailscale: " + (result.error || "desconocido"));
+        setTsStatus("");
+      } else {
+        setTsStatus("Conectado a host via Tailscale");
+      }
+    } catch (e) {
+      console.error("Error Tailscale guest:", e);
+      alert("Error al conectar via Tailscale");
+      setTsStatus("");
+    }
+    setIsJoiningTailscale(false);
+  };
+
+  const handleStopTailscale = async () => {
+    await (window as any).electron.ipcRenderer.invoke("stop-tailscale");
+    setTailscaleHostIp("");
+    setTsStatus("");
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <GlobalStyles />
@@ -227,6 +280,29 @@ function App() {
                 style={{ padding: "10px 20px", fontSize: "0.75rem", backgroundColor: "#4a1a4a", opacity: isLaunchingMitm ? 0.5 : 1 }}>
                 {isLaunchingMitm ? "INICIANDO RELAY..." : "TEST MITM LOCAL"}
               </InsertCoinButton>
+              <div style={{ marginTop: "25px", borderTop: "1px solid #333", paddingTop: "20px" }}>
+                <p style={{ color: "#0af", fontSize: "0.7rem", marginBottom: "10px", fontFamily: "monospace" }}>
+                  ─── TAILSCALE (P2P DIRECTO) ───
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
+                  <InsertCoinButton onClick={handleTailscaleHost} disabled={isHostingTailscale}
+                    style={{ padding: "10px 10px", fontSize: "0.75rem", backgroundColor: "#0a3a5a", opacity: isHostingTailscale ? 0.5 : 1 }}>
+                    {isHostingTailscale ? "DETECTANDO..." : "HOST TAILSCALE"}
+                  </InsertCoinButton>
+                  <InsertCoinButton onClick={handleStopTailscale}
+                    style={{ padding: "10px 10px", fontSize: "0.75rem", backgroundColor: "#5a1a1a" }}>
+                    DETENER TAILSCALE
+                  </InsertCoinButton>
+                </div>
+                <input type="text" value={tailscaleHostIp} onChange={(e) => setTailscaleHostIp(e.target.value)}
+                  style={{ width: "100%", padding: "10px", background: "#000", border: "1px solid #0af", color: "#0af", fontFamily: "monospace", marginBottom: "10px" }}
+                  placeholder="Pegá acá la IP Tailscale del host (ej: 100.85.42.13)" />
+                <InsertCoinButton onClick={handleTailscaleGuest} disabled={isJoiningTailscale || !tailscaleHostIp}
+                  style={{ padding: "10px 20px", fontSize: "0.75rem", backgroundColor: "#0a5a3a", width: "100%", opacity: isJoiningTailscale ? 0.5 : 1 }}>
+                  {isJoiningTailscale ? "CONECTANDO..." : "JOIN VÍA TAILSCALE"}
+                </InsertCoinButton>
+                {tsStatus && <p style={{ color: "#0af", fontFamily: "monospace", fontSize: "0.75rem", marginTop: "8px" }}>{tsStatus}</p>}
+              </div>
               {statusText && <p style={{ color: "#ff0", fontFamily: "monospace", fontSize: "0.8rem", marginTop: "10px" }}>{statusText}</p>}
               <p style={{ color: isConnected ? theme.colors.success : theme.colors.danger, fontFamily: theme.fonts.main, fontSize: "0.8rem" }}>
                 {isConnected ? "● WEBSOCKET CONNECTED" : "○ WEBSOCKET DISCONNECTED"}
