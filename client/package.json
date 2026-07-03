@@ -16,7 +16,9 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-icons": "^5.5.0",
-    "styled-components": "^6.3.10"
+    "styled-components": "^6.3.10",
+    "vite-plugin-electron": "^1.1.0",
+    "vite-plugin-electron-renderer": "^1.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
@@ -51,21 +53,29 @@
       {
         "from": "../backend",
         "to": "extraResources/backend",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": "../retroarch",
         "to": "extraResources/retroarch",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": "../relay-server",
         "to": "extraResources/relay-server",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "win": {
-      "target": ["nsis"]
+      "target": [
+        "nsis"
+      ]
     },
     "nsis": {
       "oneClick": false,
