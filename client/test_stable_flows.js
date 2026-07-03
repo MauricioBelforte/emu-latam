@@ -442,6 +442,38 @@ assert(
 );
 
 // ──────────────────────────────────────────
+// 3. TAILSCALE ARGS TESTS (paralelo, no toca blindados)
+// ──────────────────────────────────────────
+console.log("\n📡 TAILSCALE — Spawn args (flujo paralelo)");
+
+function buildArgs_TailscaleHost() {
+  const args = ["-L", "core.dll", "rom.zip"];
+  args.push("--appendconfig", "cfg.cfg");
+  args.push("--host", "--port", "55435");
+  return args;
+}
+function buildArgs_TailscaleGuest(hostIp) {
+  const args = ["-L", "core.dll", "rom.zip"];
+  args.push("--appendconfig", "cfg.cfg");
+  args.push("--connect", hostIp, "--port", "55435");
+  return args;
+}
+
+const tsHostArgs = buildArgs_TailscaleHost();
+const tsGuestArgs = buildArgs_TailscaleGuest("100.85.42.13");
+
+assert(
+  "Host contiene --host --port 55435",
+  tsHostArgs.includes("--host") && tsHostArgs.includes("--port") && tsHostArgs.includes("55435"),
+);
+assert("Host NO contiene --connect", !tsHostArgs.includes("--connect"));
+assert(
+  "Guest contiene --connect 100.x.x.x --port 55435",
+  tsGuestArgs.includes("--connect") && tsGuestArgs.includes("100.85.42.13") && tsGuestArgs.includes("--port") && tsGuestArgs.includes("55435"),
+);
+assert("Guest NO contiene --host", !tsGuestArgs.includes("--host"));
+
+// ──────────────────────────────────────────
 // EJECUTAR TESTS ASYNC
 // ──────────────────────────────────────────
 async function run() {

@@ -197,6 +197,18 @@ function getLanIp(): string {
   return "127.0.0.1";
 }
 
+function getTailscaleIp(): string | null {
+  const nets = os.networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const iface of nets[name]!) {
+      if (iface.family === "IPv4" && iface.address.startsWith("100.") && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return null;
+}
+
 function startPortForwarder(listenPort: number, targetPort: number): Promise<void> {
   return new Promise((resolve, reject) => {
     const targetIp = getLanIp();
@@ -513,6 +525,72 @@ app.whenReady().then(() => {
     } catch (e) { console.error("❌ Error leyendo relay URL:", e); return null; }
   });
 
+  // ─── TAILSCALE (paralelo, no toca flujos blindados) ───
+  ipcMain.handle("tailscale-host", async () => {
+    try {
+      const tsIp = getTailscaleIp();
+      if (!tsIp) return { success: false, error: "Tailscale no detectado. Descargalo en https://tailscale.com/download" };
+
+      const projectRoot = getProjectRoot();
+      const retroArchDir = path.join(projectRoot, "retroarch");
+      const retroArchPath = path.join(retroArchDir, "retroarch.exe");
+      const corePath = path.join(retroArchDir, "cores", "fbneo_libretro.dll");
+      const romPath = path.join(retroArchDir, "roms", "kof98.zip");
+      const cfg = path.join(retroArchDir, "netplay_optimized.cfg");
+
+      try { execSync("taskkill /f /im retroarch.exe 2>nul", { stdio: "ignore" }); } catch {}
+      await new Promise(r => setTimeout(r, 1000));
+
+      const args = ["-L", corePath, romPath, "--host", "--port", "55435"];
+      if (fs.existsSync(cfg)) args.push("--appendconfig", cfg);
+      console.log(`[TAILSCALE] Host: ${retroArchPath} ${args.join(" ")}`);
+      const host = spawn(retroArchPath, args, { cwd: retroArchDir, detached: true, stdio: "ignore" });
+      host.unref();
+
+      const ready = await waitForPort(55435, 8000);
+      if (!ready) return { success: false, error: "RA no abrió puerto 55435" };
+
+      console.log(`[TAILSCALE] Host listo, IP: ${tsIp}`);
+      return { success: true, ip: tsIp };
+    } catch (e) {
+      console.error("[TAILSCALE] Error host:", e);
+      return { success: false, error: String(e) };
+    }
+  });
+
+  ipcMain.handle("tailscale-guest", async (_event, { hostIp }: { hostIp: string }) => {
+    try {
+      if (!hostIp) return { success: false, error: "IP del host no proporcionada" };
+
+      const projectRoot = getProjectRoot();
+      const retroArchDir = path.join(projectRoot, "retroarch");
+      const retroArchPath = path.join(retroArchDir, "retroarch.exe");
+      const corePath = path.join(retroArchDir, "cores", "fbneo_libretro.dll");
+      const romPath = path.join(retroArchDir, "roms", "kof98.zip");
+      const cfg = path.join(retroArchDir, "netplay_optimized.cfg");
+
+      try { execSync("taskkill /f /im retroarch.exe 2>nul", { stdio: "ignore" }); } catch {}
+      await new Promise(r => setTimeout(r, 1000));
+
+      const args = ["-L", corePath, romPath, "--connect", hostIp, "--port", "55435"];
+      if (fs.existsSync(cfg)) args.push("--appendconfig", cfg);
+      console.log(`[TAILSCALE] Guest: ${retroArchPath} ${args.join(" ")}`);
+      const guest = spawn(retroArchPath, args, { cwd: retroArchDir, detached: true, stdio: "ignore" });
+      guest.unref();
+
+      return { success: true };
+    } catch (e) {
+      console.error("[TAILSCALE] Error guest:", e);
+      return { success: false, error: String(e) };
+    }
+  });
+
+  ipcMain.handle("stop-tailscale", async () => {
+    try { execSync("taskkill /f /im retroarch.exe 2>nul", { stdio: "ignore" }); } catch {}
+    console.log("[TAILSCALE] Detenido");
+    return true;
+  });
+
   launchNakama();
   createWindow();
 });
@@ -523,4 +601,5 @@ app.on("before-quit", () => {
   if (nakamaProcess) nakamaProcess.kill();
   if (boreProcess) { console.log("🛑 Stopping Bore..."); boreProcess.kill(); }
   if (mitmRelayProcess) { console.log("🛑 Stopping MITM relay..."); mitmRelayProcess.kill(); }
+  console.log("[TAILSCALE] Limpieza en before-quit");
 });
