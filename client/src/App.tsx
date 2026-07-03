@@ -190,12 +190,12 @@ function App() {
 
   const handleTailscaleHost = async () => {
     setIsHostingTailscale(true);
-    setTsStatus("Detectando Tailscale...");
+    setTsStatus("Iniciando host RA...");
     try {
       const result = await (window as any).electron.ipcRenderer.invoke("tailscale-host");
       if (result.success) {
         setTailscaleHostIp(result.ip);
-        setTsStatus(`HOST TAILSCALE activo — IP: ${result.ip} (compartila con tu amigo)`);
+        setTsStatus(result.message || `Host activo — IP: ${result.ip}`);
       } else {
         alert("Error Tailscale: " + result.error);
         setTsStatus("");
