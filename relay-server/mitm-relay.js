@@ -17,6 +17,12 @@ const CMD_INPUT = 0x0003;
 const CMD_NICK = 0x0020;
 const CMD_INFO = 0x0022;
 const CMD_SYNC = 0x0023;
+const CMD_PLAY = 0x0025;
+const CMD_MODE = 0x0026;
+
+// MODE bit flags (from netplay_private.h)
+const MODE_BIT_YOU     = (1 << 31) >>> 0;  // 0x80000000
+const MODE_BIT_PLAYING = (1 << 30) >>> 0;  // 0x40000000
 
 // Client states during handshake
 const ST_MITM_ID = 0;    // MITM pre-handshake (RATS + UUID)
@@ -55,8 +61,9 @@ class MitmRelay {
     this.cmdSize = new WeakMap();
     this.syncSent = new WeakMap();
     this.clientNum = new WeakMap();
-
     this.nick = new WeakMap();
+    this.frameCount = 0;
+    this.pendingQueue = [];
     this.protocolVersion = 4;
   }
 
@@ -506,6 +513,30 @@ class MitmRelay {
     return buf.slice(consumed);
   }
 
+  buildMode(clientNum, isTarget) {
+    const modePayload = Buffer.alloc(4 + 4 + 4 + 16 + 32);
+    let off = 0;
+    modePayload.writeUInt32BE(this.frameCount, off); off += 4;
+    // mode: BIT_YOU | BIT_PLAYING | player_index (0-based)
+    let modeVal = MODE_BIT_YOU | MODE_BIT_PLAYING;
+    if (!isTarget) modeVal &= ~MODE_BIT_YOU;
+    modeVal |= (clientNum - 1);
+    modePayload.writeUInt32BE(modeVal, off); off += 4;
+    // devices: bitmask of all playing players
+    const bitmask = (1 << (clientNum - 1));
+    modePayload.writeUInt32BE(bitmask, off); off += 4;
+    // share_modes: zeros (16 bytes)
+    off += 16;
+    // nick: zeros (32 bytes)
+    off += 32;
+
+    const buf = Buffer.alloc(8 + modePayload.length);
+    buf.writeUInt32BE(CMD_MODE, 0);
+    buf.writeUInt32BE(modePayload.length, 4);
+    modePayload.copy(buf, 8);
+    return buf;
+  }
+
   processCommand(socket, num, data) {
     if (data.length < 8) return null;
     const cmdId = readBE32(data, 0);
@@ -516,15 +547,48 @@ class MitmRelay {
 
     const packet = data.slice(0, totalSize);
 
-    const other = num === 1 ? this.guest : this.master;
-    if (other && other.writable) {
-      other.write(packet);
-      if (cmdId !== CMD_INPUT) {
-        console.log(`[MITM] Forwarded cmd 0x${cmdId.toString(16)} from client ${num}`);
+    if (cmdId === CMD_PLAY) {
+      console.log(`[MITM] Client ${num} wants to play`);
+      const modeToSelf = this.buildMode(num, true);
+      socket.write(modeToSelf);
+      const other = num === 1 ? this.guest : this.master;
+      if (other && other.writable) {
+        const modeToOther = this.buildMode(num, false);
+        other.write(modeToOther);
+        console.log(`[MITM] Sent MODE for player ${num} to other`);
+      }
+    } else {
+      const other = num === 1 ? this.guest : this.master;
+      if (other && other.writable) {
+        const otherState = this.states.get(other);
+        if (otherState === ST_READY) {
+          other.write(packet);
+          if (cmdId !== CMD_INPUT) {
+            console.log(`[MITM] Forwarded cmd 0x${cmdId.toString(16)} from client ${num}`);
+          }
+        } else {
+          this.pendingQueue.push({ target: other, data: packet });
+          if (cmdId !== CMD_INPUT) {
+            console.log(`[MITM] Buffered cmd 0x${cmdId.toString(16)} from client ${num} (peer not ready)`);
+          }
+        }
       }
     }
 
     return { consumed: totalSize };
+  }
+
+  flushPendingQueue(target) {
+    const remaining = [];
+    for (const entry of this.pendingQueue) {
+      if (entry.target === target && target.writable) {
+        target.write(entry.data);
+        console.log(`[MITM] Flushed buffered cmd to client`);
+      } else {
+        remaining.push(entry);
+      }
+    }
+    this.pendingQueue = remaining;
   }
 
   sendSync(socket, num) {
@@ -555,6 +619,7 @@ class MitmRelay {
       // Spectator info (32 bytes) — all zeros
     }
     socket.write(syncBuf);
+    this.flushPendingQueue(socket);
   }
 
   getOtherSocket(socket) {
