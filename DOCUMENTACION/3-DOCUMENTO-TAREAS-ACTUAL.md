@@ -67,4 +67,34 @@ El objetivo de esta fase es hacer que la experiencia del usuario sea "un solo cl
 
 ---
 
+## ✅ COMPLETADO — Fase 3: Relay MITM → Transparent Forwarder
+
+### 3.1. Investigación MITM
+- [x] **Confirmar estado de servidores MITM públicos:** Todos caídos.
+- [x] **Evaluar compilación de netplay_mitm_server.c:** Código eliminado del repo RetroArch.
+- [x] **Decidir implementación:** Node.js nativo en Electron.
+
+### 3.2. Relay MITM Node.js (intento inicial)
+- [x] Handshake header echo, post-header, NICK, INFO, SYNC.
+- [x] Post-handshake forwarding con pendingQueue.
+- [x] Salt zeroeado en header (evita diálogo de password).
+- [x] MODE broadcast, INFO/NICK suppression, REQ_SAVE handling.
+- [x] **Problema:** Master se desconecta ~2s después de SYNC. Relay no tiene estado de juego.
+
+### 3.3. Transparent Forwarder (solución definitiva)
+- [x] Rewrite de `mitm-relay.js`: ~681 líneas MITM → ~60 líneas pipe TCP.
+- [x] Host RA usa `--host` (tiene estado real del juego).
+- [x] Guest RA usa `--connect` al relay.
+- [x] Relay pipea datos entre host y guest (sin lógica de protocolo).
+- [x] **Conexión exitosa:** Ambas ventanas RA se conectan y se ven.
+- [x] **Lección:** Un relay sin estado de juego NO puede reemplazar un host. La solución real es que RA sea el host.
+
+### 3.4. Integración Electron
+- [x] Handler `start-mitm-local` actualizado: host `--host` + waitForPort + relay forwarder.
+- [x] Handler `stop-mitm-local`: taskkill retroarch + kill relay.
+- [x] Handler paralelo (no toca flujos blindados AGENTS.md §14-15).
+- [x] 35/35 tests estables sin regresiones.
+
+---
+
 *(Al concluir cada fase, el asistente correrá los 'TEST AUTOMÁTICO' indicados y documentará los resultados)*

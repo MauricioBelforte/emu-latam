@@ -63,6 +63,7 @@ function App() {
   const { loginGhost, isAuthenticated, username, isConnected } = useAuth();
   const [isServerReady, setIsServerReady] = useState(false);
   const [isLaunchingRelay, setIsLaunchingRelay] = useState(false);
+  const [isLaunchingMitm, setIsLaunchingMitm] = useState(false);
   const [customRelay, setCustomRelay] = useState("");
   const [statusText, setStatusText] = useState("");
 
@@ -167,6 +168,22 @@ function App() {
     setStatusText("");
   };
 
+  const handleTestMitmLocal = async () => {
+    setIsLaunchingMitm(true);
+    setStatusText("Iniciando relay MITM local...");
+    try {
+      const result = await (window as any).electron.ipcRenderer.invoke("start-mitm-local");
+      if (!result.success) {
+        alert("Error MITM local: " + (result.error || "desconocido"));
+      }
+    } catch (e) {
+      console.error("Error MITM:", e);
+      alert("Error al iniciar MITM local");
+    }
+    setIsLaunchingMitm(false);
+    setStatusText("");
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <GlobalStyles />
@@ -205,6 +222,10 @@ function App() {
               </div>
               <InsertCoinButton onClick={handleDirectHost} style={{ padding: "10px 20px", fontSize: "0.75rem", backgroundColor: "#1a4a1a", marginBottom: "10px" }}>
                 HOST DIRECTO (sin bore)
+              </InsertCoinButton>
+              <InsertCoinButton onClick={handleTestMitmLocal} disabled={isLaunchingMitm}
+                style={{ padding: "10px 20px", fontSize: "0.75rem", backgroundColor: "#4a1a4a", opacity: isLaunchingMitm ? 0.5 : 1 }}>
+                {isLaunchingMitm ? "INICIANDO RELAY..." : "TEST MITM LOCAL"}
               </InsertCoinButton>
               {statusText && <p style={{ color: "#ff0", fontFamily: "monospace", fontSize: "0.8rem", marginTop: "10px" }}>{statusText}</p>}
               <p style={{ color: isConnected ? theme.colors.success : theme.colors.danger, fontFamily: theme.fonts.main, fontSize: "0.8rem" }}>

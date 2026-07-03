@@ -29,7 +29,7 @@ Esta carpeta contiene la documentación original del proyecto. **No refleja el e
 
 ### DOCUMENTACION/ — Documentación por Componentes
 
-Cada componente agregado al sistema Emu Latam se documenta en una subcarpeta numerada cronológicamente:
+Cada componente agregado al sistema Emu Latam se documenta en una subcarpeta numerada cronológicamente. **Cada componente tiene DOS carpetas obligatorias:**
 
 ```
 DOCUMENTACION/
@@ -38,14 +38,35 @@ DOCUMENTACION/
 ├── 2-DOCUMENTO-DISENO-ACTUAL.md
 ├── 3-DOCUMENTO-TAREAS-ACTUAL.md
 ├── 4-DOCUMENTO-EJECUCION-ACTUAL.md
-├── Plan Inicial/                      ← Solo origen del proyecto
-├── 01-Setup-Electron-Vite/            ← Setup inicial
-├── 02-Integracion-Nakama/             ← Matchmaking y Auth
-├── 03-Integracion-Bore/               ← Túneles TCP
-└── 04-Anti-Lag-RunAhead/              ← Mejoras de latencia
+├── Plan Inicial/                      ← Solo origen del proyecto (no modificar)
+├── 01-Setup-Electron-Vite/
+│   ├── plan-inicial/                  ← Documentación original del componente (NO MODIFICAR)
+│   │   ├── 01-Requerimientos.md
+│   │   ├── 02-Analisis.md
+│   │   ├── 03-Diseno.md
+│   │   ├── 04-Codigo.md
+│   │   └── 05-Checklist.md
+│   └── plan-actual/                   ← Documentación vigente del componente (ACTUALIZAR AQUÍ)
+│       ├── 01-Requerimientos.md
+│       ├── 02-Analisis.md
+│       ├── 03-Diseno.md
+│       ├── 04-Codigo.md
+│       └── 05-Checklist.md
+├── 02-Integracion-Nakama/
+│   ├── plan-inicial/
+│   └── plan-actual/
+├── 03-Integracion-Bore/
+│   ├── plan-inicial/
+│   └── plan-actual/
+└── 04-Anti-Lag-RunAhead/
+    ├── plan-inicial/
+    └── plan-actual/
 ```
 
-Cada componente tiene 5 archivos obligatorios:
+### Archivos Obligatorios por Carpeta (plan-inicial y plan-actual)
+
+Cada carpeta (`plan-inicial/` y `plan-actual/`) debe contener exactamente estos 5 archivos:
+
 | Archivo | Contenido |
 |---------|-----------|
 | `01-Requerimientos.md` | Problema, objetivos, alcance, restricciones |
@@ -54,9 +75,21 @@ Cada componente tiene 5 archivos obligatorios:
 | `04-Codigo.md` | Archivos involucrados, funciones clave, logs relacionados |
 | `05-Checklist.md` | Checklist de tareas completadas y pendientes del componente |
 
-### Reglas de actualización
-- Al realizar cambios significativos en el código, actualizar los 4 archivos `*-ACTUAL.md`.
-- No modificar los archivos dentro de `DOCUMENTACION/Plan Inicial/`.
+### Reglas de Actualización por Componente
+
+**plan-inicial/**:
+- **NO MODIFICAR NUNCA**. Contiene la documentación original del componente tal como fue concebido inicialmente.
+- Sirve como referencia histórica para entender el diseño original y compararlo con el estado actual.
+
+**plan-actual/**:
+- **ACTUALIZAR AQUÍ** cuando se realicen cambios en el componente.
+- Refleja el estado actual del código y la implementación.
+- Si se modifica un componente existente, actualizar los archivos en `plan-actual/`.
+- Los cambios deben documentarse en `Logs/` con el formato estándar.
+
+### Reglas de Actualización General
+- Al realizar cambios significativos en el código, actualizar los 4 archivos `*-ACTUAL.md` en la raíz de `DOCUMENTACION/`.
+- No modificar los archivos dentro de `DOCUMENTACION/Plan Inicial/` (raíz).
 - Si se requiere crear una nueva funcionalidad, agregarla al `3-DOCUMENTO-TAREAS-ACTUAL.md`.
 - **Cuando se agregue un componente nuevo**, ver la sección 11.
 
@@ -102,8 +135,11 @@ Cuando una tarea se bloquee y no se encuentre solución tras múltiples intentos
 Al crear un nuevo componente o pipeline (ej: nueva integración con una API):
 1. Verificar el próximo número en `DOCUMENTACION/README.md`.
 2. Crear carpeta `DOCUMENTACION/{NN}-Nombre/`.
-3. Crear los 5 archivos obligatorios (`01-Requerimientos.md`, `02-Analisis.md`, `03-Diseno.md`, `04-Codigo.md`, `05-Checklist.md`).
-4. Actualizar `DOCUMENTACION/README.md`.
+3. Crear la carpeta `plan-inicial/` dentro del componente.
+4. Crear los 5 archivos obligatorios en `plan-inicial/` (`01-Requerimientos.md`, `02-Analisis.md`, `03-Diseno.md`, `04-Codigo.md`, `05-Checklist.md`).
+5. Crear la carpeta `plan-actual/` dentro del componente (vacía inicialmente).
+6. Crear los 5 archivos obligatorios en `plan-actual/` (pueden ser copia de plan-inicial al inicio).
+7. Actualizar `DOCUMENTACION/README.md`.
 
 ## 12. Verificación y Diagnóstico Post-Tarea
 Antes de dar una tarea por terminada:
@@ -159,3 +195,75 @@ Estos flujos han sido verificados y no deben modificarse. Cualquier cambio debe 
 - El forwarder usa `getLanIp()` (LAN IP, ej: 192.168.x.x) para conectar al host RA y evitar el conflicto con el proxy que escucha en `127.0.0.1:55435`.
 - La limpieza de servidores es independiente: `proxyServers[]` se limpia al cerrar guest, `forwarderServers[]` al cerrar host.
 - Test de verificación: `npm run test:stable` (35 tests) en `client/test_stable_flows.js`.
+
+## 16. Trabajo en Paralelo entre Agentes (Protocolo de Comunicación)
+
+Cuando múltiples agentes trabajen simultáneamente:
+
+1. **Archivo de coordinación obligatorio**: `Mensajes entre modelos/ESTADO-PARALELO.md`.
+2. **Leerlo siempre** antes de empezar cualquier tarea (antes de tocar código o archivos).
+3. **Actualizarlo** al reclamar, iniciar, bloquear o completar una tarea.
+4. **No modificar archivos** que otro agente tenga `reclamado` o `en progreso`.
+5. Si dos agentes ocupan archivos distintos → pueden trabajar en paralelo sin issues.
+6. Cada entrada debe incluir: nombre de tarea, agente, archivos involucrados, estado, timestamp.
+7. Los agentes se identifican con su nombre/modelo (ej: `Claude`, `GPT-4`, `Gemini`, `DeepSeek`).
+
+## 17. Sistema de Rotación de Logs
+
+El proyecto implementa un sistema automático de rotación de logs para evitar que los archivos crezcan indefinidamente.
+
+### Estructura de Logs
+
+```
+Logs/
+├── rotated/                          ← Logs rotados (históricos)
+│   ├── 01-test_host-2026-06-30.log
+│   ├── 02-retroarch_host-2026-10-03.log
+│   ├── 03-client-2026-10-03.log
+│   └── 04-main_process-2026-07-02.log
+├── main_process.log                  ← Log actual (siempre < 500KB)
+├── dev_output.txt
+└── ULTIMO_NUMERO.txt
+```
+
+### Implementación en Código
+
+**Ubicación:** `client/src/main/index.ts` (líneas 11-58)
+
+**Configuración:**
+- `MAX_LOG_SIZE = 500KB` - Umbral de rotación
+- `LOG_DIR = logs/` - Directorio de logs
+- `LOG_ROTATED_DIR = logs/rotated/` - Directorio de logs rotados
+
+**Función `rotateLogIfNeeded()`:**
+- Verifica el tamaño del log actual después de cada write
+- Si el tamaño >= 500KB, renombra el archivo a `logs/rotated/main_process-YYYY-MM-DD.log`
+- Crea automáticamente un nuevo `main_process.log` vacío
+- Registra la rotación con mensaje `[LOG ROTATION]`
+
+**Comportamiento:**
+- Las carpetas `logs/` y `logs/rotated/` se crean automáticamente si no existen
+- La rotación es transparente para el usuario
+- Los logs rotados conservan la fecha en el nombre para trazabilidad
+
+### Reglas para Nuevos Logs
+
+Si necesitas agregar logging en el código:
+1. **Usar `console.log()` y `console.error()`** - Estos ya están interceptados y escriben al archivo automáticamente
+2. **No crear archivos de log adicionales** - Usa el sistema existente
+3. **Si necesitas un log separado** (ej: para un componente específico):
+   - Implementar rotación similar en el código del componente
+   - Usar el mismo formato de nomenclatura: `NN-nombre-YYYY-MM-DD.log`
+   - Guardar en `logs/rotated/` cuando se rote
+
+### Formato de Nomenclatura para Logs Rotados
+
+**Formato:** `NN-nombre_log-YYYY-MM-DD.log`
+
+**Ejemplos:**
+- `01-test_host-2026-06-30.log`
+- `02-retroarch_host-2026-10-03.log`
+- `03-client-2026-10-03.log`
+- `04-main_process-2026-07-02.log`
+
+**NN** = Número secuencial (se incrementa automáticamente al mover logs existentes)

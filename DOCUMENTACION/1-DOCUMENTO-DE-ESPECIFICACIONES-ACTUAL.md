@@ -21,3 +21,12 @@
 | Guest proxy | 55435 (127.0.0.1) | Forward guest RA → bore.pub |
 | Forwarder | 55436 (127.0.0.1) | Forward bore tunnel → host RA (vía LAN IP) |
 | bore tunnel | 55436 → bore.pub | Túnel TCP público |
+| Transparent Relay | 55436 (Node.js) | Forwarder TCP para test local host→guest |
+
+## Arquitectura Transparent Relay (reemplaza MITM)
+- **Host RA** usa `--host --port 55435` (escucha, tiene estado del juego)
+- **Relay** es un forwarder TCP: escucha en 55436 → pipe a 127.0.0.1:55435
+- **Guest RA** usa `--connect 127.0.0.1 --port 55436`
+- **Sin lógica MITM.** El relay solo pipea bytes. RA maneja todo el protocolo.
+- **Config:** `netplay_optimized.cfg` (sin `netplay_use_mitm_server`)
+- **Handler:** `start-mitm-local` en index.ts (paralelo, no toca flujos blindados)
