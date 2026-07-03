@@ -1,47 +1,32 @@
-# 🕹️ EMU-LATAM: KOF '98 Netplay (v1.0 - Conexión Directa P2P)
+# EMU LATAM - V2 (Arquitectura en Servidor Relay)
 
-> **ESTA RAMA (`main`) CONTIENE LA VERSIÓN 1.0 (CONEXIÓN DIRECTA PC A PC).**
+¡Bienvenido a la rama V2 del proyecto **Emu Latam**!
 
-Bienvenido a la primera versión funcional del proyecto EMU-LATAM, un launcher de KOF '98 inspirado en Fightcade.
+Esta versión representa una evolución significativa de nuestro cliente de emparejamiento y lanzamiento para KOF '98 (y títulos retro). Hemos transicionado de un modelo P2P directo (PC a PC) a un **Modelo basado en Servidores Relay**.
 
-## 📌 Sobre esta versión (v1.0 - P2P)
+## ¿Por qué esta bifurcación / etapa V2?
 
-Esta versión se basa en un modelo de **conexión directa (P2P)**. Esto significa que **las dos PCs se conectan directamente entre sí** sin pasar por servidores intermediarios (relays).
+En la Versión 1 (P2P), uno de los jugadores (el Host de la partida) estaba obligado a realizar **Port Forwarding** (apertura de puertos) manualmente en la configuración de su Router para que el jugador contrario pudiera conectarse. Esto generó fricción técnica intolerable y una barrera de entrada alta para gran parte de los usuarios, además de posibles inseguridades en sus redes locales.
 
-### ✅ Ventajas:
+En esta **V2**, **ningún usuario necesita configurar su router**.
+Toda la lógica de red ahora pasa por un **Servidor Intermediario (Relay)** ubicado en la nube, que acepta las conexiones salientes de ambos emuladores y funciona como puente transparente para cruzar datos.
 
-- **Latencia mínima real**: Al no haber intermediarios, el ping es el más bajo posible entre los dos jugadores.
-- **Independencia total**: Todo corre localmente, no dependes de servidores externos que puedan caerse.
+### Pilares Fundamentales de la V2:
 
-### ⚠️ Desventajas:
+1. **Cero Configuración de Router**: Iniciar y conectarse a una partida multijugador será tan rápido como hacer "Clic". El port forwarding desaparece.
+2. **Infraestructura Gratuita (Free Tier)**: Aprovecharemos instancias en la nube que ofrezcan capas gratuitas (Como Oracle Cloud Always Free, Render o Fly.io) para contener el pequeño núcleo UDP del Relay, conservando el proyecto 100% libre de costos de mantenimiento.
+3. **Altamente Modular**: La lógica de Relay Server se programa de forma abstraída. El cliente (la app) sencillamente consultará qué IP usar. Si un servidor Relay deja de funcionar o tiene alta latencia (lag), simplemente se remueve de un listado y se conecta otro.
+4. **Selector de Servidores**: Más adelante, el jugador tendrá la capacidad de elegir o probar pings contra diversos Relay gratuitos distribuidos globalmente, asegurando una conexión ideal con su contrincante.
 
-- **Requiere configuración de Red**: El Host debe abrir puertos en su Router (Port Forwarding) y en el Firewall de Windows.
-- **Las IPs deben conocerse**: Los jugadores deben compartir sus IPs públicas para interactuar.
+## Estructura del Proyecto
 
----
+- `/documentacion_v1`: Contiene exclusivamente todo el gran historial de documentación conceptual y guías técnicas referidas a la V1 y el enfoque PC to PC si en el futuro se quiere investigar o retomar.
+- `/backend`: Nuestro servidor **Nakama** encargado de emparejamientos (Matchmaking), usuarios, chat global y emisión de Relay dinámico.
+- `/client`: Aplicación Desktop desarrollada en **React + Electron** que sirve de Launcher principal.
+- `/emulator`: Binarios, assets y configuraciones base del emulador seleccionado.
 
-## 🛠️ ¿Cómo funciona?
+## Plan Maestro
 
-El proyecto tiene dos componentes clave:
+Para comprender de cerca el listado de tareas exhaustivo, el progreso y los niveles de dificultad que integran el desarrollo de la arquitectura Relay, debes consultar el documento raíz **`PLAN_V2.md`**.
 
-1. **Nakama Server**: El backend de emparejamiento y chat de voz/texto. (Usa el puerto `7350`).
-2. **RetroArch (FBNeo)**: El emulador que corre el juego usando el protocolo nativo de Netplay. (Usa el puerto `55435`).
-
----
-
-## 📖 Guías de Usuario
-
-Si quieres probar esta versión y hostear una partida, sigue los siguientes manuales:
-
-1. **[Guia de Instalación](GUIA_INSTALACION.md)**: Cómo instalar y ejecutar por primera vez.
-2. **[Guía de Port Forwarding](GUIA_PORT_FORWARDING.md)**: Obligatorio si quieres invitar a un amigo que no esté en tu misma casa.
-3. **[Reporte Técnico](REPORTE_TECNICO_NETPLAY.md)**: El registro completo de cómo se construyó esta arquitectura en su interior.
-
----
-
-## 🔀 Ramas del Proyecto (Git)
-
-Este proyecto fue diseñado para escalar. Si estás buscando la versión que no requiere configurar puertos (estilo Fightcade), por favor cambia a la rama experimental:
-
-- `main` ➔ **Versión Actual:** Conexión estricta punto a punto P2P (Require Port Forwarding).
-- `feature/relay-cloud` ➔ **Próxima Versión:** (En desarrollo) Uso de Servidores de Relevo (RetroArch Relays) y Nakama Cloud (Cero configuración para el usuario final).
+> **Estado Actual**: Refactorización de red y modularidad en progreso. Generando scripts de despliegue Relay.
