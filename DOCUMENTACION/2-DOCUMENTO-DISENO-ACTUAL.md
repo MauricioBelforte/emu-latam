@@ -41,6 +41,20 @@ Usa resolución IPv4 de bore.pub + regex amplio para capturar URL
 Kill de retroarch separado del flujo manual
 ```
 
+### TEST MITM LOCAL (forwarder transparente)
+```
+IPC handler: start-mitm-local / stop-mitm-local (desde App.tsx)
+Node.js forwarder: relay-server/mitm-relay.js (~60 líneas, pipe TCP)
+Config: retroarch/netplay_optimized.cfg
+
+Relay escucha en puerto 55436, forwardea a 127.0.0.1:55435
+Host RA: --host --port 55435 --appendconfig netplay_optimized.cfg
+Guest RA: --connect 127.0.0.1 --port 55436 --appendconfig netplay_optimized.cfg
+
+Flujo: Host RA:55435 ← pipe ← relay:55436 ← pipe ← Guest RA:55436
+       RA maneja TODO el protocolo netplay (handshake, REQ_SAVE, LOAD_SAVE, frame sync)
+```
+
 ## Cleanup de Servidores
 - `proxyServers[]`: Se limpia cuando el GUEST RA cierra (`stopAllProxies()`)
 - `forwarderServers[]`: Se limpia cuando el HOST RA cierra (`stopAllForwarders()`)

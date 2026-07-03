@@ -1,0 +1,3 @@
+- [x] Spawn headless Nakama
+- [x] Health check en inicio
+- [x] Kill process al cerrar

@@ -8,20 +8,65 @@ import http from "http";
 import net from "net";
 import type { ChildProcess } from "child_process";
 
-const logFile = path.resolve(__dirname, "../../../logs/main_process.log");
-const logStream = fs.createWriteStream(logFile, { flags: "a" });
+const LOG_DIR = path.resolve(__dirname, "../../../logs");
+const LOG_ROTATED_DIR = path.join(LOG_DIR, "rotated");
+const LOG_FILE = path.join(LOG_DIR, "main_process.log");
+const MAX_LOG_SIZE = 500 * 1024; // 500KB
+
+// Asegurar que existan las carpetas de logs
+if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
+if (!fs.existsSync(LOG_ROTATED_DIR)) fs.mkdirSync(LOG_ROTATED_DIR, { recursive: true });
+
+function rotateLogIfNeeded(): void {
+  try {
+    const stats = fs.statSync(LOG_FILE);
+    if (stats.size >= MAX_LOG_SIZE) {
+      const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const rotatedFiles = fs.readdirSync(LOG_ROTATED_DIR)
+        .filter(f => f.startsWith('main_process-') && f.endsWith('.log'))
+        .sort();
+      const nextIndex = rotatedFiles.length + 1;
+      const rotatedFileName = `main_process-${timestamp}.log`;
+      const rotatedFilePath = path.join(LOG_ROTATED_DIR, rotatedFileName);
+      
+      fs.renameSync(LOG_FILE, rotatedFilePath);
+      console.log(`[LOG ROTATION] Rotated log to ${rotatedFilePath} (size: ${stats.size} bytes)`);
+    }
+  } catch (err) {
+    // Si el archivo no existe, es normal en el primer inicio
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      console.error(`[LOG ROTATION ERROR] ${err}`);
+    }
+  }
+}
+
+rotateLogIfNeeded();
+
+const logStream = fs.createWriteStream(LOG_FILE, { flags: "a" });
 const origLog = console.log;
 const origError = console.error;
-console.log = (...args) => { origLog(...args); logStream.write(`[LOG ${new Date().toISOString()}] ${args.join(" ")}\n`); };
-console.error = (...args) => { origError(...args); logStream.write(`[ERR ${new Date().toISOString()}] ${args.join(" ")}\n`); };
+console.log = (...args) => {
+  origLog(...args);
+  logStream.write(`[LOG ${new Date().toISOString()}] ${args.join(" ")}\n`);
+  rotateLogIfNeeded();
+};
+console.error = (...args) => {
+  origError(...args);
+  logStream.write(`[ERR ${new Date().toISOString()}] ${args.join(" ")}\n`);
+  rotateLogIfNeeded();
+};
 console.log("=== MAIN PROCESS STARTED ===");
 
 let nakamaProcess: ChildProcess | null = null;
 let boreProcess: ChildProcess | null = null;
+let mitmRelayProcess: ChildProcess | null = null;
 
 process.on("uncaughtException", (err) => {
   if (err instanceof Error && err.message.includes("EPIPE")) return;
   console.error("Uncaught exception:", err);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled rejection:", reason);
 });
 
 function getProjectRoot(): string {
@@ -377,6 +422,79 @@ app.whenReady().then(() => {
     });
   });
 
+  ipcMain.handle("start-mitm-local", async () => {
+    try {
+      const projectRoot = getProjectRoot();
+      const relayScript = path.join(projectRoot, "relay-server", "mitm-relay.js");
+      const retroArchDir = path.join(projectRoot, "retroarch");
+      const retroArchPath = path.join(retroArchDir, "retroarch.exe");
+      const corePath = path.join(retroArchDir, "cores", "fbneo_libretro.dll");
+      const romPath = path.join(retroArchDir, "roms", "kof98.zip");
+      const cfg = path.join(retroArchDir, "netplay_optimized.cfg");
+
+      // Cleanup previous
+      try { execSync("taskkill /f /im retroarch.exe 2>nul", { stdio: "ignore" }); } catch {}
+      if (mitmRelayProcess) { mitmRelayProcess.kill(); mitmRelayProcess = null; }
+      await new Promise(r => setTimeout(r, 1000));
+
+      if (!fs.existsSync(relayScript)) return { success: false, error: "mitm-relay.js no encontrado" };
+      if (!fs.existsSync(retroArchPath)) return { success: false, error: "retroarch.exe no encontrado" };
+
+      // 1. Launch host RA (--host)
+      const hostArgs = ["-L", corePath, romPath, "--host", "--port", "55435"];
+      if (fs.existsSync(cfg)) hostArgs.push("--appendconfig", cfg);
+      console.log(`[RELAY] Host: ${retroArchPath} ${hostArgs.join(" ")}`);
+      const host = spawn(retroArchPath, hostArgs, { cwd: retroArchDir, detached: true, stdio: ["ignore", "pipe", "pipe"] });
+      host.on("error", (err) => console.error("[RELAY] Error host:", err));
+      host.stdout?.on("data", (d) => console.log(`[host] ${d}`));
+      host.stderr?.on("data", (d) => console.error(`[host] ${d}`));
+      host.unref();
+
+      // 2. Wait for host port
+      console.log("[RELAY] Esperando puerto host 55435...");
+      const hostReady = await waitForPort(55435, 8000);
+      if (!hostReady) return { success: false, error: "Host RA no abrió puerto 55435" };
+
+      // 3. Start transparent relay (55436 -> 127.0.0.1:55435)
+      console.log("[RELAY] Iniciando relay forwarder...");
+      mitmRelayProcess = spawn("node", [relayScript, "55436", "127.0.0.1", "55435"], {
+        cwd: path.dirname(relayScript),
+        windowsHide: true,
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+      mitmRelayProcess.stdout?.on("data", (d) => console.log(`[relay] ${d}`));
+      mitmRelayProcess.stderr?.on("data", (d) => console.error(`[relay] ${d}`));
+      mitmRelayProcess.on("error", (err) => console.error("[RELAY] Error relay:", err));
+      mitmRelayProcess.on("close", (code) => { mitmRelayProcess = null; console.log(`[RELAY] Relay cerrado (${code})`); });
+
+      // 4. Wait for relay port
+      await new Promise(r => setTimeout(r, 1000));
+
+      // 5. Launch guest RA (--connect -> relay -> host)
+      const guestArgs = ["-L", corePath, romPath, "--connect", "127.0.0.1", "--port", "55436"];
+      if (fs.existsSync(cfg)) guestArgs.push("--appendconfig", cfg);
+      console.log(`[RELAY] Guest: ${retroArchPath} ${guestArgs.join(" ")}`);
+      const guest = spawn(retroArchPath, guestArgs, { cwd: retroArchDir, detached: true, stdio: ["ignore", "pipe", "pipe"] });
+      guest.on("error", (err) => console.error("[RELAY] Error guest:", err));
+      guest.stdout?.on("data", (d) => console.log(`[guest] ${d}`));
+      guest.stderr?.on("data", (d) => console.error(`[guest] ${d}`));
+      guest.unref();
+
+      return { success: true };
+    } catch (e) {
+      console.error("[RELAY] Error en handler start-mitm-local:", e);
+      return { success: false, error: String(e) };
+    }
+  });
+
+  ipcMain.handle("stop-mitm-local", async () => {
+    try { execSync("taskkill /f /im retroarch.exe 2>nul", { stdio: "ignore" }); } catch {}
+    if (mitmRelayProcess) { mitmRelayProcess.kill(); mitmRelayProcess = null; }
+    await new Promise(r => setTimeout(r, 500));
+    console.log("[MITM] Detenido");
+    return true;
+  });
+
   ipcMain.handle("save-relay-url", async (_event, url: string) => {
     try {
       const projectRoot = getProjectRoot();
@@ -397,7 +515,6 @@ app.whenReady().then(() => {
 
   launchNakama();
   createWindow();
-  createWindow("guest");
 });
 
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
@@ -405,4 +522,5 @@ app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(
 app.on("before-quit", () => {
   if (nakamaProcess) nakamaProcess.kill();
   if (boreProcess) { console.log("🛑 Stopping Bore..."); boreProcess.kill(); }
+  if (mitmRelayProcess) { console.log("🛑 Stopping MITM relay..."); mitmRelayProcess.kill(); }
 });
