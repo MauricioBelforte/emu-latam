@@ -40,11 +40,28 @@ retroarch/
 .vscode/
 .idea/
 
+# Build output
+client/dist-electron/
+
+# Temp stdout/stderr captures
+client_err.txt
+client_out.txt
+host_err.txt
+host_out.txt
+relay-test-err.txt
+relay-test-out.txt
+
+# Runtime temp files
+relay-server/active_relay.txt
+relay-server/bore_test_*.txt
+
+# Dev output
+Logs/dev_output.txt
+
 # Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 logs/
 !Logs/
-*.log
-I G N O R A N D O   K O F 9 8 _ R E A D Y /  
+*.log  
