@@ -242,12 +242,14 @@ function App() {
           <GameTitle>READY TO <span>FIGHT?</span></GameTitle>
           <DebugInfo>SISTEMA ACTUALIZADO - VERSIÓN 2.0</DebugInfo>
           {!isAuthenticated ? (
-            <InsertCoinButton onClick={handleInsertCoin}>
-              INSERT COIN
-            </InsertCoinButton>
-            <p style={{ color: nakamaReady ? "#0f0" : "#666", fontFamily: "monospace", fontSize: "0.6rem", marginTop: "6px" }}>
-              {nakamaReady ? "● NAKAMA ONLINE" : "○ NAKAMA OFFLINE"}
-            </p>
+            <>
+              <InsertCoinButton onClick={handleInsertCoin}>
+                INSERT COIN
+              </InsertCoinButton>
+              <p style={{ color: nakamaReady ? "#0f0" : "#666", fontFamily: "monospace", fontSize: "0.6rem", marginTop: "6px" }}>
+                {nakamaReady ? "● NAKAMA ONLINE" : "○ NAKAMA OFFLINE"}
+              </p>
+            </>
           ) : (
             <div style={{ textAlign: "center", marginTop: "10px", width: "100%" }}>
               <p style={{ color: theme.colors.primary, fontFamily: theme.fonts.arcade, fontSize: "1.2rem", marginBottom: "20px" }}>
