@@ -125,11 +125,38 @@ Toda tarea de red (conexión a Nakama, inicio de RetroArch, túneles) **DEBE** m
 - **Renderer (Frontend):** React (`client/src/renderer/`) solo debe llamar a funciones expuestas vía IPC (`contextBridge` / `preload`).
 - No acoplar lógica de sistema operativo directamente en los componentes de React.
 
-## 10. Protocolo de Comunicación entre Modelos de Lenguaje
-Cuando una tarea se bloquee y no se encuentre solución tras múltiples intentos:
-1. Crear un archivo en `Mensajes entre modelos/` enumerado secuencialmente.
-2. Formato: `N-TIPO-RESUMEN-MODELO.md` (ej: `1-PROBLEMA-tunel-bore-GEMINI.md`).
-3. El archivo debe incluir: descripción del problema, contexto, código relevante, intentos fallidos. Esto permite a otro modelo continuar sin perder el contexto.
+## 10. Protocolo de Comunicación entre Modelos de Lenguaje (Chat por Temas)
+
+Cuando una tarea se bloquee o requiera colaboración entre modelos, usar estructura tipo chat con carpetas por tema.
+
+### Estructura
+```
+Mensajes entre modelos/
+├── ESTADO-PARALELO.md                     ← Coordinación (quién trabaja en qué)
+├── inputs-direccionales-duplicados/       ← Carpeta por TEMA a resolver
+│   ├── 2026-07-04_05-59-00_1-DEEPSEEK-planteo.md
+│   ├── 2026-07-04_18-00-00_2-GEMINI-analisis.md
+│   ├── 2026-07-04_20-30-00_3-DEEPSEEK-prueba-solucion.md
+│   └── documentacion-solucion/           ← Docs adicionales si la solución es extensa
+│       └── diagrama-propuesta.md
+```
+
+### Reglas
+1. **Carpeta por tema:** Cada problema/feature tiene su propia carpeta dentro de `Mensajes entre modelos/`.
+2. **Mensajes tipo chat:** Archivos con formato:
+   - `YYYY-MM-DD_HH-MM-SS_N-MODELO-descripcion-breve.md`
+   - `N` = número secuencial del mensaje en ese hilo
+   - `MODELO` = quien escribe (DeepSeek, Gemini, Claude, etc.)
+3. **Fecha y hora:** Usar timestamp real en el nombre del archivo.
+4. **Firma en el contenido:** Incluir al inicio del archivo:
+   ```markdown
+   **Modelo:** DeepSeek
+   **Fecha:** 2026-07-04 18:00:00
+   **Responde a:** `2026-07-04_05-59-00_1-DEEPSEEK-planteo.md`
+   ```
+5. **Documentación adjunta:** Si una solución requiere documentos extensos, crear una subcarpeta dentro del tema (ej: `documentacion-solucion/`).
+6. **No eliminar mensajes anteriores:** El hilo completo debe conservarse para trazabilidad.
+7. **ESTADO-PARALELO.md:** Mantener actualizado para saber qué modelo trabaja en cada tema.
 
 ## 11. Documentación de Nuevos Componentes (DOCUMENTACION)
 Al crear un nuevo componente o pipeline (ej: nueva integración con una API):
@@ -196,17 +223,17 @@ Estos flujos han sido verificados y no deben modificarse. Cualquier cambio debe 
 - La limpieza de servidores es independiente: `proxyServers[]` se limpia al cerrar guest, `forwarderServers[]` al cerrar host.
 - Test de verificación: `npm run test:stable` (35 tests) en `client/test_stable_flows.js`.
 
-## 16. Trabajo en Paralelo entre Agentes (Protocolo de Comunicación)
+## 16. Trabajo en Paralelo entre Agentes
 
-Cuando múltiples agentes trabajen simultáneamente:
+Cuando múltiples agentes trabajen simultáneamente, usar el sistema de chat por temas definido en la sección 10:
 
 1. **Archivo de coordinación obligatorio**: `Mensajes entre modelos/ESTADO-PARALELO.md`.
 2. **Leerlo siempre** antes de empezar cualquier tarea (antes de tocar código o archivos).
 3. **Actualizarlo** al reclamar, iniciar, bloquear o completar una tarea.
 4. **No modificar archivos** que otro agente tenga `reclamado` o `en progreso`.
-5. Si dos agentes ocupan archivos distintos → pueden trabajar en paralelo sin issues.
-6. Cada entrada debe incluir: nombre de tarea, agente, archivos involucrados, estado, timestamp.
-7. Los agentes se identifican con su nombre/modelo (ej: `Claude`, `GPT-4`, `Gemini`, `DeepSeek`).
+5. Cada entrada debe incluir: nombre de tarea, agente, archivos involucrados, estado, timestamp.
+6. Los agentes se identifican con su nombre/modelo (ej: `Claude`, `GPT-4`, `Gemini`, `DeepSeek`).
+7. **Usar carpetas por tema** para cada problema/feature (sección 10.1). Si dos agentes ocupan temas distintos → pueden trabajar en paralelo sin issues.
 
 ## 17. Sistema de Rotación de Logs
 
