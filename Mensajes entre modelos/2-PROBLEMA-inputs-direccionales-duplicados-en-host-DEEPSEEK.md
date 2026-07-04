@@ -1,0 +1,50 @@
+# Problema: Inputs direccionales del guest se duplican en pantalla del host
+
+**Modelo emisor:** DeepSeek v4 Flash Free
+**Fecha:** 2026-07-04
+**Estado:** No resuelto — se requiere análisis de otro modelo
+
+## Contexto del Proyecto
+Launcher Electron + RetroArch para KOF '98 online. Usa netplay de RetroArch con `--host` y `--connect`. Conexión entre dos PCs en la misma red local (ambas por WiFi).
+
+## Síntoma
+- PC Host (ésta) lanza RetroArch con `--host --port 55435`
+- PC Guest lanza RetroArch con `--connect <IP del host>` (usando botón JOIN VÍA TAILSCALE con IP LAN)
+- En la **pantalla del host**, los inputs direccionales (flechas) del guest se ven duplicados:
+  - Presionar izquierda/derecha una sola vez → el personaje del guest se mueve 2 casilleros en la pantalla del host
+  - Mantener abajo → el sprite parpadea entre parado y agachado ~10 veces en 5 segundos
+- **La pantalla del guest se ve perfectamente bien** — el guest ve su personaje moverse suavemente 1:1
+- Los botones de puño/patada (letras A, S, D, etc.) no tienen este problema — se ejecutan una sola vez y se ven bien en ambas pantallas
+- Probado con 2 teclados distintos (USB y inalámbrico) — mismo resultado
+- Cuando el host se mueve, se ve bien en ambas pantallas
+
+## Análisis
+- El guest envía inputs correctamente (él los ve bien)
+- El host los recibe pero parece aplicarlos **dos veces**: el personaje avanza 2 pasos por cada presión del guest
+- Con la flecha abajo (crouch), como es un estado sostenido, el host recibe "abajo" y "no abajo" alternadamente, causando parpadeo
+- Los botones son eventos discretos (press/release), no estados continuos, por eso no se ven afectados
+
+## Lo que se probó (sin éxito)
+1. `netplay_delay_frames = 4/6/10` → introduce lag, no soluciona
+2. `netplay_input_latency_frames_min = 2` → sin cambio
+3. `netplay_shared_input = false` → sin cambio
+4. `video_vsync = true`, `video_threaded = false` → sin cambio (VSync ya estaba ON)
+5. `netplay_input_latency_frames_range = 0` + `netplay_check_frames = 1` → empeoró: el guest también empezó a verse afectado
+6. Se revirtió a configuración original de `netplay_optimized.cfg`
+
+## Archivos relevantes
+- `retroarch/netplay_optimized.cfg` — configuración que se pasa con `--appendconfig`
+- `client/src/main/index.ts` — handlers `tailscale-host` y `tailscale-guest` (líneas 529-597)
+- `client/src/App.tsx` — UI con botones TAILSCALE
+
+## Hipótesis para explorar
+1. El `retroarch.cfg` **principal** de la PC host (no el appendconfig) podría tener opciones que causen doble-procesamiento de inputs del netplay (`input_poll_behavior`, `video_threaded`, etc.)
+2. Es un bug conocido de RetroArch netplay en modo `--host` con ciertas versiones
+3. El WiFi de la PC host introduce latencia variable que RetroArch maneja mal del lado del servidor (a diferencia del cliente)
+4. Podría ser un problema de `run_ahead` combinado con netplay (aunque run_ahead está en false)
+
+## Próximos pasos sugeridos
+- Probar con cable Ethernet en la PC host (descartar WiFi)
+- Revisar el `retroarch.cfg` de la PC host versus la guest
+- Probar versión diferente de RetroArch
+- Si no se encuentra causa, implementar un proxy que monitoree los paquetes netplay

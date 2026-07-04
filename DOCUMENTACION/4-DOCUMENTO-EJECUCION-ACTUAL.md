@@ -5,8 +5,8 @@
 2. Abrir terminal en `client/`.
 3. Ejecutar `npm run dev`.
 4. Vite levanta React en puerto 5173, Electron abre ventana principal + ventana guest.
-5. Nakama se inicia silenciosamente. Al cerrar App, procesos mueren limpiamente.
-6. Tests: `npm run test:stable` (35 tests de flujos blindados).
+5. Nakama se inicia silenciosamente (requiere PostgreSQL en localhost:5432). Si no está disponible, INSERT COIN funciona en modo local sin Nakama.
+6. Tests: `npm run test:stable` (39 tests: 35 originales + 4 Tailscale).
 
 ## Estado Actual (Julio 2026) — Flujos Funcionales ✅
 
@@ -32,7 +32,17 @@
 - No modifica flujos manuales (AGENTS.md §14-15)
 - Pendiente: verificar que host y guest RA no se maten entre sí
 
-### 4. TEST MITM LOCAL (forwarder transparente) — ✅ FUNCIONAL
+### 4. TAILSCALE — ✅ FUNCIONAL
+- **Botón:** "HOST TAILSCALE" / "JOIN VÍA TAILSCALE" / "DETENER TAILSCALE"
+- **Host RA:** `--host --port 55435 --appendconfig netplay_optimized.cfg`
+- **Guest RA:** `--connect <IP> --port 55435 --appendconfig netplay_optimized.cfg`
+- **IP:** Auto-detecta 100.x.x.x (Tailscale). Fallback a 127.0.0.1 para test local.
+- **Guest** escribe IP manual. Sirve también para conectar por IP LAN real.
+- **IPC handlers:** `tailscale-host`, `tailscale-guest`, `stop-tailscale` (paralelos, no tocan flujos blindados).
+- **Auth:** INSERT COIN funciona sin Nakama (fallback local).
+- **Tests:** 39/39 (4 nuevos tests de spawn args Tailscale).
+
+### 5. TEST MITM LOCAL (forwarder transparente) — ✅ FUNCIONAL
 - **Botón:** "TEST MITM LOCAL" (en `App.tsx`)
 - **Host RA:** `--host --port 55435 --appendconfig netplay_optimized.cfg` (escucha, estado real)
 - **Relay:** `node relay-server/mitm-relay.js 55436 127.0.0.1 55435` (forwarder TCP ~60 líneas)
@@ -103,3 +113,9 @@
 - `AGENTS.md` — §§14-15: política de modularización y flujos blindados
 - `Logs/` — Registro de cambios cronológico
 - `DOCUMENTACION/05-MITM-to-Transparent-Relay/` — Documentación completa del componente
+- `DOCUMENTACION/07-Integracion-Tailscale/` — Documentación del componente Tailscale
+
+## Problema Conocido (No Resuelto)
+- **Inputs direccionales duplicados en host:** Guest presiona flecha una vez, host ve movimiento x2. Guest mantiene abajo, host ve parpadeo. Solo en pantalla del host. Botones no afectados.
+- **Probado:** delay_frames (4/6/10), shared_input=false, vsync=true, range=0+check=1. Nada funcionó. Se revirtió a config original.
+- **Hipótesis:** WiFi en host o bug de RetroArch netplay en modo --host. Pendiente probar con cable Ethernet.

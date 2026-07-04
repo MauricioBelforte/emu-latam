@@ -30,3 +30,20 @@
 - **Sin lógica MITM.** El relay solo pipea bytes. RA maneja todo el protocolo.
 - **Config:** `netplay_optimized.cfg` (sin `netplay_use_mitm_server`)
 - **Handler:** `start-mitm-local` en index.ts (paralelo, no toca flujos blindados)
+
+## Cambios Recientes (Julio 2026)
+
+### INSERT COIN independiente de Nakama
+- El botón INSERT COIN ya no se bloquea esperando health check de Nakama.
+- `loginGhost()` crea usuario local anónimo si Nakama no responde (fallback).
+- Indicador visual "○ NAKAMA OFFLINE" informativo, no bloqueante.
+
+### netplay_optimized.cfg trackeado en git
+- Se agregó excepción en `.gitignore` para trackear `retroarch/netplay_optimized.cfg`.
+- Config original: `input_latency_frames_range=3`, `check_frames=3`, sin `delay_frames`.
+
+### Problema Conocido (No Resuelto)
+- Inputs direccionales del guest se duplican en pantalla del host (movimiento x2, parpadeo al agacharse).
+- Guest ve todo suave. Solo afecta al host.
+- Botones de puño/patada no afectados.
+- Hipótesis: WiFi o bug de netplay de RetroArch en modo servidor.

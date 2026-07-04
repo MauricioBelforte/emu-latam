@@ -97,4 +97,32 @@ El objetivo de esta fase es hacer que la experiencia del usuario sea "un solo cl
 
 ---
 
+---
+
+## 🐛 Fase 4: Investigación — Inputs direccionales duplicados en host (NO RESUELTO)
+
+### Síntoma
+- Guest presiona flecha una vez → personaje se mueve 2 casilleros en pantalla del host
+- Guest mantiene abajo → sprite parpadea entre parado/agachado en host (~10 veces en 5s)
+- **Solo en pantalla del host.** Guest ve su personaje suave.
+- Botones (puño/patada) no afectados.
+- Probado con teclado USB e inalámbrico. No es falla de hardware.
+
+### Intentos fallidos
+- [x] `netplay_delay_frames = 4/6/10` → introduce lag, no soluciona
+- [x] `netplay_input_latency_frames_min = 2` → sin cambio
+- [x] `netplay_shared_input = false` → sin cambio
+- [x] `video_vsync = true`, `video_threaded = false` → sin cambio
+- [x] `netplay_input_latency_frames_range = 0` + `check_frames = 1` → **empeoró**
+- [x] Se revirtió a config original
+
+### Pendiente
+- [ ] Probar con cable Ethernet en host (descartar WiFi)
+- [ ] Probar con cable Ethernet en guest
+- [ ] Revisar `retroarch.cfg` principal del host (vsync, threaded video, input polling)
+- [ ] Probar versión diferente de RetroArch
+- [ ] Si persiste: investigar bug de netplay de RetroArch en modo `--host`
+
+---
+
 *(Al concluir cada fase, el asistente correrá los 'TEST AUTOMÁTICO' indicados y documentará los resultados)*

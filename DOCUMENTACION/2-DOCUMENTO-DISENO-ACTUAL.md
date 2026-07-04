@@ -55,6 +55,17 @@ Flujo: Host RA:55435 ← pipe ← relay:55436 ← pipe ← Guest RA:55436
        RA maneja TODO el protocolo netplay (handshake, REQ_SAVE, LOAD_SAVE, frame sync)
 ```
 
+### TAILSCALE (paralelo, no toca flujos blindados)
+```
+Host RA: --host --port 55435 --appendconfig netplay_optimized.cfg
+Guest RA: --connect <IP> --port 55435 --appendconfig netplay_optimized.cfg
+```
+- **IP:** Auto-detecta IP Tailscale (100.x.x.x) o fallback a 127.0.0.1 para test local.
+- **Guest** permite ingresar IP manual en campo de texto (sirve para IP LAN real).
+- **Handlers:** `tailscale-host`, `tailscale-guest`, `stop-tailscale` (paralelos, no modifican flujos blindados).
+- **Auth:** `loginGhost()` con fallback local si Nakama no está disponible.
+- **Limpiieza:** `before-quit` mata RA. `stop-tailscale` también.
+
 ## Cleanup de Servidores
 - `proxyServers[]`: Se limpia cuando el GUEST RA cierra (`stopAllProxies()`)
 - `forwarderServers[]`: Se limpia cuando el HOST RA cierra (`stopAllForwarders()`)
