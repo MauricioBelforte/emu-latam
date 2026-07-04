@@ -381,7 +381,7 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle("kill-retroarch", async () => {
-    try { execSync("taskkill /f /im retroarch.exe 2>nul", { stdio: "ignore" }); } catch {}
+    try { execSync("taskkill /f /im retroarch.exe 2>nul", { stdio: "ignore", timeout: 5000 }); } catch {}
     await new Promise(r => setTimeout(r, 1000));
     console.log("🧹 Procesos RetroArch eliminados");
     return true;
@@ -445,7 +445,7 @@ app.whenReady().then(() => {
       const cfg = path.join(retroArchDir, "netplay_optimized.cfg");
 
       // Cleanup previous
-      try { execSync("taskkill /f /im retroarch.exe 2>nul", { stdio: "ignore" }); } catch {}
+      try { execSync("taskkill /f /im retroarch.exe 2>nul", { stdio: "ignore", timeout: 5000 }); } catch {}
       if (mitmRelayProcess) { mitmRelayProcess.kill(); mitmRelayProcess = null; }
       await new Promise(r => setTimeout(r, 1000));
 
@@ -500,7 +500,7 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle("stop-mitm-local", async () => {
-    try { execSync("taskkill /f /im retroarch.exe 2>nul", { stdio: "ignore" }); } catch {}
+    try { execSync("taskkill /f /im retroarch.exe 2>nul", { stdio: "ignore", timeout: 5000 }); } catch {}
     if (mitmRelayProcess) { mitmRelayProcess.kill(); mitmRelayProcess = null; }
     await new Promise(r => setTimeout(r, 500));
     console.log("[MITM] Detenido");
@@ -527,6 +527,7 @@ app.whenReady().then(() => {
 
   // ─── TAILSCALE (paralelo, no toca flujos blindados) ───
   ipcMain.handle("tailscale-host", async () => {
+    console.log("[TAILSCALE] tailscale-host llamado");
     try {
       const projectRoot = getProjectRoot();
       const retroArchDir = path.join(projectRoot, "retroarch");
@@ -543,7 +544,7 @@ app.whenReady().then(() => {
         console.log("[TAILSCALE] Tailscale no detectado, usando 127.0.0.1 para test local");
       }
 
-      try { execSync("taskkill /f /im retroarch.exe 2>nul", { stdio: "ignore" }); } catch {}
+      try { execSync("taskkill /f /im retroarch.exe 2>nul", { stdio: "ignore", timeout: 5000 }); } catch (e) { if (String(e).includes("timeout")) console.warn("[TAILSCALE] taskkill timed out"); }
       await new Promise(r => setTimeout(r, 1000));
 
       const args = ["-L", corePath, romPath, "--host", "--port", "55435"];
@@ -591,7 +592,7 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle("stop-tailscale", async () => {
-    try { execSync("taskkill /f /im retroarch.exe 2>nul", { stdio: "ignore" }); } catch {}
+    try { execSync("taskkill /f /im retroarch.exe 2>nul", { stdio: "ignore", timeout: 5000 }); } catch {}
     console.log("[TAILSCALE] Detenido");
     return true;
   });
