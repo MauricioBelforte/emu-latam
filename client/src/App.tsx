@@ -61,7 +61,6 @@ const InsertCoinButton = styled.button`
 
 function App() {
   const { loginGhost, isAuthenticated, username, isConnected } = useAuth();
-  const [isServerReady, setIsServerReady] = useState(false);
   const [isLaunchingRelay, setIsLaunchingRelay] = useState(false);
   const [isLaunchingMitm, setIsLaunchingMitm] = useState(false);
   const [isHostingTailscale, setIsHostingTailscale] = useState(false);
@@ -71,26 +70,24 @@ function App() {
   const [customRelay, setCustomRelay] = useState("");
   const [statusText, setStatusText] = useState("");
 
-  const checkHealth = useCallback(async () => {
-    try {
-      const res = await fetch("http://localhost:7350");
-      setIsServerReady(res.ok);
-    } catch {
-      setIsServerReady(false);
-    }
-  }, []);
+  const [nakamaReady, setNakamaReady] = useState(false);
 
   useEffect(() => {
     let active = true;
     const checkLoop = async () => {
       while (active) {
-        await checkHealth();
-        await new Promise(r => setTimeout(r, 1000));
+        try {
+          const res = await fetch("http://localhost:7350");
+          if (active) setNakamaReady(res.ok);
+        } catch {
+          if (active) setNakamaReady(false);
+        }
+        await new Promise(r => setTimeout(r, 3000));
       }
     };
     checkLoop();
     return () => { active = false; };
-  }, [checkHealth]);
+  }, []);
 
   const handleSaveRelay = () => {
     localStorage.setItem("emu_latam_relay", customRelay);
@@ -245,9 +242,12 @@ function App() {
           <GameTitle>READY TO <span>FIGHT?</span></GameTitle>
           <DebugInfo>SISTEMA ACTUALIZADO - VERSIÓN 2.0</DebugInfo>
           {!isAuthenticated ? (
-            <InsertCoinButton onClick={handleInsertCoin} disabled={!isServerReady}>
-              {isServerReady ? "INSERT COIN" : "INICIANDO SERVIDOR..."}
+            <InsertCoinButton onClick={handleInsertCoin}>
+              INSERT COIN
             </InsertCoinButton>
+            <p style={{ color: nakamaReady ? "#0f0" : "#666", fontFamily: "monospace", fontSize: "0.6rem", marginTop: "6px" }}>
+              {nakamaReady ? "● NAKAMA ONLINE" : "○ NAKAMA OFFLINE"}
+            </p>
           ) : (
             <div style={{ textAlign: "center", marginTop: "10px", width: "100%" }}>
               <p style={{ color: theme.colors.primary, fontFamily: theme.fonts.arcade, fontSize: "1.2rem", marginBottom: "20px" }}>
