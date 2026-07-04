@@ -85,8 +85,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
       setIsConnected(true);
     } catch (e) {
-      console.error("Fallo durante loginGhost:", e);
-      alert("Error intentando conectar con Nakama Server local.");
+      console.warn("Nakama no disponible, usando modo local:", e);
+      // Fallback local: usuario anónimo sin Nakama
+      setUserId(`local-${crypto.randomUUID()}`);
+      setUsername(`Player${Math.floor(Math.random() * 1000)}`);
+      setIsAuthenticated(true);
+      setIsConnected(false);
     } finally {
       isConnecting.current = false;
     }
