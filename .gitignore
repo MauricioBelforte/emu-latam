@@ -32,6 +32,7 @@ emulator/recorded/
 *.exe
 *.zip
 retroarch/
+!retroarch/netplay_optimized.cfg
 
 # Otros
 .DS_Store
