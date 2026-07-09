@@ -69,12 +69,23 @@ Se lanzaron host + guest en la misma PC con cable ethernet. **El problema PERSIS
 
 Se lanzaron host + guest directo desde terminal SIN `--appendconfig` ni `--config`. **EL PROBLEMA SIGUE IGUAL.** ❌
 
-## Conclusión final
+## ✅ SOLUCIÓN PARCIAL — Modo delay puro (Gemini, Solución A)
 
-No es problema de:
-- Config de RetroArch (ni merge, ni polling, ni drivers)
-- Red (WiFi o cable)
-- Network jitter/latency
-- Merge de configs
+Basado en análisis de Gemini (teoría del desfase de 1 frame en rollback), se aplicó:
 
-**Es RetroArch 1.19.1 netplay puro** — bug del propio netplay al duplicar inputs del guest en el host. Ocurre incluso en localhost (127.0.0.1, misma PC, cable).
+```ini
+netplay_check_frames = "0"
+netplay_input_latency_frames_range = "0"
+netplay_input_latency_frames_min = "0"
+```
+
+### Resultado
+- ✅ **El temblequeo/intermitencia de tecla presionada DESAPARECIÓ**
+- ❌ **El doble-pulso al hacer tap (presionar y soltar rápido) persiste** — el guest presiona 1 frame, el host ve 2 frames porque el paquete tarda 1 frame en llegar y el host no tiene compensación
+
+### Pendiente
+Probar `netplay_input_latency_frames_min = "1"` para que el host espere exactamente 1 frame el input del guest y elimine el doble-pulso.
+
+## Conclusión
+
+El análisis de Gemini fue correcto: era un bug del rollback de RetroArch 1.19.1 que causaba desfase de 1 frame al re-procesar inputs. Forzar delay puro soluciona el temblequeo. Falta ajustar fine-tuning para eliminar el doble-pulso residual.
