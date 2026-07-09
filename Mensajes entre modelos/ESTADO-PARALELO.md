@@ -18,7 +18,7 @@ Este archivo coordina los agentes que trabajan en paralelo. **Leerlo siempre ant
 
 | Tarea | Agente | Archivos | Estado | Inicio | Fin |
 |-------|--------|----------|--------|--------|-----|
-| Inputs direccionales duplicados en host | DeepSeek / Gemini | `retroarch/netplay_optimized.cfg`, `retroarch/retroarch.cfg`, `Mensajes entre modelos/inputs-direccionales-duplicados/` | analizado por Gemini (teoría de desfase rollback), pendiente test de propuestas por DeepSeek | 2026-07-04 05:59 | - |
+| Inputs direccionales duplicados en host | DeepSeek / Gemini | `retroarch/netplay_optimized.cfg`, `Mensajes entre modelos/inputs-direccionales-duplicados/` | ✅ Solucionado: delay puro (check_frames=0, latency_min=1, range=0) | 2026-07-04 05:59 | 2026-07-09 05:22 |
 
 ---
 

@@ -6,6 +6,7 @@
 **Networking:**
 - Matchmaking y Señalización: Nakama (local) + PostgreSQL (local port 5433 PC secundaria).
 - Túneles: Bore (crea un túnel TCP público sin abrir puertos).
+- P2P: Tailscale (WireGuard, baja latencia, sin abrir puertos).
 - Emulación: RetroArch (core FBNeo).
 
 ## Hallazgo crítico: RetroArch ignora `--port`
@@ -42,8 +43,15 @@
 - Se agregó excepción en `.gitignore` para trackear `retroarch/netplay_optimized.cfg`.
 - Config original: `input_latency_frames_range=3`, `check_frames=3`, sin `delay_frames`.
 
-### Problema Conocido (No Resuelto)
-- Inputs direccionales del guest se duplican en pantalla del host (movimiento x2, parpadeo al agacharse).
-- Guest ve todo suave. Solo afecta al host.
-- Botones de puño/patada no afectados.
-- Hipótesis: WiFi o bug de netplay de RetroArch en modo servidor.
+### ✅ Problema Resuelto: Inputs duplicados del guest (Julio 2026)
+
+**Causa raíz:** Bug del rollback de RetroArch 1.19.1 — desfase de 1 frame al re-procesar inputs del guest, interpretando releases como presses adicionales.
+
+**Solución:** Forzar delay puro en netplay:
+```ini
+netplay_input_latency_frames_min = "1"
+netplay_input_latency_frames_range = "0"
+netplay_check_frames = "0"
+```
+
+**Resultado:** El temblequeo desapareció. Jugable cross-PC vía Tailscale.

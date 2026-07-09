@@ -83,9 +83,28 @@ netplay_input_latency_frames_min = "0"
 - ✅ **El temblequeo/intermitencia de tecla presionada DESAPARECIÓ**
 - ❌ **El doble-pulso al hacer tap (presionar y soltar rápido) persiste** — el guest presiona 1 frame, el host ve 2 frames porque el paquete tarda 1 frame en llegar y el host no tiene compensación
 
-### Pendiente
-Probar `netplay_input_latency_frames_min = "1"` para que el host espere exactamente 1 frame el input del guest y elimine el doble-pulso.
+## ✅ SOLUCIÓN FINAL (2026-07-09 05:22)
 
-## Conclusión
+### Config ganadora
+```ini
+netplay_input_latency_frames_min = "1"
+netplay_input_latency_frames_range = "0"
+netplay_check_frames = "0"
+```
 
-El análisis de Gemini fue correcto: era un bug del rollback de RetroArch 1.19.1 que causaba desfase de 1 frame al re-procesar inputs. Forzar delay puro soluciona el temblequeo. Falta ajustar fine-tuning para eliminar el doble-pulso residual.
+### Comportamiento
+- **Localhost (misma PC):** ✅ Perfecto. Sin temblequeo, sin doble-input.
+- **Cross-PC via Tailscale:** ✅ **Jugable.** 
+  - El temblequeo/hold intermitente: ELIMINADO
+  - El doble-pulso visual en tap (host): MÍNIMO (solo visual, no afecta al guest)
+  - El guest juega perfectamente sin problemas de input
+  - No hay saltos ni stuttering
+
+### Próximos retoques posibles (no críticos)
+- Probar `latency_min = "2"` para ver si elimina el doble-pulso visual residual en el host (agrega ~16ms de lag)
+- Probar otras versiones de RetroArch (1.18.0, 1.16.0) para ver si tienen mejor netplay nativo
+- Test con otro core (Snes9x) para aislar si es específico de FBNeo
+
+## Conclusión final
+
+El problema era el **rollback de RetroArch 1.19.1**. Forzar delay puro con `check_frames=0` y `latency_range=0` eliminó la raíz del bug. `latency_min=1` dio tiempo al paquete del guest de llegar sin necesidad de predicción ni rollback. El resultado es jugable y estable.

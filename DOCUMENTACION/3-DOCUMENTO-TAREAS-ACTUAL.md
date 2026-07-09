@@ -99,29 +99,45 @@ El objetivo de esta fase es hacer que la experiencia del usuario sea "un solo cl
 
 ---
 
-## 🐛 Fase 4: Investigación — Inputs direccionales duplicados en host (NO RESUELTO)
+## ✅ Fase 4: Inputs direccionales duplicados en host — RESUELTO
 
-### Síntoma
+### Causa raíz
+**Bug del rollback de RetroArch 1.19.1.** El sistema de rollback/savestate de netplay causaba un desfase de 1 frame al re-procesar inputs del guest, interpretando "releases" como "presses" adicionales.
+
+### Síntoma original
 - Guest presiona flecha una vez → personaje se mueve 2 casilleros en pantalla del host
-- Guest mantiene abajo → sprite parpadea entre parado/agachado en host (~10 veces en 5s)
+- Guest mantiene abajo → sprite parpadea entre parado/agachado en host
 - **Solo en pantalla del host.** Guest ve su personaje suave.
-- Botones (puño/patada) no afectados.
-- Probado con teclado USB e inalámbrico. No es falla de hardware.
+- Ocurre incluso en localhost (misma PC, cable ethernet, sin config custom)
 
-### Intentos fallidos
-- [x] `netplay_delay_frames = 4/6/10` → introduce lag, no soluciona
-- [x] `netplay_input_latency_frames_min = 2` → sin cambio
-- [x] `netplay_shared_input = false` → sin cambio
-- [x] `video_vsync = true`, `video_threaded = false` → sin cambio
-- [x] `netplay_input_latency_frames_range = 0` + `check_frames = 1` → **empeoró**
-- [x] Se revirtió a config original
+### Hipótesis descartadas (todas probadas, todas fallaron)
+- [x] H1: `input_poll_type_behavior = "2"` (late polling de Claude) → ❌
+- [x] H2: `netplay_allow_slaves = "false"` (Claude) → ❌
+- [x] H3: Conflicto merge check_frames cfg vs appendconfig (Claude) → ❌ ya estaba homogéneo
+- [x] H4: Conflicto dinput vs xinput (Claude) → ❌
+- [x] H5: `fbneo-socd = "3"` (Claude) → ❌
+- [x] Nuclear: `--config` standalone en vez de `--appendconfig` (Claude) → ❌
+- [x] Sin ningún config custom → ❌ (persiste en RetroArch puro)
 
-### Pendiente
-- [ ] Probar con cable Ethernet en host (descartar WiFi)
-- [ ] Probar con cable Ethernet en guest
-- [ ] Revisar `retroarch.cfg` principal del host (vsync, threaded video, input polling)
-- [ ] Probar versión diferente de RetroArch
-- [ ] Si persiste: investigar bug de netplay de RetroArch en modo `--host`
+### ✅ Solución (Gemini, teoría del desfase de 1 frame en rollback)
+```ini
+netplay_input_latency_frames_min = "1"
+netplay_input_latency_frames_range = "0"
+netplay_check_frames = "0"
+```
+
+### Resultados
+- **Localhost (misma PC):** ✅ Perfecto. Sin temblequeo, sin doble-input.
+- **Cross-PC via Tailscale (WiFi):** ✅ **Jugable y estable.**
+  - Temblequeo/hold intermitente: ELIMINADO
+  - Guest juega sin problemas de input
+  - Sin saltos ni stuttering severo
+  - ⚠️ Mínimo doble-pulso visual en host al hacer tap (solo visual, no afecta gameplay)
+
+### Retoques postergables
+- [ ] Probar `latency_min = "2"` para eliminar doble-pulso visual residual
+- [ ] Probar RetroArch 1.18.0/1.16.0 para ver si tienen netplay nativo mejor
+- [ ] Test con otro core (Snes9x) para aislar si es específico de FBNeo
 
 ---
 
