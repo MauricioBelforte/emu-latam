@@ -294,3 +294,21 @@ Si necesitas agregar logging en el código:
 - `04-main_process-2026-07-02.log`
 
 **NN** = Número secuencial (se incrementa automáticamente al mover logs existentes)
+
+## 18. Archivo de Hilos de Chat Resueltos (RESUELTOS)
+
+Cuando un problema analizado en `Mensajes entre modelos/` se considere **sustancialmente resuelto** (aunque pueda tener retoques pendientes):
+
+1. **Crear carpeta `RESUELTOS/`** en la raíz si no existe.
+2. **Mover la carpeta del tema** de `Mensajes entre modelos/` a `RESUELTOS/`.
+3. **Agregar prefijo numérico** al nombre de la carpeta para orden cronológico:
+   ```
+   Mensajes entre modelos/inputs-direccionales-duplicados/
+   → RESUELTOS/1-inputs-direccionales-duplicados/
+   ```
+4. **Mantener el historial intacto:** No se eliminan ni modifican los archivos del hilo.
+5. **Se puede retomar después:** Si en el futuro se quiere mejorar o ajustar algo, se puede:
+   - Volver a mover la carpeta de `RESUELTOS/` a `Mensajes entre modelos/`
+   - Agregar nuevos archivos al hilo existente
+   - O crear un hilo nuevo referenciando al anterior
+6. **Actualizar `ESTADO-PARALELO.md`:** La tarea se mueve al historial de completadas con la fecha de archivo.

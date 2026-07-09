@@ -16,9 +16,7 @@ Este archivo coordina los agentes que trabajan en paralelo. **Leerlo siempre ant
 
 ## Tareas activas
 
-| Tarea | Agente | Archivos | Estado | Inicio | Fin |
-|-------|--------|----------|--------|--------|-----|
-| Inputs direccionales duplicados en host | DeepSeek / Gemini | `retroarch/netplay_optimized.cfg`, `Mensajes entre modelos/inputs-direccionales-duplicados/` | ✅ Solucionado: delay puro (check_frames=0, latency_min=1, range=0) | 2026-07-04 05:59 | 2026-07-09 05:22 |
+*(No hay tareas activas)*
 
 ---
 
@@ -29,6 +27,7 @@ Este archivo coordina los agentes que trabajan en paralelo. **Leerlo siempre ant
 | MITM relay - handshake con RA real | DeepSeek | `relay-server/mitm-relay.js`, `client/src/main/index.ts`, `retroarch/netplay_mitm.cfg` | completado | 2026-07-02 18:55 | 2026-07-02 23:00 |
 | Reestructuración documentación - plan-inicial/plan-actual | Claude | `DOCUMENTACION/*/plan-inicial/*`, `DOCUMENTACION/*/plan-actual/*`, `AGENTS.md` | completado | 2026-07-02 19:05 | 2026-07-02 19:07 |
 | Fix INSERT COIN + Nakama fallback + execSync timeout | DeepSeek | `client/src/App.tsx`, `client/src/context/AuthContext.tsx`, `client/src/main/index.ts` | completado | 2026-07-04 04:00 | 2026-07-04 05:59 |
+| Inputs direccionales duplicados en host | DeepSeek / Gemini | `retroarch/netplay_optimized.cfg`, `RESUELTOS/1-inputs-direccionales-duplicados/` | ✅ Archivado en RESUELTOS | 2026-07-04 05:59 | 2026-07-09 05:31 |
 
 ---
 
