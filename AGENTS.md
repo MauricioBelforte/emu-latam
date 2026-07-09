@@ -299,12 +299,12 @@ Si necesitas agregar logging en el código:
 
 Cuando un problema analizado en `Mensajes entre modelos/` se considere **sustancialmente resuelto** (aunque pueda tener retoques pendientes):
 
-1. **Crear carpeta `RESUELTOS/`** en la raíz si no existe.
-2. **Mover la carpeta del tema** de `Mensajes entre modelos/` a `RESUELTOS/`.
+1. **Crear carpeta `Mensajes entre modelos/RESUELTOS/`** si no existe.
+2. **Mover la carpeta del tema** de `Mensajes entre modelos/` a `Mensajes entre modelos/RESUELTOS/`.
 3. **Agregar prefijo numérico** al nombre de la carpeta para orden cronológico:
    ```
    Mensajes entre modelos/inputs-direccionales-duplicados/
-   → RESUELTOS/1-inputs-direccionales-duplicados/
+   → Mensajes entre modelos/RESUELTOS/1-inputs-direccionales-duplicados/
    ```
 4. **Mantener el historial intacto:** No se eliminan ni modifican los archivos del hilo.
 5. **Se puede retomar después:** Si en el futuro se quiere mejorar o ajustar algo, se puede:
