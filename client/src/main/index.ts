@@ -154,16 +154,18 @@ function createWindow(sessionName = "default"): void {
     const randomSuffix = Math.floor(Math.random() * 1000);
     app.setPath("userData", path.join(app.getPath("userData"), `dev-instance-${randomSuffix}`));
   }
+  const isDev = !!process.env["ELECTRON_RENDERER_URL"];
   const prefs: Electron.WebPreferences = {
     preload: path.join(__dirname, "../preload/index.js"),
     sandbox: false,
     contextIsolation: true,
+    devTools: isDev,
   };
   if (sessionName !== "default") prefs.partition = `persist:${sessionName}`;
   const mainWindow = new BrowserWindow({ width: 1400, height: 900, show: true, autoHideMenuBar: true, webPreferences: prefs });
-  mainWindow.webContents.openDevTools();
+  if (isDev) mainWindow.webContents.openDevTools();
   mainWindow.focus();
-  if (process.env["ELECTRON_RENDERER_URL"]) mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
+  if (isDev) mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]!);
   else mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
 }
 
