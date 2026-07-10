@@ -367,7 +367,7 @@ function App() {
                     await loginGhost();
                     const ts = await (window as any).electron.ipcRenderer.invoke("get-tailscale-ip");
                     if (ts.ip) setMyTailscaleIp(ts.ip);
-                  }} $accent="#0f0" $bg="#0f022">
+                  }} $accent="#0f0">
                     CREAR SALA
                     <span style={{ display: "block", fontSize: "0.5rem", opacity: 0.6, marginTop: 6, fontFamily: "Inter" }}>
                       Iniciá tu propia sala y compartí la IP
