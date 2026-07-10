@@ -367,7 +367,7 @@ function App() {
                     await loginGhost();
                     const ts = await (window as any).electron.ipcRenderer.invoke("get-tailscale-ip");
                     if (ts.ip) setMyTailscaleIp(ts.ip);
-                  }} $accent="#0af" $bg="#0af22">
+                  }} $accent="#0f0" $bg="#0f022">
                     CREAR SALA
                     <span style={{ display: "block", fontSize: "0.5rem", opacity: 0.6, marginTop: 6, fontFamily: "Inter" }}>
                       Iniciá tu propia sala y compartí la IP
@@ -416,6 +416,7 @@ function App() {
                   ● NAKAMA ONLINE ({nakamaHost}:{nakamaPort})
                 </StatusText>
               )}
+            </>
           ) : (
             <div style={{ textAlign: "center", marginTop: "10px", width: "100%" }}>
               <p style={{ color: theme.colors.primary, fontFamily: theme.fonts.arcade, fontSize: "0.9rem", marginBottom: "12px" }}>
