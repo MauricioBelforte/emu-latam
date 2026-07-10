@@ -106,26 +106,47 @@ function waitForPortClosed(port: number, timeoutMs = 5000): Promise<boolean> {
   });
 }
 
-async function isNakamaRunning(): Promise<boolean> {
+const NAKAMA_CONFIG_PATH = path.join(getProjectRoot(), "emu_latam_nakama.json");
+
+function getNakamaConfig(): { host: string; port: string } {
+  try {
+    if (fs.existsSync(NAKAMA_CONFIG_PATH)) {
+      return JSON.parse(fs.readFileSync(NAKAMA_CONFIG_PATH, "utf8"));
+    }
+  } catch {}
+  return { host: "127.0.0.1", port: "7350" };
+}
+
+function setNakamaConfig(host: string, port: string): void {
+  try {
+    fs.writeFileSync(NAKAMA_CONFIG_PATH, JSON.stringify({ host, port }, null, 2), "utf8");
+  } catch (e) { console.error("Error guardando config Nakama:", e); }
+}
+
+function checkNakamaHealth(host: string, port: string): Promise<boolean> {
   return new Promise((resolve) => {
-    const req = http.get("http://127.0.0.1:7350", (res) => { resolve(true); res.resume(); });
+    const req = http.get(`http://${host}:${port}`, (res) => { resolve(true); res.resume(); });
     req.on("error", () => resolve(false));
     req.setTimeout(1000, () => { req.destroy(); resolve(false); });
   });
 }
 
-function launchNakama(): void {
+async function launchNakama(): Promise<void> {
+  const cfg = getNakamaConfig();
+  if (cfg.host !== "127.0.0.1" && cfg.host !== "localhost") {
+    console.log(`Nakama remoto configurado: ${cfg.host}:${cfg.port}. No se inicia localmente.`);
+    return;
+  }
   const projectRoot = getProjectRoot();
   const nakamaDir = path.join(projectRoot, "backend");
   const nakamaPath = path.join(nakamaDir, "nakama.exe");
-  if (!fs.existsSync(nakamaPath)) { console.error("❌ Nakama server not found at:", nakamaPath); return; }
-  isNakamaRunning().then((running) => {
-    if (running) { console.log("✅ Nakama is already running."); return; }
-    console.log("🚀 Launching Nakama (Hidden Mode)...");
-    nakamaProcess = spawn(nakamaPath, ["--config", "local.yml"], { cwd: nakamaDir, windowsHide: true, stdio: "ignore" });
-    nakamaProcess.on("error", (err) => console.error("❌ Failed to start Nakama:", err));
-    if (nakamaProcess.pid) console.log(`✅ Nakama started (PID: ${nakamaProcess.pid})`);
-  });
+  if (!fs.existsSync(nakamaPath)) { console.error("Nakama server not found at:", nakamaPath); return; }
+  const running = await checkNakamaHealth(cfg.host, cfg.port);
+  if (running) { console.log("Nakama ya está corriendo."); return; }
+  console.log("Lanzando Nakama (modo oculto)...");
+  nakamaProcess = spawn(nakamaPath, ["--config", "local.yml"], { cwd: nakamaDir, windowsHide: true, stdio: "ignore" });
+  nakamaProcess.on("error", (err) => console.error("Error al iniciar Nakama:", err));
+  if (nakamaProcess.pid) console.log(`Nakama iniciado (PID: ${nakamaProcess.pid})`);
 }
 
 function createWindow(sessionName = "default"): void {
@@ -290,7 +311,7 @@ app.whenReady().then(() => {
       }
     } else {
       if (isHost) spawnArgs.push("--host", "--port", "55435");
-      else spawnArgs.push("--connect", "127.0.0.1", "--port", "55435");
+      else spawnArgs.push("--connect", args.directConnectIp || "127.0.0.1", "--port", "55435");
     }
     try {
       console.log("🚀 SPAWNING:", retroArchPath, spawnArgs.join(" "));
@@ -514,6 +535,20 @@ app.whenReady().then(() => {
       console.log("✅ Relay URL guardada en archivo:", url);
       return true;
     } catch (e) { console.error("❌ Error guardando relay URL:", e); return false; }
+  });
+
+  ipcMain.handle("get-nakama-server", async () => {
+    return getNakamaConfig();
+  });
+
+  ipcMain.handle("set-nakama-server", async (_event, { host, port }: { host: string; port: string }) => {
+    setNakamaConfig(host, port);
+    return { success: true };
+  });
+
+  ipcMain.handle("check-nakama-health", async () => {
+    const cfg = getNakamaConfig();
+    return await checkNakamaHealth(cfg.host, cfg.port);
   });
 
   ipcMain.handle("get-relay-url", async () => {

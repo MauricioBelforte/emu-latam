@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import styled from "styled-components";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
@@ -9,7 +9,7 @@ const ShellContainer = styled.div`
   flex-direction: column;
   height: 100vh;
   width: 100vw;
-  background-color: ${(props) => props.theme.colors.background};
+  background-color: ${(p) => p.theme.colors.background};
 `;
 
 const ContentArea = styled.div`
@@ -24,25 +24,34 @@ const MainContent = styled.main`
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 `;
 
-const SidebarWrapper = styled.div`
+const Pane = styled.div<{ $open: boolean; $width: number }>`
+  width: ${(p) => (p.$open ? p.$width : 0)}px;
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: width 0.25s ease;
+  ${(p) => p.$open ? "" : "border: none !important;"}
+`;
+
+const SidebarInner = styled.div`
   width: 250px;
-  flex-shrink: 0;
-  border-right: 2px solid ${(props) => props.theme.colors.border};
+  height: 100%;
+  border-right: 2px solid ${(p) => p.theme.colors.border};
 `;
 
-const ChatWrapper = styled.div`
+const ChatInner = styled.div`
   width: 320px;
-  flex-shrink: 0;
-  border-left: 2px solid ${(props) => props.theme.colors.border};
-  background-color: ${(props) => props.theme.colors.surface};
+  height: 100%;
+  border-left: 2px solid ${(p) => p.theme.colors.border};
+  background-color: ${(p) => p.theme.colors.surface};
 `;
 
 const TickerBar = styled.footer`
   height: 34px;
   background-color: #000;
-  border-top: 2px solid ${(props) => props.theme.colors.border};
+  border-top: 2px solid ${(p) => p.theme.colors.border};
   display: flex;
   align-items: center;
   overflow: hidden;
@@ -51,39 +60,55 @@ const TickerBar = styled.footer`
 const TickerText = styled.div`
   white-space: nowrap;
   animation: scroll 40s linear infinite;
-  color: ${(props) => props.theme.colors.accent};
-  font-family: ${(props) => props.theme.fonts.arcade};
+  color: ${(p) => p.theme.colors.accent};
+  font-family: ${(p) => p.theme.fonts.arcade};
   font-size: 0.65rem;
 
   @keyframes scroll {
-    0% {
-      transform: translateX(100vw);
-    }
-    100% {
-      transform: translateX(-100%);
-    }
+    0% { transform: translateX(100vw); }
+    100% { transform: translateX(-100%); }
   }
 `;
 
-export const AppShell: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [chatOpen, setChatOpen] = useState(true);
+
+  useEffect(() => {
+    const check = () => {
+      const w = window.innerWidth;
+      if (w < 1100) setSidebarOpen(false);
+      if (w < 800) setChatOpen(false);
+    };
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
   return (
     <ShellContainer>
-      <Header />
+      <Header
+        sidebarOpen={sidebarOpen}
+        chatOpen={chatOpen}
+        onToggleSidebar={() => setSidebarOpen((o) => !o)}
+        onToggleChat={() => setChatOpen((o) => !o)}
+      />
       <ContentArea>
-        <SidebarWrapper>
-          <Sidebar />
-        </SidebarWrapper>
+        <Pane $open={sidebarOpen} $width={250}>
+          <SidebarInner>
+            <Sidebar />
+          </SidebarInner>
+        </Pane>
         <MainContent>{children}</MainContent>
-        <ChatWrapper>
-          <ChatBox />
-        </ChatWrapper>
+        <Pane $open={chatOpen} $width={320}>
+          <ChatInner>
+            <ChatBox />
+          </ChatInner>
+        </Pane>
       </ContentArea>
       <TickerBar>
         <TickerText>
-          - KOF LATAM MVP 1.0 - SERVIDOR ONLINE - CHAT ACTIVO - ¡PREPÁRATE PARA
-          LA PELEA!
+          - KOF LATAM V2 - SERVIDOR ONLINE - CHAT ACTIVO - ¡PREPÁRATE PARA LA PELEA!
         </TickerText>
       </TickerBar>
     </ShellContainer>

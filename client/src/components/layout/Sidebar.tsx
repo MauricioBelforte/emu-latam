@@ -106,7 +106,7 @@ const StatusBadge = styled.span`
 export const Sidebar: React.FC = () => {
   const { onlineUsers } = useSocial();
   const { userId } = useAuth();
-  const { sendChallenge, challengeStatus } = useChallenge();
+  const { initiateChallenge, challengeStatus } = useChallenge();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const handleUserClick = (clickedUserId: string) => {
@@ -115,7 +115,7 @@ export const Sidebar: React.FC = () => {
   };
 
   const handleChallenge = (targetUserId: string, targetUsername: string) => {
-    sendChallenge(targetUserId, targetUsername);
+    initiateChallenge(targetUserId, targetUsername);
     setSelectedUserId(null);
   };
 

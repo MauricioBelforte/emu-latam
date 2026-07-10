@@ -55,6 +55,7 @@ relay-test-out.txt
 # Runtime temp files
 relay-server/active_relay.txt
 relay-server/bore_test_*.txt
+emu_latam_nakama.json
 
 # Dev output
 Logs/dev_output.txt

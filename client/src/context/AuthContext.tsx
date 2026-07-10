@@ -1,10 +1,4 @@
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  useRef,
-} from "react";
+import React, { createContext, useContext, useEffect, useState, useRef } from "react";
 import type { ReactNode } from "react";
 import { nakamaService } from "../lib/nakama";
 
@@ -17,89 +11,60 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType>({
-  userId: null,
-  username: null,
-  isAuthenticated: false,
-  isConnected: false,
-  loginGhost: async () => {}, // placeholder
+  userId: null, username: null, isAuthenticated: false, isConnected: false, loginGhost: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({
-  children,
-}) => {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [userId, setUserId] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isConnected, setIsConnected] = useState<boolean>(false);
-
-  // Keep track of connection attempts
   const isConnecting = useRef(false);
 
-  // Intentar restaurar sesión al montar el app
   useEffect(() => {
     const initAuth = async () => {
       if (isConnecting.current) return;
-
-      // DESACTIVADO TEMPORALMENTE PARA PRUEBAS MULTI-JUGADOR LOCAL
-      // Queremos que siempre nos pida "Insert Coin" o nos cree usuario nuevo
-      const restored = false; // nakamaService.restoreSession();
+      const restored = false;
       if (restored && nakamaService.session) {
-        console.log("Sesión previa recuperada");
         setUserId(nakamaService.session.user_id || null);
         setUsername(nakamaService.session.username || null);
         setIsAuthenticated(true);
-
         try {
           isConnecting.current = true;
           await nakamaService.connectSocket();
           setIsConnected(true);
-        } catch (e) {
-          console.error("Fallo conectando el WebSocket restaurado:", e);
-        } finally {
-          isConnecting.current = false;
-        }
+        } catch { /* ignore */ } finally { isConnecting.current = false; }
       }
     };
     initAuth();
   }, []);
 
-  // Función pública para login anónimo (Device ID)
   const loginGhost = async () => {
     if (isConnecting.current) return;
-
     try {
       isConnecting.current = true;
+      const cfg = await (window as any).electron.ipcRenderer.invoke("get-nakama-server");
+      await nakamaService.configure(cfg.host, cfg.port);
       const session = await nakamaService.authenticateDevice();
       setUserId(session.user_id || null);
       setUsername(session.username || null);
       setIsAuthenticated(true);
-
       const socket = await nakamaService.connectSocket();
-
-      // Listener para si se desconecta de golpe
-      socket.ondisconnect = () => {
-        setIsConnected(false);
-      };
-
+      socket.ondisconnect = () => setIsConnected(false);
       setIsConnected(true);
     } catch (e) {
       console.warn("Nakama no disponible, usando modo local:", e);
-      // Fallback local: usuario anónimo sin Nakama
       setUserId(`local-${crypto.randomUUID()}`);
       setUsername(`Player${Math.floor(Math.random() * 1000)}`);
       setIsAuthenticated(true);
       setIsConnected(false);
-    } finally {
-      isConnecting.current = false;
-    }
+    } finally { isConnecting.current = false; }
   };
 
   return (
-    <AuthContext.Provider
-      value={{ userId, username, isAuthenticated, isConnected, loginGhost }}
-    >
+    <AuthContext.Provider value={{ userId, username, isAuthenticated, isConnected, loginGhost }}>
       {children}
     </AuthContext.Provider>
   );

@@ -8,3 +8,4 @@
 | 04-Anti-Lag-RunAhead | Mejoras de latencia en RetroArch | ✅ Completado | 2026-07-01 | Manual | RetroArch, netplay_optimized.cfg |
 | 05-MITM-to-Transparent-Relay | De MITM relay a forwarder TCP transparente | ✅ Completado | 2026-07-03 | 35/35 | Node.js net module |
 | 07-Integracion-Tailscale | Conexión P2P directa vía Tailscale | 🔄 Plan inicial | 2026-07-03 | — | Tailscale, WireGuard |
+| 08-Sistema-Retos | Sistema de retos con selección de método | 🔄 Plan inicial | 2026-07-09 | — | Nakama, Tailscale, Bore |

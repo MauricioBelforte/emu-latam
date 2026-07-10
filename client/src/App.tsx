@@ -1,17 +1,22 @@
 import React, { useState, useEffect, useCallback } from "react";
-import styled, { ThemeProvider } from "styled-components";
+import styled, { ThemeProvider, keyframes } from "styled-components";
 import { useAuth } from "./context/AuthContext";
 import { theme } from "./styles/theme";
 import { GlobalStyles } from "./styles/GlobalStyles";
 import { AppShell } from "./components/layout/AppShell";
 import { ChallengeModal } from "./components/ui/ChallengeModal";
 
+const pulse = keyframes`
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+`;
+
 const GameCard = styled.div`
-  background: linear-gradient(135deg, ${(props) => props.theme.colors.surface} 0%, ${(props) => props.theme.colors.background} 100%);
-  border: 2px solid ${(props) => props.theme.colors.border};
+  background: linear-gradient(135deg, ${(p) => p.theme.colors.surface} 0%, ${(p) => p.theme.colors.background} 100%);
+  border: 2px solid ${(p) => p.theme.colors.border};
   border-radius: 8px;
   padding: 40px;
-  max-width: 800px;
+  max-width: 860px;
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -21,37 +26,126 @@ const GameCard = styled.div`
 `;
 
 const GameTitle = styled.h2`
-  font-size: 3rem;
-  margin-bottom: 10px;
+  font-size: 2.5rem;
+  margin-bottom: 4px;
   text-align: center;
   color: #fff;
-  font-family: ${(props) => props.theme.fonts.arcade};
-  span { color: ${(props) => props.theme.colors.primary}; text-shadow: ${(props) => props.theme.shadows.neonPrimary}; }
+  font-family: ${(p) => p.theme.fonts.arcade};
+  span { color: ${(p) => p.theme.colors.primary}; text-shadow: ${(p) => p.theme.shadows.neonPrimary}; }
 `;
 
 const DebugInfo = styled.p`
-  color: ${(props) => props.theme.colors.accent};
-  font-family: ${(props) => props.theme.fonts.arcade};
-  font-size: 0.8rem;
-  margin-bottom: 30px;
+  color: ${(p) => p.theme.colors.accent};
+  font-family: ${(p) => p.theme.fonts.arcade};
+  font-size: 0.65rem;
+  margin-bottom: 25px;
 `;
 
-const InsertCoinButton = styled.button`
-  padding: 25px 60px;
-  font-size: 1.8rem;
-  background-color: transparent;
-  border: 3px solid ${(props) => props.theme.colors.primary};
-  color: ${(props) => props.theme.colors.primary};
-  font-family: ${(props) => props.theme.fonts.arcade};
-  cursor: pointer;
-  transition: all 0.3s ease;
+const Divider = styled.div`
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, ${(p) => p.theme.colors.border}, transparent);
+  margin: 20px 0;
+`;
+
+const Section = styled.div<{ $accent?: string }>`
+  width: 100%;
+  border: 1px solid ${(p) => p.$accent || p.theme.colors.border};
+  border-radius: 6px;
+  padding: 15px;
+  background: rgba(255,255,255,0.02);
+  margin-bottom: 12px;
+`;
+
+const SectionHeader = styled.p<{ $color?: string }>`
+  color: ${(p) => p.$color || p.theme.colors.textSecondary};
+  font-family: monospace;
+  font-size: 0.6rem;
+  letter-spacing: 2px;
   text-transform: uppercase;
-  letter-spacing: 3px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const Badge = styled.span<{ $bg?: string }>`
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 0.55rem;
+  background: ${(p) => p.$bg || "#333"};
+  color: #000;
+`;
+
+const Row = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+`;
+
+const FullRow = styled.div`
+  width: 100%;
+`;
+
+const Btn = styled.button<{ $accent?: string; $bg?: string; $loading?: boolean }>`
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 0.75rem;
+  font-family: ${(p) => p.theme.fonts.arcade};
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: ${(p) => p.$bg || "transparent"};
+  color: ${(p) => p.$accent || p.theme.colors.text};
+  border: 2px solid ${(p) => p.$accent || p.theme.colors.border};
+  cursor: pointer;
+  transition: ${(p) => p.theme.transitions.default};
 
   &:hover:not(:disabled) {
-    background-color: ${(props) => props.theme.colors.primary};
+    background: ${(p) => p.$accent || p.theme.colors.primary};
     color: #000;
-    box-shadow: ${(props) => props.theme.shadows.neonPrimary};
+    box-shadow: ${(p) => p.$accent ? `0 0 12px ${p.$accent}66` : "none"};
+  }
+  &:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  animation: ${(p) => p.$loading ? pulse : "none"} 0.8s ease-in-out infinite;
+`;
+
+const Input = styled.input<{ $accent?: string }>`
+  width: 100%;
+  padding: 10px;
+  background: #000;
+  border: 1px solid ${(p) => p.$accent || "#555"};
+  color: ${(p) => p.$accent || "#0f0"};
+  font-family: monospace;
+  font-size: 0.75rem;
+  outline: none;
+  transition: ${(p) => p.theme.transitions.default};
+  &:focus { border-color: ${(p) => p.theme.colors.primary}; box-shadow: 0 0 8px ${(p) => p.theme.colors.primary}44; }
+`;
+
+const StatusText = styled.p<{ $color?: string }>`
+  color: ${(p) => p.$color || p.theme.colors.accent};
+  font-family: monospace;
+  font-size: 0.65rem;
+  margin-top: 6px;
+  min-height: 14px;
+`;
+
+const InsertCoinButton = styled(Btn)`
+  max-width: 360px;
+  padding: 20px 40px;
+  font-size: 1.2rem;
+  border: 3px solid ${(p) => p.theme.colors.primary};
+  color: ${(p) => p.theme.colors.primary};
+  background: transparent;
+
+  &:hover:not(:disabled) {
+    background: ${(p) => p.theme.colors.primary};
+    color: #000;
+    box-shadow: ${(p) => p.theme.shadows.neonPrimary};
   }
   &:disabled {
     opacity: 0.3;
@@ -59,35 +153,43 @@ const InsertCoinButton = styled.button`
   }
 `;
 
+const inline = {
+  flex: { display: "flex", alignItems: "center", gap: 10 } as React.CSSProperties,
+  flexCol: { display: "flex", flexDirection: "column" as const },
+};
+
 function App() {
   const { loginGhost, isAuthenticated, username, isConnected } = useAuth();
-  const [isLaunchingRelay, setIsLaunchingRelay] = useState(false);
-  const [isLaunchingMitm, setIsLaunchingMitm] = useState(false);
-  const [isHostingTailscale, setIsHostingTailscale] = useState(false);
-  const [isJoiningTailscale, setIsJoiningTailscale] = useState(false);
+  const [loading, setLoading] = useState({ bore: false, mitm: false, tsHost: false, tsJoin: false, directJoin: false });
+  const [directHostIp, setDirectHostIp] = useState("");
   const [tailscaleHostIp, setTailscaleHostIp] = useState("");
   const [tsStatus, setTsStatus] = useState("");
   const [customRelay, setCustomRelay] = useState("");
   const [statusText, setStatusText] = useState("");
-
   const [nakamaReady, setNakamaReady] = useState(false);
+  const [nakamaHost, setNakamaHost] = useState("127.0.0.1");
+  const [nakamaPort, setNakamaPort] = useState("7350");
 
   useEffect(() => {
     let active = true;
-    const checkLoop = async () => {
+    const check = async () => {
       while (active) {
         try {
-          const res = await fetch("http://localhost:7350");
-          if (active) setNakamaReady(res.ok);
-        } catch {
-          if (active) setNakamaReady(false);
-        }
+          const cfg = await (window as any).electron.ipcRenderer.invoke("get-nakama-server");
+          const r = await fetch(`http://${cfg.host}:${cfg.port}`);
+          if (active) { setNakamaReady(r.ok); setNakamaHost(cfg.host); setNakamaPort(cfg.port); }
+        } catch { if (active) setNakamaReady(false); }
         await new Promise(r => setTimeout(r, 3000));
       }
     };
-    checkLoop();
+    check();
     return () => { active = false; };
   }, []);
+
+  const handleSaveNakamaServer = async () => {
+    await (window as any).electron.ipcRenderer.invoke("set-nakama-server", { host: nakamaHost, port: nakamaPort });
+    alert("Servidor Nakama actualizado. Reiniciá la conexin con INSERT COIN.");
+  };
 
   const handleSaveRelay = () => {
     localStorage.setItem("emu_latam_relay", customRelay);
@@ -103,8 +205,8 @@ function App() {
     let finalRelayIp = customRelay;
     try {
       if (isHost) {
-        setIsLaunchingRelay(true);
-        setStatusText("Iniciando relay...");
+        setLoading(p => ({ ...p, bore: true }));
+        setStatusText("Iniciando túnel Bore...");
         const result = await (window as any).electron.ipcRenderer.invoke("start-relay-tunnel");
         if (result.success) {
           finalRelayIp = result.url;
@@ -113,10 +215,10 @@ function App() {
           await (window as any).electron.ipcRenderer.invoke("save-relay-url", result.url);
         } else {
           alert("Error al iniciar túnel: " + result.error);
-          setIsLaunchingRelay(false);
+          setLoading(p => ({ ...p, bore: false }));
           return;
         }
-        setIsLaunchingRelay(false);
+        setLoading(p => ({ ...p, bore: false }));
       } else {
         let relayFromFile = null;
         for (let i = 0; i < 20; i++) {
@@ -125,7 +227,6 @@ function App() {
           console.log(`⏳ Esperando URL del Host... (intento ${i + 1})`);
           await new Promise(r => setTimeout(r, 500));
         }
-        console.log("📄 Relay URL desde archivo:", relayFromFile);
         if (relayFromFile) {
           finalRelayIp = relayFromFile;
           setCustomRelay(relayFromFile);
@@ -137,17 +238,13 @@ function App() {
       }
       setStatusText("Iniciando RetroArch...");
       const gameResult = await (window as any).electron.ipcRenderer.invoke("launch-game", {
-        useRelay: true,
-        isHost: isHost,
-        relayIp: finalRelayIp,
-        relayUrl: isHost ? finalRelayIp : undefined,
+        useRelay: true, isHost: isHost, relayIp: finalRelayIp, relayUrl: isHost ? finalRelayIp : undefined,
       });
-      console.log("🎮 Resultado launch-game:", gameResult);
       if (!gameResult || !gameResult.success) alert("Error al ejecutar juego: " + (gameResult?.error || "desconocido"));
       setStatusText("");
     } catch (e) {
       console.error("Error:", e);
-      setIsLaunchingRelay(false);
+      setLoading(p => ({ ...p, bore: false }));
       setStatusText("");
       alert("Error: Asegúrate de tener el emulador configurado.");
     }
@@ -156,37 +253,46 @@ function App() {
   const handleDirectHost = async () => {
     setStatusText("Iniciando RetroArch directo...");
     const gameResult = await (window as any).electron.ipcRenderer.invoke("launch-game", {
-      useRelay: false,
-      isHost: true,
+      useRelay: false, isHost: true,
     });
-    console.log("🎮 Resultado launch-game directo:", gameResult);
     if (!gameResult || !gameResult.success) {
       alert("Error al ejecutar juego: " + (gameResult?.error || "desconocido"));
     } else {
       await (window as any).electron.ipcRenderer.invoke("save-relay-url", "127.0.0.1:55435");
-      console.log("✅ URL directa guardada en archivo");
     }
+    setStatusText("");
+  };
+
+  const handleDirectJoin = async () => {
+    if (!directHostIp) { alert("Ingresá la IP del host primero"); return; }
+    setLoading(p => ({ ...p, directJoin: true }));
+    setStatusText("Conectando a host directo...");
+    const gameResult = await (window as any).electron.ipcRenderer.invoke("launch-game", {
+      useRelay: false, isHost: false, directConnectIp: directHostIp,
+    });
+    if (!gameResult || !gameResult.success) {
+      alert("Error al conectar: " + (gameResult?.error || "desconocido"));
+    }
+    setLoading(p => ({ ...p, directJoin: false }));
     setStatusText("");
   };
 
   const handleTestMitmLocal = async () => {
-    setIsLaunchingMitm(true);
+    setLoading(p => ({ ...p, mitm: true }));
     setStatusText("Iniciando relay MITM local...");
     try {
       const result = await (window as any).electron.ipcRenderer.invoke("start-mitm-local");
-      if (!result.success) {
-        alert("Error MITM local: " + (result.error || "desconocido"));
-      }
+      if (!result.success) alert("Error MITM local: " + (result.error || "desconocido"));
     } catch (e) {
       console.error("Error MITM:", e);
       alert("Error al iniciar MITM local");
     }
-    setIsLaunchingMitm(false);
+    setLoading(p => ({ ...p, mitm: false }));
     setStatusText("");
   };
 
   const handleTailscaleHost = async () => {
-    setIsHostingTailscale(true);
+    setLoading(p => ({ ...p, tsHost: true }));
     setTsStatus("Iniciando host RA...");
     try {
       const result = await (window as any).electron.ipcRenderer.invoke("tailscale-host");
@@ -202,15 +308,12 @@ function App() {
       alert("Error al iniciar host Tailscale");
       setTsStatus("");
     }
-    setIsHostingTailscale(false);
+    setLoading(p => ({ ...p, tsHost: false }));
   };
 
   const handleTailscaleGuest = async () => {
-    if (!tailscaleHostIp) {
-      alert("Pegá la IP del host en el campo de texto primero");
-      return;
-    }
-    setIsJoiningTailscale(true);
+    if (!tailscaleHostIp) { alert("Pegá la IP del host en el campo de texto primero"); return; }
+    setLoading(p => ({ ...p, tsJoin: true }));
     setTsStatus("Conectando a host via Tailscale...");
     try {
       const result = await (window as any).electron.ipcRenderer.invoke("tailscale-guest", { hostIp: tailscaleHostIp });
@@ -225,13 +328,7 @@ function App() {
       alert("Error al conectar via Tailscale");
       setTsStatus("");
     }
-    setIsJoiningTailscale(false);
-  };
-
-  const handleStopTailscale = async () => {
-    await (window as any).electron.ipcRenderer.invoke("stop-tailscale");
-    setTailscaleHostIp("");
-    setTsStatus("");
+    setLoading(p => ({ ...p, tsJoin: false }));
   };
 
   return (
@@ -240,75 +337,101 @@ function App() {
       <AppShell>
         <GameCard>
           <GameTitle>READY TO <span>FIGHT?</span></GameTitle>
-          <DebugInfo>SISTEMA ACTUALIZADO - VERSIÓN 2.0</DebugInfo>
+          <DebugInfo>EMU LATAM v2.0 — RETROARCH NETPLAY</DebugInfo>
+
           {!isAuthenticated ? (
             <>
               <InsertCoinButton onClick={handleInsertCoin}>
                 INSERT COIN
               </InsertCoinButton>
-              <p style={{ color: nakamaReady ? "#0f0" : "#666", fontFamily: "monospace", fontSize: "0.6rem", marginTop: "6px" }}>
-                {nakamaReady ? "● NAKAMA ONLINE" : "○ NAKAMA OFFLINE"}
-              </p>
+              <div style={{ display: "flex", gap: 8, marginTop: 12, alignItems: "center", justifyContent: "center", width: "100%" }}>
+                <Input $accent={nakamaReady ? "#0f0" : "#666"} type="text" value={nakamaHost} onChange={(e) => setNakamaHost(e.target.value)}
+                  placeholder="IP del servidor Nakama" style={{ width: 140, fontSize: "0.65rem", padding: "6px 8px" }} />
+                <span style={{ color: "#555", fontFamily: "monospace", fontSize: "0.7rem" }}>:</span>
+                <Input $accent={nakamaReady ? "#0f0" : "#666"} type="text" value={nakamaPort} onChange={(e) => setNakamaPort(e.target.value)}
+                  placeholder="7350" style={{ width: 60, fontSize: "0.65rem", padding: "6px 8px" }} />
+                <Btn onClick={handleSaveNakamaServer} $accent="#555" $bg="#222" style={{ width: "auto", padding: "6px 12px", fontSize: "0.55rem" }}>
+                  OK
+                </Btn>
+              </div>
+              <StatusText $color={nakamaReady ? "#0f0" : "#666"} style={{ marginTop: 6, textAlign: "center" }}>
+                {nakamaReady ? `● NAKAMA ONLINE (${nakamaHost}:${nakamaPort})` : "○ NAKAMA OFFLINE (MODO LOCAL)"}
+              </StatusText>
             </>
           ) : (
             <div style={{ textAlign: "center", marginTop: "10px", width: "100%" }}>
-              <p style={{ color: theme.colors.primary, fontFamily: theme.fonts.arcade, fontSize: "1.2rem", marginBottom: "20px" }}>
-                WELCOME, {username}
+              <p style={{ color: theme.colors.primary, fontFamily: theme.fonts.arcade, fontSize: "0.95rem", marginBottom: "16px" }}>
+                {`> ${username} LOGIN OK <`}
               </p>
-              <div style={{ background: "rgba(255,255,255,0.05)", padding: "20px", borderRadius: "8px", marginBottom: "25px", border: "1px solid #333" }}>
-                <p style={{ color: "#aaa", fontSize: "0.7rem", marginBottom: "10px", textAlign: "left", fontFamily: "monospace" }}>
-                  CONFIGURACIÓN DE RELAY (V2):
-                </p>
-                <input type="text" value={customRelay} onChange={(e) => setCustomRelay(e.target.value)}
-                  style={{ width: "100%", padding: "10px", background: "#000", border: "1px solid #555", color: "#0f0", fontFamily: "monospace", marginBottom: "10px" }}
-                  placeholder="ej: mi-relay.playit.gg:23065" />
-                <button onClick={handleSaveRelay} style={{ width: "100%", padding: "8px", background: "#333", color: "#fff", border: "none", cursor: "pointer", fontSize: "0.8rem" }}>
-                  GUARDAR CONFIGURACIÓN
-                </button>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "20px" }}>
-                <InsertCoinButton onClick={() => handleTestGame(true)} disabled={isLaunchingRelay}
-                  style={{ padding: "15px 10px", fontSize: "0.9rem", opacity: isLaunchingRelay ? 0.5 : 1, position: "relative" }}>
-                  {isLaunchingRelay ? "CREANDO TÚNEL..." : "1. HOST GAME (BORE)"}
-                </InsertCoinButton>
-                <InsertCoinButton onClick={() => handleTestGame(false)} style={{ padding: "15px 10px", fontSize: "0.9rem" }}>
-                  2. JOIN GAME
-                </InsertCoinButton>
-              </div>
-              <InsertCoinButton onClick={handleDirectHost} style={{ padding: "10px 20px", fontSize: "0.75rem", backgroundColor: "#1a4a1a", marginBottom: "10px" }}>
-                HOST DIRECTO (sin bore)
-              </InsertCoinButton>
-              <InsertCoinButton onClick={handleTestMitmLocal} disabled={isLaunchingMitm}
-                style={{ padding: "10px 20px", fontSize: "0.75rem", backgroundColor: "#4a1a4a", opacity: isLaunchingMitm ? 0.5 : 1 }}>
-                {isLaunchingMitm ? "INICIANDO RELAY..." : "TEST MITM LOCAL"}
-              </InsertCoinButton>
-              <div style={{ marginTop: "25px", borderTop: "1px solid #333", paddingTop: "20px" }}>
-                <p style={{ color: "#0af", fontSize: "0.7rem", marginBottom: "10px", fontFamily: "monospace" }}>
-                  ─── TAILSCALE (P2P DIRECTO) ───
-                </p>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
-                  <InsertCoinButton onClick={handleTailscaleHost} disabled={isHostingTailscale}
-                    style={{ padding: "10px 10px", fontSize: "0.75rem", backgroundColor: "#0a3a5a", opacity: isHostingTailscale ? 0.5 : 1 }}>
-                    {isHostingTailscale ? "DETECTANDO..." : "HOST TAILSCALE"}
-                  </InsertCoinButton>
-                  <InsertCoinButton onClick={handleStopTailscale}
-                    style={{ padding: "10px 10px", fontSize: "0.75rem", backgroundColor: "#5a1a1a" }}>
-                    DETENER TAILSCALE
-                  </InsertCoinButton>
+
+              {/* ───── MODO DIRECTO (LAN) ───── */}
+              <Section $accent="#0a4a2a">
+                <SectionHeader $color="#0f0">
+                  <Badge $bg="#0f0">LAN</Badge> MODO DIRECTO — SIN RELAY, SOLO RED LOCAL
+                </SectionHeader>
+                <Btn onClick={handleDirectHost} $accent="#0f0" $bg="#0a2a1a">
+                  INICIAR HOST DIRECTO
+                </Btn>
+                <Input $accent="#0f0" type="text" value={directHostIp} onChange={(e) => setDirectHostIp(e.target.value)} placeholder="IP del host (ej: 192.168.1.100)" style={{ marginTop: 10 }} />
+                <Btn onClick={handleDirectJoin} disabled={loading.directJoin || !directHostIp} $loading={loading.directJoin} $accent="#0f0" $bg={loading.directJoin ? "#0f022" : "transparent"} style={{ marginTop: 10 }}>
+                  {loading.directJoin ? "CONECTANDO..." : "JOIN DIRECTO"}
+                </Btn>
+                <StatusText $color="#888">Host → INICIAR HOST | Guest → pegar IP del host y JOIN</StatusText>
+              </Section>
+
+              {/* ───── MODO BORE (TÚNEL) ───── */}
+              <Section $accent={theme.colors.primary}>
+                <SectionHeader $color={theme.colors.primary}>
+                  <Badge $bg={theme.colors.primary}>BORE</Badge> MODO TÚNEL — JUEGA CON AMIGOS POR INTERNET
+                </SectionHeader>
+                <Btn onClick={() => handleTestGame(true)} disabled={loading.bore} $loading={loading.bore} $accent={theme.colors.primary} $bg={loading.bore ? theme.colors.primary + "22" : "transparent"}>
+                  {loading.bore ? "CREANDO TÚNEL..." : "1. HOST GAME"}
+                </Btn>
+                <div style={{ ...inline.flex, marginTop: 10 }}>
+                  <Input $accent={theme.colors.primary} type="text" value={customRelay} onChange={(e) => setCustomRelay(e.target.value)} placeholder="URL del túnel (se copia automática)" />
+                  <Btn onClick={handleSaveRelay} $accent="#555" $bg="#222" style={{ width: "auto", whiteSpace: "nowrap", fontSize: "0.6rem", padding: "10px 14px" }}>
+                    GUARDAR
+                  </Btn>
                 </div>
-                <input type="text" value={tailscaleHostIp} onChange={(e) => setTailscaleHostIp(e.target.value)}
-                  style={{ width: "100%", padding: "10px", background: "#000", border: "1px solid #0af", color: "#0af", fontFamily: "monospace", marginBottom: "10px" }}
-                  placeholder="Pegá acá la IP Tailscale del host (ej: 100.85.42.13)" />
-                <InsertCoinButton onClick={handleTailscaleGuest} disabled={isJoiningTailscale || !tailscaleHostIp}
-                  style={{ padding: "10px 20px", fontSize: "0.75rem", backgroundColor: "#0a5a3a", width: "100%", opacity: isJoiningTailscale ? 0.5 : 1 }}>
-                  {isJoiningTailscale ? "CONECTANDO..." : "JOIN VÍA TAILSCALE"}
-                </InsertCoinButton>
-                {tsStatus && <p style={{ color: "#0af", fontFamily: "monospace", fontSize: "0.75rem", marginTop: "8px" }}>{tsStatus}</p>}
+                <Btn onClick={() => handleTestGame(false)} $accent={theme.colors.primary} style={{ marginTop: 10 }}>
+                  2. JOIN GAME
+                </Btn>
+                <StatusText $color="#888">Host → 1. HOST GAME | Guest → 2. JOIN GAME</StatusText>
+              </Section>
+
+              {/* ───── MODO TAILSCALE (P2P) ───── */}
+              <Section $accent="#0af">
+                <SectionHeader $color="#0af">
+                  <Badge $bg="#0af">P2P</Badge> MODO TAILSCALE — CONEXIÓN DIRECTA SIN TÚNEL
+                </SectionHeader>
+                <Btn onClick={handleTailscaleHost} disabled={loading.tsHost} $loading={loading.tsHost} $accent="#0af" $bg={loading.tsHost ? "#0af22" : "transparent"}>
+                  {loading.tsHost ? "INICIANDO..." : "HOST TAILSCALE"}
+                </Btn>
+                <Input $accent="#0af" type="text" value={tailscaleHostIp} onChange={(e) => setTailscaleHostIp(e.target.value)} placeholder="IP Tailscale del host (ej: 100.x.x.x)" style={{ marginTop: 10 }} />
+                <Btn onClick={handleTailscaleGuest} disabled={loading.tsJoin || !tailscaleHostIp} $loading={loading.tsJoin} $accent="#0af" $bg={loading.tsJoin ? "#0af22" : "transparent"} style={{ marginTop: 10 }}>
+                  {loading.tsJoin ? "CONECTANDO..." : "JOIN VÍA TAILSCALE"}
+                </Btn>
+                {tsStatus && <StatusText $color="#0af">{tsStatus}</StatusText>}
+              </Section>
+
+              {/* ───── MODO DEBUG ───── */}
+              <Section $accent="#a0a">
+                <SectionHeader $color="#a0a">
+                  <Badge $bg="#a0a">DBG</Badge> DEBUG — PRUEBAS LOCALES
+                </SectionHeader>
+                <Btn onClick={handleTestMitmLocal} disabled={loading.mitm} $loading={loading.mitm} $accent="#a0a" $bg={loading.mitm ? "#a0a22" : "transparent"}>
+                  {loading.mitm ? "INICIANDO..." : "MITM LOCAL (HOST+GUEST MISMA PC)"}
+                </Btn>
+              </Section>
+
+              {statusText && <StatusText $color={theme.colors.accent} style={{ textAlign: "center" }}>{statusText}</StatusText>}
+
+              <Divider />
+              <div style={{ display: "flex", justifyContent: "center", gap: 12 }}>
+                <StatusText $color={isConnected ? theme.colors.success : theme.colors.danger} style={{ margin: 0, fontSize: "0.55rem" }}>
+                  {isConnected ? "● WEBSOCKET CONNECTED" : "○ WEBSOCKET DISCONNECTED"}
+                </StatusText>
               </div>
-              {statusText && <p style={{ color: "#ff0", fontFamily: "monospace", fontSize: "0.8rem", marginTop: "10px" }}>{statusText}</p>}
-              <p style={{ color: isConnected ? theme.colors.success : theme.colors.danger, fontFamily: theme.fonts.main, fontSize: "0.8rem" }}>
-                {isConnected ? "● WEBSOCKET CONNECTED" : "○ WEBSOCKET DISCONNECTED"}
-              </p>
             </div>
           )}
         </GameCard>

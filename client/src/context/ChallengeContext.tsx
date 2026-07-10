@@ -1,25 +1,10 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  useEffect,
-  useRef,
-} from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "./AuthContext";
 import { useSocial } from "./SocialContext";
 import { nakamaService } from "../lib/nakama";
 
-// --- Tipos ---
-
-export type ChallengeStatus =
-  | "idle"
-  | "sent"
-  | "received"
-  | "accepted"
-  | "rejected"
-  | "timeout";
+export type ChallengeStatus = "idle" | "picking_method" | "sent" | "received" | "accepted" | "rejected" | "timeout";
 
 export interface ChallengeData {
   challengerId: string;
@@ -27,25 +12,28 @@ export interface ChallengeData {
   targetId: string;
   targetName: string;
   timestamp: number;
+  method?: "tailscale" | "bore" | "lan";
+}
+
+export interface PendingTarget {
+  userId: string;
+  username: string;
 }
 
 interface ChallengeContextType {
   challengeStatus: ChallengeStatus;
   currentChallenge: ChallengeData | null;
-  sendChallenge: (targetUserId: string, targetUsername: string) => void;
+  pendingTarget: PendingTarget | null;
+  sendChallenge: (targetUserId: string, targetUsername: string, method: string) => void;
+  initiateChallenge: (targetUserId: string, targetUsername: string) => void;
+  selectMethod: (method: string) => void;
   cancelChallenge: () => void;
+  cancelMethodPicker: () => void;
   acceptChallenge: () => void;
   rejectChallenge: () => void;
 }
 
-const ChallengeContext = createContext<ChallengeContextType>({
-  challengeStatus: "idle",
-  currentChallenge: null,
-  sendChallenge: () => {},
-  cancelChallenge: () => {},
-  acceptChallenge: () => {},
-  rejectChallenge: () => {},
-});
+const ChallengeContext = createContext<ChallengeContextType>({} as ChallengeContextType);
 
 export const useChallenge = () => useContext(ChallengeContext);
 
@@ -55,26 +43,21 @@ const CHALLENGE_REJECT_MSG_TYPE = "challenge_reject";
 const CHALLENGE_CANCEL_MSG_TYPE = "challenge_cancel";
 const CHALLENGE_TIMEOUT_MS = 30000;
 
-export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({
-  children,
-}) => {
+export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { userId, username } = useAuth();
   const { channelId } = useSocial();
-  const [challengeStatus, setChallengeStatus] =
-    useState<ChallengeStatus>("idle");
-  const [currentChallenge, setCurrentChallenge] =
-    useState<ChallengeData | null>(null);
+  const [challengeStatus, setChallengeStatus] = useState<ChallengeStatus>("idle");
+  const [currentChallenge, setCurrentChallenge] = useState<ChallengeData | null>(null);
+  const [pendingTarget, setPendingTarget] = useState<PendingTarget | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isLaunchingRef = useRef(false); // Evitar doble lanzamiento
+  const isLaunchingRef = useRef(false);
 
   const resetChallenge = useCallback(() => {
     setChallengeStatus("idle");
     setCurrentChallenge(null);
+    setPendingTarget(null);
     isLaunchingRef.current = false;
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
+    if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
   }, []);
 
   const startTimeout = useCallback(() => {
@@ -85,50 +68,63 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({
     }, CHALLENGE_TIMEOUT_MS);
   }, [resetChallenge]);
 
-  const sendToLobby = useCallback(
-    async (type: string, payload: Record<string, unknown>) => {
-      if (!nakamaService.socket || !userId || !channelId) {
-        console.warn("⚠️ No se pudo enviar señal: Datos no listos.");
-        return;
-      }
-      try {
-        const messageContent = { _type: type, senderId: userId, ...payload };
-        console.log(`📡 Difundiendo señal: ${type}`);
-        await nakamaService.socket.writeChatMessage(channelId, messageContent);
-      } catch (err) {
-        console.error(`Error enviando ${type}:`, err);
-      }
-    },
-    [userId, channelId],
-  );
+  const sendToLobby = useCallback(async (type: string, payload: Record<string, unknown>) => {
+    if (!nakamaService.socket || !userId || !channelId) {
+      console.warn("No se pudo enviar seal: Datos no listos.");
+      return;
+    }
+    try {
+      const messageContent = { _type: type, senderId: userId, ...payload };
+      await nakamaService.socket.writeChatMessage(channelId, messageContent);
+    } catch (err) {
+      console.error("Error enviando", type, err);
+    }
+  }, [userId, channelId]);
 
-  const sendChallenge = useCallback(
-    (targetId: string, targetName: string) => {
-      if (!userId || !username || challengeStatus !== "idle") return;
-      if (targetId === userId) return; // PROHIBIDO: Auto-reto
+  const initiateChallenge = useCallback((targetUserId: string, targetUsername: string) => {
+    if (challengeStatus !== "idle") return;
+    setPendingTarget({ userId: targetUserId, username: targetUsername });
+    setChallengeStatus("picking_method");
+  }, [challengeStatus]);
 
-      const challenge: ChallengeData = {
-        challengerId: userId,
-        challengerName: username,
-        targetId: targetId,
-        targetName: targetName,
-        timestamp: Date.now(),
-      };
+  const cancelMethodPicker = useCallback(() => {
+    setPendingTarget(null);
+    setChallengeStatus("idle");
+  }, []);
 
-      setCurrentChallenge(challenge);
-      setChallengeStatus("sent");
-      startTimeout();
-      sendToLobby(CHALLENGE_MSG_TYPE, challenge);
-    },
-    [userId, username, challengeStatus, startTimeout, sendToLobby],
-  );
+  const selectMethod = useCallback((method: string) => {
+    if (!userId || !username || !pendingTarget || challengeStatus !== "picking_method") return;
+    const challenge: ChallengeData = {
+      challengerId: userId,
+      challengerName: username,
+      targetId: pendingTarget.userId,
+      targetName: pendingTarget.username,
+      timestamp: Date.now(),
+      method: method as "tailscale" | "bore" | "lan",
+    };
+    setCurrentChallenge(challenge);
+    setChallengeStatus("sent");
+    setPendingTarget(null);
+    startTimeout();
+    sendToLobby(CHALLENGE_MSG_TYPE, challenge);
+  }, [userId, username, pendingTarget, challengeStatus, startTimeout, sendToLobby]);
+
+  const sendChallenge = useCallback((targetUserId: string, targetUsername: string, method: string) => {
+    if (!userId || !username || challengeStatus !== "idle") return;
+    if (targetUserId === userId) return;
+    const challenge: ChallengeData = {
+      challengerId: userId, challengerName: username, targetId: targetUserId,
+      targetName: targetUsername, timestamp: Date.now(), method: method as "tailscale" | "bore" | "lan",
+    };
+    setCurrentChallenge(challenge);
+    setChallengeStatus("sent");
+    startTimeout();
+    sendToLobby(CHALLENGE_MSG_TYPE, challenge);
+  }, [userId, username, challengeStatus, startTimeout, sendToLobby]);
 
   const cancelChallenge = useCallback(() => {
     if (currentChallenge && userId) {
-      sendToLobby(CHALLENGE_CANCEL_MSG_TYPE, {
-        challengerId: userId,
-        targetId: currentChallenge.targetId,
-      });
+      sendToLobby(CHALLENGE_CANCEL_MSG_TYPE, { challengerId: userId, targetId: currentChallenge.targetId });
     }
     resetChallenge();
   }, [currentChallenge, userId, sendToLobby, resetChallenge]);
@@ -136,54 +132,36 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({
   const acceptChallenge = useCallback(async () => {
     if (!currentChallenge || !userId || isLaunchingRef.current) return;
     isLaunchingRef.current = true;
-
     const challengerId = currentChallenge.challengerId;
     setChallengeStatus("accepted");
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-
-    console.log("✅ RETO ACEPTADO - Esperando bore URL del Challenger...");
-
-    try {
-      // Notificamos al retador que aceptamos. Él creará el túnel bore.
-      await sendToLobby(CHALLENGE_ACCEPT_MSG_TYPE, {
-        targetId: challengerId,
-        acceptedBy: userId,
-        acceptedByName: username,
-      });
-    } catch (e) {
-      console.error("Error notificando aceptación:", e);
-    }
-
-    // No lanzamos nada aquí. El challenger (HOST) crea el túnel y nos avisa.
+    await sendToLobby(CHALLENGE_ACCEPT_MSG_TYPE, { targetId: challengerId, acceptedBy: userId, acceptedByName: username });
   }, [currentChallenge, userId, username, sendToLobby]);
 
   const rejectChallenge = useCallback(() => {
     if (!currentChallenge) return;
-    sendToLobby(CHALLENGE_REJECT_MSG_TYPE, {
-      targetId: currentChallenge.challengerId,
-    });
+    sendToLobby(CHALLENGE_REJECT_MSG_TYPE, { targetId: currentChallenge.challengerId });
     setChallengeStatus("rejected");
     setTimeout(() => resetChallenge(), 2500);
   }, [currentChallenge, sendToLobby, resetChallenge]);
 
-  // --- ESCUCHA DE EVENTOS GLOBAL ---
+  // hostConnectionInfo stores the connection data we need to send to the guest
+  const sendConnectionInfo = useCallback(async (targetId: string, data: Record<string, unknown>) => {
+    await sendToLobby(CHALLENGE_ACCEPT_MSG_TYPE + "_conn", { targetId, ...data });
+  }, [sendToLobby]);
+
+  const METHOD_LABELS: Record<string, string> = { tailscale: "Tailscale (P2P)", bore: "Bore (Tnnel)", lan: "LAN Directo" };
+
+  // --- EVENT LISTENER ---
   useEffect(() => {
     const handleNakamaMessage = async (event: Event) => {
       const message = (event as CustomEvent).detail;
       try {
-        const content =
-          typeof message.content === "string"
-            ? JSON.parse(message.content)
-            : message.content;
-
-        // --- FILTROS DE SEGURIDAD ---
+        const content = typeof message.content === "string" ? JSON.parse(message.content) : message.content;
         if (!content._type || content.senderId === userId) return;
-        const isForMe = content.targetId === userId;
-        if (!isForMe) return;
+        if (content.targetId !== userId) return;
 
-        console.log(`📦 Señal recibida del Lobby: ${content._type}`);
-
-        // 1. Recibimos un reto (Somos B)
+        // 1. RECEIVE CHALLENGE
         if (content._type === CHALLENGE_MSG_TYPE) {
           if (challengeStatus !== "idle") return;
           setCurrentChallenge(content);
@@ -192,63 +170,40 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({
           return;
         }
 
-        // 2. El otro aceptó el reto (Somos A = Challenger = HOST)
+        // 2. CHALLENGE ACCEPTED (I'm the host/challenger)
         if (content._type === CHALLENGE_ACCEPT_MSG_TYPE) {
           if (isLaunchingRef.current) return;
           isLaunchingRef.current = true;
-
           setChallengeStatus("accepted");
           if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
-          console.log(
-            `🔥 ¡Reto aceptado por ${content.acceptedByName}! Creando túnel bore...`,
-          );
+          const method = currentChallenge?.method || "bore";
+          console.log(`Reto aceptado! Mtodo: ${method}`);
 
           try {
-            // 1. Matar RAs previos para liberar puerto
-            // @ts-expect-error - IPC bridge types
-            await window.electron.ipcRenderer.invoke("kill-retroarch");
+            await (window as any).electron.ipcRenderer.invoke("kill-retroarch");
 
-            // 2. Crear túnel bore con reintento (Host = Challenger)
-            let tunnel = null;
-            for (let attempt = 1; attempt <= 3; attempt++) {
-              // @ts-expect-error - IPC bridge types
-              tunnel = await window.electron.ipcRenderer.invoke("start-relay-tunnel-v2");
-              if (tunnel.success) break;
-              console.log(`⏳ Intento ${attempt}/3 de túnel bore falló: ${tunnel.error}. Reintentando...`);
-              await new Promise(r => setTimeout(r, 2000));
+            if (method === "tailscale") {
+              const result = await (window as any).electron.ipcRenderer.invoke("tailscale-host");
+              if (!result.success) { alert("Error Tailscale: " + result.error); resetChallenge(); return; }
+              await sendConnectionInfo(content.acceptedBy, { tailscaleIp: result.ip, hostName: username });
+            } else if (method === "bore") {
+              let tunnel = null;
+              for (let attempt = 1; attempt <= 3; attempt++) {
+                tunnel = await (window as any).electron.ipcRenderer.invoke("start-relay-tunnel-v2");
+                if (tunnel.success) break;
+                await new Promise(r => setTimeout(r, 2000));
+              }
+              if (!tunnel.success) { alert("Error creando tnel: " + tunnel.error); resetChallenge(); return; }
+              localStorage.setItem("emu_latam_relay", tunnel.url);
+              await (window as any).electron.ipcRenderer.invoke("save-relay-url", tunnel.url);
+              await (window as any).electron.ipcRenderer.invoke("launch-game", { isHost: true, useRelay: true, relayIp: tunnel.url });
+              await sendConnectionInfo(content.acceptedBy, { boreUrl: tunnel.url, hostName: username });
+            } else if (method === "lan") {
+              const gameResult = await (window as any).electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: true });
+              if (!gameResult.success) { alert("Error LAN: " + gameResult.error); resetChallenge(); return; }
+              await sendConnectionInfo(content.acceptedBy, { lanIp: gameResult.myIp || "127.0.0.1", hostName: username });
             }
-
-            if (!tunnel.success) {
-              console.error("❌ Error creando túnel:", tunnel.error);
-              alert("Error al crear túnel: " + tunnel.error);
-              resetChallenge();
-              return;
-            }
-
-            const boreUrl = tunnel.url;
-            console.log(`✅ Túnel bore listo: ${boreUrl}`);
-
-            // 2. Guardar URL del relay
-            localStorage.setItem("emu_latam_relay", boreUrl);
-            // @ts-expect-error - IPC bridge types
-            await window.electron.ipcRenderer.invoke("save-relay-url", boreUrl);
-
-            // 3. Lanzar RetroArch como HOST
-            // @ts-expect-error - IPC bridge types
-            await window.electron.ipcRenderer.invoke("launch-game", {
-              isHost: true,
-              useRelay: true,
-              relayIp: boreUrl,
-            });
-
-            // 4. Enviar la URL del bore al Target (B) para que se conecte
-            await sendToLobby(CHALLENGE_ACCEPT_MSG_TYPE + "_bore_url", {
-              targetId: content.acceptedBy,
-              boreUrl: boreUrl,
-              challengerName: username,
-            });
-
             setTimeout(() => resetChallenge(), 5000);
           } catch (e) {
             console.error("Error en flujo HOST:", e);
@@ -257,28 +212,23 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({
           return;
         }
 
-        // 2b. Recibimos la URL bore del Challenger (Somos B = Target = CLIENT)
-        if (content._type === CHALLENGE_ACCEPT_MSG_TYPE + "_bore_url") {
+        // 2b. RECEIVE CONNECTION INFO (I'm the guest)
+        if (content._type === CHALLENGE_ACCEPT_MSG_TYPE + "_conn") {
+          if (isLaunchingRef.current) return;
           isLaunchingRef.current = true;
-
-          console.log(
-            `🔥 ¡Recibido bore URL del Challenger: ${content.boreUrl}! Conectando...`,
-          );
+          const method = currentChallenge?.method || "bore";
 
           try {
-            // 1. Guardar URL del relay
-            localStorage.setItem("emu_latam_relay", content.boreUrl);
-            // @ts-expect-error - IPC bridge types
-            await window.electron.ipcRenderer.invoke("save-relay-url", content.boreUrl);
-
-            // 3. Lanzar RetroArch como CLIENT conectándose al bore del Host
-            // @ts-expect-error - IPC bridge types
-            await window.electron.ipcRenderer.invoke("launch-game", {
-              isHost: false,
-              useRelay: true,
-              relayIp: content.boreUrl,
-            });
-
+            if (method === "tailscale" && content.tailscaleIp) {
+              const result = await (window as any).electron.ipcRenderer.invoke("tailscale-guest", { hostIp: content.tailscaleIp });
+              if (!result.success) alert("Error Tailscale guest: " + result.error);
+            } else if (method === "bore" && content.boreUrl) {
+              localStorage.setItem("emu_latam_relay", content.boreUrl);
+              await (window as any).electron.ipcRenderer.invoke("save-relay-url", content.boreUrl);
+              await (window as any).electron.ipcRenderer.invoke("launch-game", { isHost: false, useRelay: true, relayIp: content.boreUrl });
+            } else if (method === "lan" && content.lanIp) {
+              await (window as any).electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: false, directConnectIp: content.lanIp });
+            }
             setTimeout(() => resetChallenge(), 5000);
           } catch (e) {
             console.error("Error en flujo CLIENT:", e);
@@ -287,40 +237,26 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({
           return;
         }
 
-        // 3. El otro rechazó o canceló
-        if (
-          content._type === CHALLENGE_REJECT_MSG_TYPE ||
-          content._type === CHALLENGE_CANCEL_MSG_TYPE
-        ) {
-          if (content._type === CHALLENGE_REJECT_MSG_TYPE)
-            setChallengeStatus("rejected");
+        // 3. REJECTED / CANCELLED
+        if (content._type === CHALLENGE_REJECT_MSG_TYPE || content._type === CHALLENGE_CANCEL_MSG_TYPE) {
+          if (content._type === CHALLENGE_REJECT_MSG_TYPE) setChallengeStatus("rejected");
           else resetChallenge();
           if (timeoutRef.current) clearTimeout(timeoutRef.current);
-          if (content._type === CHALLENGE_REJECT_MSG_TYPE)
-            setTimeout(() => resetChallenge(), 2500);
-          return;
+          if (content._type === CHALLENGE_REJECT_MSG_TYPE) setTimeout(() => resetChallenge(), 2500);
         }
-      } catch {
-        // Si no es JSON valido, ignorar silenciosamente
-      }
+      } catch {}
     };
 
     window.addEventListener("nakama_message", handleNakamaMessage);
-    return () =>
-      window.removeEventListener("nakama_message", handleNakamaMessage);
-  }, [userId, challengeStatus, resetChallenge, startTimeout]);
+    return () => window.removeEventListener("nakama_message", handleNakamaMessage);
+  }, [userId, challengeStatus, currentChallenge, resetChallenge, startTimeout, sendConnectionInfo, username]);
 
   return (
-    <ChallengeContext.Provider
-      value={{
-        challengeStatus,
-        currentChallenge,
-        sendChallenge,
-        cancelChallenge,
-        acceptChallenge,
-        rejectChallenge,
-      }}
-    >
+    <ChallengeContext.Provider value={{
+      challengeStatus, currentChallenge, pendingTarget,
+      sendChallenge, initiateChallenge, selectMethod,
+      cancelChallenge, cancelMethodPicker, acceptChallenge, rejectChallenge,
+    }}>
       {children}
     </ChallengeContext.Provider>
   );
