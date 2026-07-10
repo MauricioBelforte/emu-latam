@@ -163,6 +163,7 @@ function App() {
   const [loading, setLoading] = useState({ bore: false, mitm: false, tsHost: false, tsJoin: false, directJoin: false });
   const [directHostIp, setDirectHostIp] = useState("");
   const [tailscaleHostIp, setTailscaleHostIp] = useState("");
+  const [myTailscaleIp, setMyTailscaleIp] = useState("");
   const [tsStatus, setTsStatus] = useState("");
   const [customRelay, setCustomRelay] = useState("");
   const [statusText, setStatusText] = useState("");
@@ -205,7 +206,11 @@ function App() {
   const handleInsertCoin = async () => {
     console.log("INSERT COIN CLICKED");
     await loginGhost();
+    const ts = await (window as any).electron.ipcRenderer.invoke("get-tailscale-ip");
+    if (ts.ip) setMyTailscaleIp(ts.ip);
   };
+
+  const isHostingSala = isAuthenticated && (nakamaHost === "127.0.0.1" || nakamaHost === "localhost");
 
   const handleTestGame = async (isHost: boolean) => {
     let finalRelayIp = customRelay;
@@ -350,25 +355,56 @@ function App() {
               <InsertCoinButton onClick={handleInsertCoin}>
                 INSERT COIN
               </InsertCoinButton>
-              <div style={{ display: "flex", gap: 8, marginTop: 12, alignItems: "center", justifyContent: "center", width: "100%" }}>
-                <Input $accent={nakamaReady ? "#0f0" : "#666"} type="text" value={nakamaHost} onChange={(e) => setNakamaHost(e.target.value)}
-                  placeholder="IP del servidor Nakama" style={{ width: 140, fontSize: "0.65rem", padding: "6px 8px" }} />
-                <span style={{ color: "#555", fontFamily: "monospace", fontSize: "0.7rem" }}>:</span>
-                <Input $accent={nakamaReady ? "#0f0" : "#666"} type="text" value={nakamaPort} onChange={(e) => setNakamaPort(e.target.value)}
-                  placeholder="7350" style={{ width: 60, fontSize: "0.65rem", padding: "6px 8px" }} />
-                <Btn onClick={handleSaveNakamaServer} $accent="#555" $bg="#222" style={{ width: "auto", padding: "6px 12px", fontSize: "0.55rem" }}>
-                  OK
-                </Btn>
+              <div style={{ marginTop: 12, width: "100%", maxWidth: 400 }}>
+                <p style={{ color: "#888", fontFamily: "monospace", fontSize: "0.6rem", marginBottom: 8, textAlign: "center" }}>
+                  PC1 (CREAR SALA): dejá 127.0.0.1:7350 → INSERT COIN<br />
+                  PC2 (UNIRSE): pegá IP de PC1 → OK → INSERT COIN
+                </p>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "center" }}>
+                  <Input $accent={nakamaReady ? "#0f0" : "#666"} type="text" value={nakamaHost} onChange={(e) => setNakamaHost(e.target.value)}
+                    placeholder="IP del servidor" style={{ width: 140, fontSize: "0.65rem", padding: "6px 8px" }} />
+                  <span style={{ color: "#555", fontFamily: "monospace", fontSize: "0.7rem" }}>:</span>
+                  <Input $accent={nakamaReady ? "#0f0" : "#666"} type="text" value={nakamaPort} onChange={(e) => setNakamaPort(e.target.value)}
+                    placeholder="7350" style={{ width: 60, fontSize: "0.65rem", padding: "6px 8px" }} />
+                  <Btn onClick={handleSaveNakamaServer} $accent="#555" $bg="#222" style={{ width: "auto", padding: "6px 12px", fontSize: "0.55rem" }}>
+                    OK
+                  </Btn>
+                </div>
+                <StatusText $color={nakamaReady ? "#0f0" : "#666"} style={{ marginTop: 6, textAlign: "center" }}>
+                  {nakamaReady ? `● NAKAMA ONLINE (${nakamaHost}:${nakamaPort})` : "○ NAKAMA OFFLINE"}
+                </StatusText>
               </div>
-              <StatusText $color={nakamaReady ? "#0f0" : "#666"} style={{ marginTop: 6, textAlign: "center" }}>
-                {nakamaReady ? `● NAKAMA ONLINE (${nakamaHost}:${nakamaPort})` : "○ NAKAMA OFFLINE (MODO LOCAL)"}
-              </StatusText>
             </>
           ) : (
             <div style={{ textAlign: "center", marginTop: "10px", width: "100%" }}>
-              <p style={{ color: theme.colors.primary, fontFamily: theme.fonts.arcade, fontSize: "0.95rem", marginBottom: "16px" }}>
-                {`> ${username} LOGIN OK <`}
+              <p style={{ color: theme.colors.primary, fontFamily: theme.fonts.arcade, fontSize: "0.9rem", marginBottom: "12px" }}>
+                {`> ${username} CONECTADO <`}
               </p>
+
+              {isHostingSala && myTailscaleIp && (
+                <Section $accent="#0af" style={{ borderStyle: "dashed" }}>
+                  <p style={{ color: "#0af", fontFamily: theme.fonts.arcade, fontSize: "0.7rem", marginBottom: 4 }}>
+                    SALA CREADA
+                  </p>
+                  <p style={{ color: "#fff", fontFamily: "monospace", fontSize: "0.9rem", background: "#000", padding: "8px 12px", borderRadius: 4, border: "1px solid #0af", display: "inline-block", marginBottom: 6 }}>
+                    {myTailscaleIp}:{nakamaPort}
+                  </p>
+                  <StatusText $color="#0af" style={{ fontSize: "0.6rem" }}>
+                    Pasá esta IP a tu amigo. Debe ponerla en IP DEL SERVIDOR y presionar INSERT COIN
+                  </StatusText>
+                </Section>
+              )}
+
+              {!isHostingSala && (
+                <Section $accent="#0a0" style={{ borderStyle: "dashed" }}>
+                  <p style={{ color: "#0f0", fontFamily: theme.fonts.arcade, fontSize: "0.7rem", marginBottom: 4 }}>
+                    CONECTADO A SALA
+                  </p>
+                  <StatusText $color="#888" style={{ fontSize: "0.6rem" }}>
+                    Servidor: {nakamaHost}:{nakamaPort}
+                  </StatusText>
+                </Section>
+              )}
 
               {/* ───── MODO DIRECTO (LAN) ───── */}
               <Section $accent="#0a4a2a">

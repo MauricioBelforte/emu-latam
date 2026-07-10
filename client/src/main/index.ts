@@ -560,6 +560,10 @@ app.whenReady().then(() => {
     } catch (e) { console.error("❌ Error leyendo relay URL:", e); return null; }
   });
 
+  ipcMain.handle("get-tailscale-ip", async () => {
+    return { ip: getTailscaleIp() || null };
+  });
+
   // ─── TAILSCALE (paralelo, no toca flujos blindados) ───
   ipcMain.handle("tailscale-host", async () => {
     console.log("[TAILSCALE] tailscale-host llamado");
