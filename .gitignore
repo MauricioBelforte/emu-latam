@@ -59,6 +59,8 @@ emu_latam_nakama.json
 
 # Dev output
 Logs/dev_output.txt
+client/dev_output.txt
+client/dev_error.txt
 
 # Logs
 npm-debug.log*
