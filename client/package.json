@@ -10,7 +10,8 @@
     "build": "electron-vite build",
     "lint": "eslint .",
     "preview": "electron-vite preview",
-    "test:stable": "node test_stable_flows.js"
+    "test:stable": "node test_stable_flows.js",
+    "package": "node scripts/package.js"
   },
   "dependencies": {
     "react": "^19.2.0",
