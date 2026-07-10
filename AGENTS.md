@@ -312,3 +312,25 @@ Cuando un problema analizado en `Mensajes entre modelos/` se considere **sustanc
    - Agregar nuevos archivos al hilo existente
    - O crear un hilo nuevo referenciando al anterior
 6. **Actualizar `ESTADO-PARALELO.md`:** La tarea se mueve al historial de completadas con la fecha de archivo.
+
+## 19. Empaquetado del EXE (Electron)
+
+Para generar el `.exe` distribuible (sin Node.js):
+
+```bash
+cd client
+npm run package
+```
+
+**Qué hace:**
+1. `electron-vite build` — compila main + preload + renderer a `out/`
+2. `@electron/packager` — empaqueta Electron + app en `dist/Emu Latam-win32-x64/`
+3. Copia `backend/`, `retroarch/`, `relay-server/` a `resources/extraResources/`
+
+**Output:** `client/dist/Emu Latam-win32-x64/Emu Latam.exe` (~688 MB)
+
+**Notas:**
+- `electron-builder` NO funciona en este equipo (falla winCodeSign por symlinks). Usar `@electron/packager`.
+- F12/DevTools deshabilitado en producción (ver `index.ts:createWindow()`).
+- `getProjectRoot()` retorna `process.resourcesPath/extraResources` en modo empaquetado.
+- Para distribuir, comprimir toda la carpeta `Emu Latam-win32-x64/` en ZIP.
