@@ -130,13 +130,12 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
   }, [currentChallenge, userId, sendToLobby, resetChallenge]);
 
   const acceptChallenge = useCallback(async () => {
-    if (!currentChallenge || !userId || isLaunchingRef.current) return;
-    isLaunchingRef.current = true;
+    if (!currentChallenge || !userId || challengeStatus !== "received") return;
     const challengerId = currentChallenge.challengerId;
     setChallengeStatus("accepted");
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     await sendToLobby(CHALLENGE_ACCEPT_MSG_TYPE, { targetId: challengerId, acceptedBy: userId, acceptedByName: username });
-  }, [currentChallenge, userId, username, sendToLobby]);
+  }, [currentChallenge, userId, challengeStatus, sendToLobby]);
 
   const rejectChallenge = useCallback(() => {
     if (!currentChallenge) return;
@@ -153,103 +152,103 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
   const METHOD_LABELS: Record<string, string> = { tailscale: "Tailscale (P2P)", bore: "Bore (Tnnel)", lan: "LAN Directo" };
 
   // --- EVENT LISTENER ---
+  const handleNakamaMessageRef = useRef(async (_event: Event) => {});
+  handleNakamaMessageRef.current = async (event: Event) => {
+    const message = (event as CustomEvent).detail;
+    try {
+      const content = typeof message.content === "string" ? JSON.parse(message.content) : message.content;
+      if (!content._type || content.senderId === userId) return;
+      if (content.targetId !== userId) return;
+
+      // 1. RECEIVE CHALLENGE
+      if (content._type === CHALLENGE_MSG_TYPE) {
+        if (challengeStatus !== "idle") return;
+        setCurrentChallenge(content);
+        setChallengeStatus("received");
+        startTimeout();
+        return;
+      }
+
+      // 2. CHALLENGE ACCEPTED (I'm the host/challenger)
+      if (content._type === CHALLENGE_ACCEPT_MSG_TYPE) {
+        if (isLaunchingRef.current) return;
+        isLaunchingRef.current = true;
+        setChallengeStatus("accepted");
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+        const method = currentChallenge?.method || "bore";
+        console.log(`Reto aceptado! Mtodo: ${method}`);
+
+        try {
+          await (window as any).electron.ipcRenderer.invoke("kill-retroarch");
+
+          if (method === "tailscale") {
+            const result = await (window as any).electron.ipcRenderer.invoke("tailscale-host");
+            if (!result.success) { alert("Error Tailscale: " + result.error); resetChallenge(); return; }
+            await sendConnectionInfo(content.acceptedBy, { tailscaleIp: result.ip, hostName: username });
+          } else if (method === "bore") {
+            let tunnel = null;
+            for (let attempt = 1; attempt <= 3; attempt++) {
+              tunnel = await (window as any).electron.ipcRenderer.invoke("start-relay-tunnel-v2");
+              if (tunnel.success) break;
+              await new Promise(r => setTimeout(r, 2000));
+            }
+            if (!tunnel.success) { alert("Error creando tnel: " + tunnel.error); resetChallenge(); return; }
+            localStorage.setItem("emu_latam_relay", tunnel.url);
+            await (window as any).electron.ipcRenderer.invoke("save-relay-url", tunnel.url);
+            await (window as any).electron.ipcRenderer.invoke("launch-game", { isHost: true, useRelay: true, relayIp: tunnel.url });
+            await sendConnectionInfo(content.acceptedBy, { boreUrl: tunnel.url, hostName: username });
+          } else if (method === "lan") {
+            const gameResult = await (window as any).electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: true });
+            if (!gameResult.success) { alert("Error LAN: " + gameResult.error); resetChallenge(); return; }
+            await sendConnectionInfo(content.acceptedBy, { lanIp: gameResult.myIp || "127.0.0.1", hostName: username });
+          }
+          setTimeout(() => resetChallenge(), 5000);
+        } catch (e) {
+          console.error("Error en flujo HOST:", e);
+          resetChallenge();
+        }
+        return;
+      }
+
+      // 2b. RECEIVE CONNECTION INFO (I'm the guest)
+      if (content._type === CHALLENGE_ACCEPT_MSG_TYPE + "_conn") {
+        const method = currentChallenge?.method || "bore";
+
+        try {
+          if (method === "tailscale" && content.tailscaleIp) {
+            const result = await (window as any).electron.ipcRenderer.invoke("tailscale-guest", { hostIp: content.tailscaleIp });
+            if (!result.success) alert("Error Tailscale guest: " + result.error);
+          } else if (method === "bore" && content.boreUrl) {
+            localStorage.setItem("emu_latam_relay", content.boreUrl);
+            await (window as any).electron.ipcRenderer.invoke("save-relay-url", content.boreUrl);
+            await (window as any).electron.ipcRenderer.invoke("launch-game", { isHost: false, useRelay: true, relayIp: content.boreUrl });
+          } else if (method === "lan" && content.lanIp) {
+            await (window as any).electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: false, directConnectIp: content.lanIp });
+          }
+          setTimeout(() => resetChallenge(), 5000);
+        } catch (e) {
+          console.error("Error en flujo CLIENT:", e);
+          resetChallenge();
+        }
+        return;
+      }
+
+      // 3. REJECTED / CANCELLED
+      if (content._type === CHALLENGE_REJECT_MSG_TYPE || content._type === CHALLENGE_CANCEL_MSG_TYPE) {
+        if (content._type === CHALLENGE_REJECT_MSG_TYPE) setChallengeStatus("rejected");
+        else resetChallenge();
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        if (content._type === CHALLENGE_REJECT_MSG_TYPE) setTimeout(() => resetChallenge(), 2500);
+      }
+    } catch {}
+  };
+
   useEffect(() => {
-    const handleNakamaMessage = async (event: Event) => {
-      const message = (event as CustomEvent).detail;
-      try {
-        const content = typeof message.content === "string" ? JSON.parse(message.content) : message.content;
-        if (!content._type || content.senderId === userId) return;
-        if (content.targetId !== userId) return;
-
-        // 1. RECEIVE CHALLENGE
-        if (content._type === CHALLENGE_MSG_TYPE) {
-          if (challengeStatus !== "idle") return;
-          setCurrentChallenge(content);
-          setChallengeStatus("received");
-          startTimeout();
-          return;
-        }
-
-        // 2. CHALLENGE ACCEPTED (I'm the host/challenger)
-        if (content._type === CHALLENGE_ACCEPT_MSG_TYPE) {
-          if (isLaunchingRef.current) return;
-          isLaunchingRef.current = true;
-          setChallengeStatus("accepted");
-          if (timeoutRef.current) clearTimeout(timeoutRef.current);
-
-          const method = currentChallenge?.method || "bore";
-          console.log(`Reto aceptado! Mtodo: ${method}`);
-
-          try {
-            await (window as any).electron.ipcRenderer.invoke("kill-retroarch");
-
-            if (method === "tailscale") {
-              const result = await (window as any).electron.ipcRenderer.invoke("tailscale-host");
-              if (!result.success) { alert("Error Tailscale: " + result.error); resetChallenge(); return; }
-              await sendConnectionInfo(content.acceptedBy, { tailscaleIp: result.ip, hostName: username });
-            } else if (method === "bore") {
-              let tunnel = null;
-              for (let attempt = 1; attempt <= 3; attempt++) {
-                tunnel = await (window as any).electron.ipcRenderer.invoke("start-relay-tunnel-v2");
-                if (tunnel.success) break;
-                await new Promise(r => setTimeout(r, 2000));
-              }
-              if (!tunnel.success) { alert("Error creando tnel: " + tunnel.error); resetChallenge(); return; }
-              localStorage.setItem("emu_latam_relay", tunnel.url);
-              await (window as any).electron.ipcRenderer.invoke("save-relay-url", tunnel.url);
-              await (window as any).electron.ipcRenderer.invoke("launch-game", { isHost: true, useRelay: true, relayIp: tunnel.url });
-              await sendConnectionInfo(content.acceptedBy, { boreUrl: tunnel.url, hostName: username });
-            } else if (method === "lan") {
-              const gameResult = await (window as any).electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: true });
-              if (!gameResult.success) { alert("Error LAN: " + gameResult.error); resetChallenge(); return; }
-              await sendConnectionInfo(content.acceptedBy, { lanIp: gameResult.myIp || "127.0.0.1", hostName: username });
-            }
-            setTimeout(() => resetChallenge(), 5000);
-          } catch (e) {
-            console.error("Error en flujo HOST:", e);
-            resetChallenge();
-          }
-          return;
-        }
-
-        // 2b. RECEIVE CONNECTION INFO (I'm the guest)
-        if (content._type === CHALLENGE_ACCEPT_MSG_TYPE + "_conn") {
-          if (isLaunchingRef.current) return;
-          isLaunchingRef.current = true;
-          const method = currentChallenge?.method || "bore";
-
-          try {
-            if (method === "tailscale" && content.tailscaleIp) {
-              const result = await (window as any).electron.ipcRenderer.invoke("tailscale-guest", { hostIp: content.tailscaleIp });
-              if (!result.success) alert("Error Tailscale guest: " + result.error);
-            } else if (method === "bore" && content.boreUrl) {
-              localStorage.setItem("emu_latam_relay", content.boreUrl);
-              await (window as any).electron.ipcRenderer.invoke("save-relay-url", content.boreUrl);
-              await (window as any).electron.ipcRenderer.invoke("launch-game", { isHost: false, useRelay: true, relayIp: content.boreUrl });
-            } else if (method === "lan" && content.lanIp) {
-              await (window as any).electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: false, directConnectIp: content.lanIp });
-            }
-            setTimeout(() => resetChallenge(), 5000);
-          } catch (e) {
-            console.error("Error en flujo CLIENT:", e);
-            resetChallenge();
-          }
-          return;
-        }
-
-        // 3. REJECTED / CANCELLED
-        if (content._type === CHALLENGE_REJECT_MSG_TYPE || content._type === CHALLENGE_CANCEL_MSG_TYPE) {
-          if (content._type === CHALLENGE_REJECT_MSG_TYPE) setChallengeStatus("rejected");
-          else resetChallenge();
-          if (timeoutRef.current) clearTimeout(timeoutRef.current);
-          if (content._type === CHALLENGE_REJECT_MSG_TYPE) setTimeout(() => resetChallenge(), 2500);
-        }
-      } catch {}
-    };
-
-    window.addEventListener("nakama_message", handleNakamaMessage);
-    return () => window.removeEventListener("nakama_message", handleNakamaMessage);
-  }, [userId, challengeStatus, currentChallenge, resetChallenge, startTimeout, sendConnectionInfo, username]);
+    const handler = (event: Event) => { handleNakamaMessageRef.current(event); };
+    window.addEventListener("nakama_message", handler);
+    return () => window.removeEventListener("nakama_message", handler);
+  }, []);
 
   return (
     <ChallengeContext.Provider value={{
