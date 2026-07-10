@@ -176,8 +176,9 @@ function App() {
       while (active) {
         try {
           const cfg = await (window as any).electron.ipcRenderer.invoke("get-nakama-server");
-          const r = await fetch(`http://${cfg.host}:${cfg.port}`);
-          if (active) { setNakamaReady(r.ok); setNakamaHost(cfg.host); setNakamaPort(cfg.port); }
+          if (active) { setNakamaHost(cfg.host); setNakamaPort(cfg.port); }
+          const ok = await (window as any).electron.ipcRenderer.invoke("check-nakama-health");
+          if (active) setNakamaReady(ok);
         } catch { if (active) setNakamaReady(false); }
         await new Promise(r => setTimeout(r, 3000));
       }
@@ -188,7 +189,10 @@ function App() {
 
   const handleSaveNakamaServer = async () => {
     await (window as any).electron.ipcRenderer.invoke("set-nakama-server", { host: nakamaHost, port: nakamaPort });
-    alert("Servidor Nakama actualizado. Reiniciá la conexin con INSERT COIN.");
+    const ok = await (window as any).electron.ipcRenderer.invoke("check-nakama-health");
+    setNakamaReady(ok);
+    if (ok) alert(`Conectado a Nakama en ${nakamaHost}:${nakamaPort}`);
+    else alert("No se pudo conectar al servidor Nakama. Verificá la IP y puerto.");
   };
 
   const handleSaveRelay = () => {
