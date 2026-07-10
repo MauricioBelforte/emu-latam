@@ -172,11 +172,13 @@ function App() {
 
   useEffect(() => {
     let active = true;
+    (async () => {
+      const cfg = await (window as any).electron.ipcRenderer.invoke("get-nakama-server");
+      if (active) { setNakamaHost(cfg.host); setNakamaPort(cfg.port); }
+    })();
     const check = async () => {
       while (active) {
         try {
-          const cfg = await (window as any).electron.ipcRenderer.invoke("get-nakama-server");
-          if (active) { setNakamaHost(cfg.host); setNakamaPort(cfg.port); }
           const ok = await (window as any).electron.ipcRenderer.invoke("check-nakama-health");
           if (active) setNakamaReady(ok);
         } catch { if (active) setNakamaReady(false); }
