@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import styled, { ThemeProvider, keyframes } from "styled-components";
 import { useAuth } from "./context/AuthContext";
 import { theme } from "./styles/theme";
@@ -176,6 +176,9 @@ function App() {
   const [nakamaHost, setNakamaHost] = useState("127.0.0.1");
   const [nakamaPort, setNakamaPort] = useState("7350");
   const [joinMode, setJoinMode] = useState<"create" | "join" | null>(null);
+  const [copiedIp, setCopiedIp] = useState(false);
+  const [peerReachable, setPeerReachable] = useState<boolean | null>(null);
+  const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -348,6 +351,38 @@ function App() {
     setLoading(p => ({ ...p, tsJoin: false }));
   };
 
+  const handleCopyIp = () => {
+    const ip = `${myTailscaleIp}:${nakamaPort}`;
+    navigator.clipboard.writeText(ip);
+    setCopiedIp(true);
+    if (copiedTimeoutRef.current) clearTimeout(copiedTimeoutRef.current);
+    copiedTimeoutRef.current = setTimeout(() => setCopiedIp(false), 2000);
+  };
+
+  const checkPeer = useCallback(async () => {
+    if (!isAuthenticated || isHostingSala || nakamaHost === "127.0.0.1") return;
+    const result = await (window as any).electron.ipcRenderer.invoke("check-peer-connectivity", { host: nakamaHost });
+    setPeerReachable(result.reachable);
+  }, [isAuthenticated, isHostingSala, nakamaHost]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    checkPeer();
+    const interval = setInterval(checkPeer, 15000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, checkPeer]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !isHostingSala) return;
+    const refresh = async () => {
+      const ts = await (window as any).electron.ipcRenderer.invoke("get-tailscale-ip");
+      if (ts.ip && ts.ip !== myTailscaleIp) setMyTailscaleIp(ts.ip);
+    };
+    refresh();
+    const interval = setInterval(refresh, 30000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, isHostingSala, myTailscaleIp]);
+
   return (
     <ThemeProvider theme={theme}>
       <GlobalStyles />
@@ -367,6 +402,7 @@ function App() {
                     await loginGhost();
                     const ts = await (window as any).electron.ipcRenderer.invoke("get-tailscale-ip");
                     if (ts.ip) setMyTailscaleIp(ts.ip);
+                    await (window as any).electron.ipcRenderer.invoke("open-firewall-port");
                   }} $accent="#0f0">
                     CREAR SALA
                     <span style={{ display: "block", fontSize: "0.5rem", opacity: 0.6, marginTop: 6, fontFamily: "Inter" }}>
@@ -386,10 +422,16 @@ function App() {
                     Ingresá la IP y puerto de la sala a la que querés conectarte
                   </p>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "center" }}>
-                    <Input $accent={theme.colors.primary} type="text" value={nakamaHost} onChange={(e) => setNakamaHost(e.target.value)}
+                    <Input $accent={theme.colors.primary} type="text" value={nakamaHost} onChange={(e) => {
+                      setNakamaHost(e.target.value);
+                      setPeerReachable(null);
+                    }}
                       placeholder="IP del servidor" style={{ width: 140, fontSize: "0.65rem", padding: "6px 8px" }} />
                     <span style={{ color: "#555", fontFamily: "monospace", fontSize: "0.7rem" }}>:</span>
-                    <Input $accent={theme.colors.primary} type="text" value={nakamaPort} onChange={(e) => setNakamaPort(e.target.value)}
+                    <Input $accent={theme.colors.primary} type="text" value={nakamaPort} onChange={(e) => {
+                      setNakamaPort(e.target.value);
+                      setPeerReachable(null);
+                    }}
                       placeholder="7350" style={{ width: 60, fontSize: "0.65rem", padding: "6px 8px" }} />
                     <Btn onClick={async () => {
                       await (window as any).electron.ipcRenderer.invoke("set-nakama-server", { host: nakamaHost, port: nakamaPort });
@@ -428,11 +470,13 @@ function App() {
                   <p style={{ color: "#0af", fontFamily: theme.fonts.arcade, fontSize: "0.7rem", marginBottom: 4 }}>
                     SALA CREADA
                   </p>
-                  <p style={{ color: "#fff", fontFamily: "monospace", fontSize: "0.9rem", background: "#000", padding: "8px 12px", borderRadius: 4, border: "1px solid #0af", display: "inline-block", marginBottom: 6 }}>
-                    {myTailscaleIp}:{nakamaPort}
-                  </p>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                    <p style={{ color: "#fff", fontFamily: "monospace", fontSize: "0.9rem", background: "#000", padding: "8px 12px", borderRadius: 4, border: "1px solid #0af", display: "inline-block", marginBottom: 6, cursor: "pointer" }} onClick={handleCopyIp} title="Click para copiar">
+                      {myTailscaleIp}:{nakamaPort} {copiedIp ? "✅ COPIADO!" : "📋"}
+                    </p>
+                  </div>
                   <StatusText $color="#0af" style={{ fontSize: "0.6rem" }}>
-                    Pasá esta IP a tu amigo. Debe ponerla en IP DEL SERVIDOR y presionar INSERT COIN
+                    {copiedIp ? "IP copiada al portapapeles. Pasásela a tu amigo." : "Hacé click en la IP para copiarla. Tu amigo debe ponerla en UNIRSE A SALA."}
                   </StatusText>
                 </Section>
               )}
@@ -445,6 +489,11 @@ function App() {
                   <StatusText $color="#888" style={{ fontSize: "0.6rem" }}>
                     Servidor: {nakamaHost}:{nakamaPort}
                   </StatusText>
+                  {peerReachable === false && (
+                    <StatusText $color="#fa0" style={{ fontSize: "0.55rem", marginTop: 4 }}>
+                      ⚠ El servidor Nakama del host parece no estar accesible desde aquí. Si no podés conectar, verificá la IP o probá modo BORE.
+                    </StatusText>
+                  )}
                 </Section>
               )}
 

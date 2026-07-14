@@ -638,6 +638,30 @@ app.whenReady().then(() => {
     return true;
   });
 
+  ipcMain.handle("open-firewall-port", async () => {
+    try {
+      execSync('netsh advfirewall firewall add rule name="Nakama Tailscale" dir=in action=allow protocol=TCP localport=7350 remoteip=100.0.0.0/8', { stdio: "ignore", timeout: 5000 });
+      console.log("[FIREWALL] Regla creada para puerto 7350");
+      return { success: true };
+    } catch (e) {
+      console.log("[FIREWALL] No se pudo crear regla (no admin?)", String(e));
+      return { success: false, error: String(e) };
+    }
+  });
+
+  ipcMain.handle("check-peer-connectivity", async (_event, { host }: { host: string }) => {
+    try {
+      const ok = await new Promise<boolean>((resolve) => {
+        const req = http.get(`http://${host}:7350`, (res) => { resolve(true); res.resume(); });
+        req.on("error", () => resolve(false));
+        req.setTimeout(3000, () => { req.destroy(); resolve(false); });
+      });
+      return { reachable: ok };
+    } catch {
+      return { reachable: false };
+    }
+  });
+
   launchNakama();
   createWindow();
 });

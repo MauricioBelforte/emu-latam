@@ -1,6 +1,6 @@
 # GUÍA COMPLETA: Cómo jugar KOF '98 online con Emu Latam
 
-**Versión:** 1.0 — Basada en pruebas cross-PC del 14-Jul-2026
+**Versión:** 2.0 — Mejoras: copia IP con 1 click, firewall automático, health check, auto-refresh IP
 **Autores:** PC1 (desktop-j3ahaoe) + PC2 (desktop-b9jd1t0)
 **Conexión:** Argentina - Argentina (redes distintas)
 
@@ -117,7 +117,9 @@ Ejecutar `Emu Latam.exe`.
   SALA CREADA
   100.98.148.11:7350
   ```
-  ⚠️ **Anotá esta IP** — se la vas a pasar a PC2.
+  ✅ **Click en la IP para copiarla al portapapeles automáticamente.**
+  ✅ **Firewall**: Emu Latam intenta abrir el puerto 7350 automáticamente (si ejecutás como admin).
+  ✅ **IP se actualiza sola** cada 30 segundos si cambiara.
 
 **1c. HOST TAILSCALE**
 - En la sección Tailscale de la UI, click **HOST TAILSCALE**
@@ -131,9 +133,10 @@ Ejecutar `Emu Latam.exe`.
 
 **2b. UNIRSE A SALA**
 - Click en **UNIRSE A SALA**
-- En el campo IP, poner la IP de PC1 (ej: `100.98.148.11`)
+- PC2 pega la IP que PC1 copió al portapapeles (ej: `100.98.148.11:7350`)
 - Puerto: `7350` (ya viene por defecto)
 - Click **CONECTAR**
+- La app verifica automáticamente si el servidor Nakama es accesible (health check cada 15s)
 - Esperar que aparezca "CONECTADO A SALA" y vea a PC1 en el sidebar
 
 **2c. JOIN TAILSCALE**
@@ -152,6 +155,11 @@ Ejecutar `Emu Latam.exe`.
 ## 5. Verificación de conectividad
 
 Antes de intentar jugar, verificar que ambas PCs se vean por Tailscale:
+
+### Health Check Automático (NUEVO)
+- **Emu Latam** verifica cada 15 segundos si tu servidor Nakama es accesible.
+- Si no lo es, muestra una advertencia ⚠ naranja en la UI.
+- No bloquea el juego, solo informa.
 
 ### Prueba 1: Status de Tailscale
 ```powershell
@@ -183,7 +191,7 @@ netsh advfirewall firewall add rule name="Nakama Tailscale" dir=in action=allow 
 - **Soluciones:**
   1. Verificar que PC1 tenga la sala creada (Nakama corriendo).
   2. Verificar la IP de Tailscale de PC1 (`tailscale status`).
-  3. Crear regla de firewall en PC1 (ver sección 5).
+  3. ⚠️ Emu Latam intenta abrir el firewall automáticamente al crear sala. Si falló (por no ser admin), crear la regla manualmente (ver sección 5).
   4. Desactivar firewall temporalmente en PC1 para probar.
 
 ### 6.2 Tailscale ping timeout
@@ -199,7 +207,7 @@ netsh advfirewall firewall add rule name="Nakama Tailscale" dir=in action=allow 
 ### 6.3 La IP de Tailscale cambió
 - **Síntoma:** PC2 no conecta a una IP que antes funcionaba.
 - **Causa:** Tailscale reasignó IPs (por reconexión, logout, etc.).
-- **Solución:** Verificar la IP actual en PC1 y pasarla de nuevo.
+- **Solución:** La IP se auto-actualiza cada 30s en la UI. Si el cambio es reciente, esperar unos segundos. También verificar manualmente con `tailscale status` y pasar la nueva IP.
 
 ### 6.4 "Nakama OFFLINE" / "WebSocket disconnected"
 - **En PC1:** Nakama no pudo iniciar (falta PostgreSQL).
@@ -345,5 +353,5 @@ npm run test:stable
 - Esta guía se basa en una sesión real del 14-Jul-2026 entre dos PCs en Argentina.
 - El método más confiable encontrado fue **Tailscale manual (HOST + JOIN)**.
 - El sistema de retos tiene un bug corregido pero no probado.
-- **Siempre verificar la IP de Tailscale** antes de compartirla.
+- ✅ **La IP ahora se copia con un click.** ✅ **Firewall automático.** ✅ **Health check integrado.** ✅ **Auto-refresh cada 30s.**
 - Para mejor experiencia, ambas PCs deberían tener la misma versión de RetroArch, mismo core FBNeo y misma ROM.

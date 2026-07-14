@@ -61,6 +61,10 @@ El objetivo de esta fase es hacer que la experiencia del usuario sea "un solo cl
 - [ ] **⚙️ TEST:** Verificar que host y guest RA se conectan sin matar procesos del otro.
 
 ### 2.4. UX Pulido
+- [x] **Copiar IP con 1 click:** IP clickeable en SALA CREADA, feedback "✅ COPIADO!" + timeout 2s.
+- [x] **Firewall automático:** Al crear sala se intenta abrir puerto 7350 para Tailscale via `netsh advfirewall`.
+- [x] **Health check automático:** Cada 15s se verifica conectividad al peer remoto, con advertencia ⚠ si no responde.
+- [x] **Auto-refresh IP Tailscale:** Cada 30s se actualiza la IP mostrada si Tailscale la reasignó.
 - [ ] **Sistema de Notificaciones:** Toast en renderer al recibir reto.
 - [ ] **Progreso visual:** Spinners durante conexiones.
 - [ ] **Prevención de clicks:** Deshabilitar botones hasta servicios listos.
