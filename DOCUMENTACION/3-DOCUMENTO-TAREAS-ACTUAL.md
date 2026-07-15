@@ -138,9 +138,12 @@ netplay_check_frames = "0"
   - Sin saltos ni stuttering severo
   - ⚠️ Mínimo doble-pulso visual en host al hacer tap (solo visual, no afecta gameplay)
 
-### Retoques postergables (y aplicados)
-- [x] **Aplicado:** `netplay_check_frames = "0"` en `retroarch/netplay_optimized.cfg` (estaba en `"30"`).
-- [ ] Probar `latency_min = "2"` para eliminar doble-pulso visual residual
+### ✅ Resultado final (verificado 15-Jul-2026 con MITM local)
+- **Localhost (misma PC):** ✅ Perfecto. Sin temblequeo, sin doble-input.
+- **Cross-PC via Tailscale (WiFi):** ✅ **Jugable y estable.** (verificado anteriormente)
+
+### Retoques postergables
+- [ ] Probar `latency_min = "2"` para ver si mejora aún más
 - [ ] Probar RetroArch 1.18.0/1.16.0 para ver si tienen netplay nativo mejor
 - [ ] Test con otro core (Snes9x) para aislar si es específico de FBNeo
 
