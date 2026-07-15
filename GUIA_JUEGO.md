@@ -115,9 +115,9 @@ Ejecutar `Emu Latam.exe`.
 - Esperar que aparezca el banner "SALA CREADA" con la IP de Tailscale:
   ```
   SALA CREADA
-  100.98.148.11:7350
+  100.98.148.11
   ```
-  ✅ **Click en la IP para copiarla al portapapeles automáticamente.**
+  ✅ **Click en la IP** para copiarla al portapapeles automáticamente (solo la IP, sin puerto).
   ✅ **Firewall**: Emu Latam intenta abrir el puerto 7350 automáticamente (si ejecutás como admin).
   ✅ **IP se actualiza sola** cada 30 segundos si cambiara.
 

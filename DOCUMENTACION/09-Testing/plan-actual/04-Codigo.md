@@ -10,13 +10,8 @@
 
 ## Funciones clave en `test_ux_features.js`
 
-### `buildCopyIp(ip, port)`
-```js
-function buildCopyIp(ip, port) {
-  return `${ip}:${port}`;
-}
-```
-**Tests:** Formato IP:puerto, localhost, puerto custom, IP vacía.
+### Copy IP
+Se copia solo la IP (sin puerto) al portapapeles.
 
 ### `buildFirewallRule(port, ipRange)`
 ```js

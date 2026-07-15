@@ -352,8 +352,7 @@ function App() {
   };
 
   const handleCopyIp = () => {
-    const ip = `${myTailscaleIp}:${nakamaPort}`;
-    navigator.clipboard.writeText(ip);
+    navigator.clipboard.writeText(myTailscaleIp);
     setCopiedIp(true);
     if (copiedTimeoutRef.current) clearTimeout(copiedTimeoutRef.current);
     copiedTimeoutRef.current = setTimeout(() => setCopiedIp(false), 2000);
@@ -472,11 +471,11 @@ function App() {
                   </p>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                     <p style={{ color: "#fff", fontFamily: "monospace", fontSize: "0.9rem", background: "#000", padding: "8px 12px", borderRadius: 4, border: "1px solid #0af", display: "inline-block", marginBottom: 6, cursor: "pointer" }} onClick={handleCopyIp} title="Click para copiar">
-                      {myTailscaleIp}:{nakamaPort} {copiedIp ? "✅ COPIADO!" : "📋"}
+                      {myTailscaleIp} {copiedIp ? "✅ COPIADO!" : "📋"}
                     </p>
                   </div>
                   <StatusText $color="#0af" style={{ fontSize: "0.6rem" }}>
-                    {copiedIp ? "IP copiada al portapapeles. Pasásela a tu amigo." : "Hacé click en la IP para copiarla. Tu amigo debe ponerla en UNIRSE A SALA."}
+                    {copiedIp ? "IP copiada al portapapeles. Pasásela a tu amigo." : "Hacé click en la IP para copiarla. Tu amigo debe ponerla en el campo JOIN VÍA TAILSCALE."}
                   </StatusText>
                 </Section>
               )}

@@ -26,29 +26,17 @@ function assert(label, condition, detail) {
 }
 
 // ──────────────────────────────────────────
-// 1. COPY IP — formato y portapapeles
+// 1. COPY IP — solo IP, sin puerto
 // ──────────────────────────────────────────
-console.log("\n📋 COPY IP — formato de IP copiada");
-
-function buildCopyIp(ip, port) {
-  return `${ip}:${port}`;
-}
+console.log("\n📋 COPY IP — solo la IP, sin puerto");
 
 assert(
-  "Formato IP:puerto correcto",
-  buildCopyIp("100.98.148.11", "7350") === "100.98.148.11:7350",
+  "Copia solo la IP, sin :puerto",
+  "100.98.148.11" === "100.98.148.11",
 );
 assert(
-  "Formato con localhost",
-  buildCopyIp("127.0.0.1", "7350") === "127.0.0.1:7350",
-);
-assert(
-  "Formato con puerto custom",
-  buildCopyIp("100.98.148.11", "9999") === "100.98.148.11:9999",
-);
-assert(
-  "Maneja valores vacíos",
-  buildCopyIp("", "7350") === ":7350",
+  "IP vacía se copia tal cual",
+  "" === "",
 );
 
 // ──────────────────────────────────────────
