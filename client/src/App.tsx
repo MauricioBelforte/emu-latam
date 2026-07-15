@@ -298,11 +298,16 @@ function App() {
   };
 
   const handleTestMitmLocal = async () => {
+    if (loading.mitm) return;
     setLoading(p => ({ ...p, mitm: true }));
     setStatusText("Iniciando relay MITM local...");
     try {
       const result = await (window as any).electron.ipcRenderer.invoke("start-mitm-local");
-      if (!result.success) alert("Error MITM local: " + (result.error || "desconocido"));
+      if (!result.success && result.error?.includes("ya está en ejecución")) {
+        console.warn("MITM ya en ejecución, ignorando click doble");
+      } else if (!result.success) {
+        alert("Error MITM local: " + (result.error || "desconocido"));
+      }
     } catch (e) {
       console.error("Error MITM:", e);
       alert("Error al iniciar MITM local");
@@ -470,7 +475,7 @@ function App() {
                     SALA CREADA
                   </p>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                    <p style={{ color: "#fff", fontFamily: "monospace", fontSize: "0.9rem", background: "#000", padding: "8px 12px", borderRadius: 4, border: "1px solid #0af", display: "inline-block", marginBottom: 6, cursor: "pointer" }} onClick={handleCopyIp} title="Click para copiar">
+                    <p style={{ color: "#fff", fontFamily: "monospace", fontSize: "0.9rem", background: "#000", padding: "8px 12px", borderRadius: 4, border: "1px solid #0af", display: "inline-block", marginBottom: 6, cursor: "pointer", userSelect: "text" }} onClick={handleCopyIp} title="Click para copiar | Seleccioná el texto para copiar manualmente">
                       {myTailscaleIp} {copiedIp ? "✅ COPIADO!" : "📋"}
                     </p>
                   </div>

@@ -60,6 +60,7 @@ console.log("=== MAIN PROCESS STARTED ===");
 let nakamaProcess: ChildProcess | null = null;
 let boreProcess: ChildProcess | null = null;
 let mitmRelayProcess: ChildProcess | null = null;
+let mitmRunning = false;
 
 process.on("uncaughtException", (err) => {
   if (err instanceof Error && err.message.includes("EPIPE")) return;
@@ -164,6 +165,10 @@ function createWindow(sessionName = "default"): void {
   if (sessionName !== "default") prefs.partition = `persist:${sessionName}`;
   const mainWindow = new BrowserWindow({ width: 1400, height: 900, show: true, autoHideMenuBar: true, webPreferences: prefs });
   if (isDev) mainWindow.webContents.openDevTools();
+  mainWindow.webContents.on("crashed", () => {
+    console.error("[APP] Renderer CRASHED. Recargando...");
+    mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]!);
+  });
   mainWindow.focus();
   if (isDev) mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]!);
   else mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
@@ -458,6 +463,8 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle("start-mitm-local", async () => {
+    if (mitmRunning) return { success: false, error: "MITM ya está en ejecución" };
+    mitmRunning = true;
     try {
       const projectRoot = getProjectRoot();
       const relayScript = path.join(projectRoot, "relay-server", "mitm-relay.js");
@@ -519,6 +526,8 @@ app.whenReady().then(() => {
     } catch (e) {
       console.error("[RELAY] Error en handler start-mitm-local:", e);
       return { success: false, error: String(e) };
+    } finally {
+      mitmRunning = false;
     }
   });
 
@@ -668,7 +677,8 @@ app.whenReady().then(() => {
 
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 
-app.on("before-quit", () => {
+app.on("before-quit", (event) => {
+  console.log("[APP] before-quit iniciado. Razón:", event.reason || "desconocida");
   if (nakamaProcess) nakamaProcess.kill();
   if (boreProcess) { console.log("🛑 Stopping Bore..."); boreProcess.kill(); }
   if (mitmRelayProcess) { console.log("🛑 Stopping MITM relay..."); mitmRelayProcess.kill(); }

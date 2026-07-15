@@ -27,7 +27,8 @@ class NakamaService {
   async authenticateDevice(customId?: string): Promise<Session> {
     const deviceId = customId || `dev-${crypto.randomUUID()}-${window.location.port || "default"}`;
     try {
-      this.session = await this.client.authenticateDevice(deviceId, true);
+      const username = `Player ${Math.floor(Math.random() * 999) + 1}`;
+      this.session = await this.client.authenticateDevice(deviceId, true, username);
       localStorage.setItem("nakama_session", JSON.stringify(this.session));
       return this.session;
     } catch (error) {

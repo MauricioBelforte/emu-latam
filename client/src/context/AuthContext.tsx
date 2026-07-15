@@ -57,7 +57,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (e) {
       console.warn("Nakama no disponible, usando modo local:", e);
       setUserId(`local-${crypto.randomUUID()}`);
-      setUsername(`Player${Math.floor(Math.random() * 1000)}`);
+      setUsername(`Player ${Math.floor(Math.random() * 999) + 1}`);
       setIsAuthenticated(true);
       setIsConnected(false);
     } finally { isConnecting.current = false; }
