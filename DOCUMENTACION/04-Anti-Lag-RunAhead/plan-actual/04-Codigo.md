@@ -48,3 +48,20 @@ A continuación se detallan los archivos a modificar y crear, así como las func
       localStorage.setItem("emu_latam_relay", customRelay);
     }
     ```
+
+## 3. Fix de doble input guest en host (15-Jul-2026)
+
+### Problema
+El guest (player 2) se movía uno de más en la pantalla del host. Causado por `netplay_check_frames = "30"` que forzaba a RetroArch a hacer rollback/verificación de inputs cada 30 frames, re-procesando inputs del guest y duplicándolos.
+
+### Solución
+En `retroarch/netplay_optimized.cfg`:
+- `netplay_check_frames` cambiado de `"30"` a `"0"`: desactiva la verificación periódica de frames, evitando el re-procesamiento de inputs del guest.
+- Backup guardado en `Obsoletos/retroarch/`.
+
+### Archivos afectados
+- `retroarch/netplay_optimized.cfg` (local, no commiteado por .gitignore)
+
+### Verificación
+- ✅ MITM local: sin doble input, inputs del guest se ven correctos en el host.
+- El fix aplica a todos los flujos (MITM, Bore, Tailscale, Directo) porque todos usan `--appendconfig netplay_optimized.cfg`.
