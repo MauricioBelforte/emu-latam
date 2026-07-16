@@ -84,6 +84,16 @@ class NakamaService {
     }
   }
 
+  disconnect(): void {
+    if (this.socket) {
+      try { this.socket.disconnect(); } catch {}
+      this.socket = null;
+    }
+    this.connectionPromise = null;
+    this.session = null;
+    this._client = null;
+  }
+
   async connectSocket(): Promise<Socket> {
     if (!this.session) throw new Error("No hay sesin activa");
     if (this.connectionPromise) return this.connectionPromise;

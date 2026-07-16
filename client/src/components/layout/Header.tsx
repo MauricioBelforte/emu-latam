@@ -61,6 +61,8 @@ interface HeaderProps {
   chatOpen: boolean;
   onToggleSidebar: () => void;
   onToggleChat: () => void;
+  showBack?: boolean;
+  onBack?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -68,6 +70,8 @@ export const Header: React.FC<HeaderProps> = ({
   chatOpen,
   onToggleSidebar,
   onToggleChat,
+  showBack,
+  onBack,
 }) => {
   const { isConnected, isAuthenticated, username } = useAuth();
 
@@ -96,6 +100,11 @@ export const Header: React.FC<HeaderProps> = ({
             </>
           ) : (
             <span>NOT AUTHENTICATED</span>
+          )}
+          {showBack && onBack && (
+            <button onClick={onBack} style={{ background: "#c44", border: "none", color: "#fff", cursor: "pointer", padding: "2px 8px", fontSize: "0.55rem", fontFamily: "Inter", borderRadius: 3 }}>
+              ← VOLVER
+            </button>
           )}
         </span>
       </StatusBox>

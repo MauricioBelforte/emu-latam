@@ -123,29 +123,38 @@ El objetivo de esta fase es hacer que la experiencia del usuario sea "un solo cl
 - [x] Nuclear: `--config` standalone en vez de `--appendconfig` (Claude) → ❌
 - [x] Sin ningún config custom → ❌ (persiste en RetroArch puro)
 
-### ✅ Solución (Gemini, teoría del desfase de 1 frame en rollback)
+### ✅ Solución intermedia (check_frames=0, no fue suficiente)
 ```ini
 netplay_input_latency_frames_min = "1"
 netplay_input_latency_frames_range = "0"
 netplay_check_frames = "0"
 ```
 
-### Resultados
-- **Localhost (misma PC):** ✅ Perfecto. Sin temblequeo, sin doble-input.
-- **Cross-PC via Tailscale (WiFi):** ✅ **Jugable y estable.**
-  - Temblequeo/hold intermitente: ELIMINADO
-  - Guest juega sin problemas de input
-  - Sin saltos ni stuttering severo
-  - ⚠️ Mínimo doble-pulso visual en host al hacer tap (solo visual, no afecta gameplay)
+### Resultados (check_frames=0)
+- **Localhost:** ✅ Parcial. Mejoró pero el doble toque persistía.
+- **Cross-PC Tailscale:** ⚠️ Seguía apareciendo.
 
-### ✅ Resultado final (verificado 15-Jul-2026 con MITM local)
-- **Localhost (misma PC):** ✅ Perfecto. Sin temblequeo, sin doble-input.
-- **Cross-PC via Tailscale (WiFi):** ✅ **Jugable y estable.** (verificado anteriormente)
+### ✅ Solución final (run_ahead desactivado + 2 frames buffer)
+**Causa raíz real:** `run_ahead_enabled = "true"` con `run_ahead_frames = "1"`. RetroArch ejecutaba 1 frame adelantado prediciendo inputs. Cuando el input real del guest llegaba por red, se aplicaba dos veces (predicho + real). Fast-forward (espacio) desactivaba temporalmente el frame limiting y el doble toque desaparecía (señal inequívoca de run-ahead).
+
+**Solución en `retroarch/netplay_optimized.cfg`:**
+```ini
+run_ahead_enabled = "false"
+netplay_input_latency_frames_min = "2"
+netplay_input_latency_frames_range = "0"
+netplay_check_frames = "0"
+```
+
+### Resultados finales (verificado 16-Jul-2026 cross-PC Tailscale)
+- **Host PC2, Guest PC1:** ✅ Doble toque ELIMINADO. Sin necesidad de fast-forward.
+- **Host PC1, Guest PC2:** ✅ Doble toque ELIMINADO.
+- **Ambos sentidos verificados:** Sin run-ahead no hay predicción que duplique inputs.
 
 ### Retoques postergables
-- [ ] Probar `latency_min = "2"` para ver si mejora aún más
+- [x] Probar `latency_frames_min = "2"` → ✅ Resultó ser la solución definitiva
 - [ ] Probar RetroArch 1.18.0/1.16.0 para ver si tienen netplay nativo mejor
 - [ ] Test con otro core (Snes9x) para aislar si es específico de FBNeo
+- [ ] Probar rollback real (Fightcade o fork de RA con rollback netcode)
 
 ---
 

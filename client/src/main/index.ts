@@ -58,6 +58,13 @@ console.error = (...args) => {
 console.log("=== MAIN PROCESS STARTED ===");
 
 let nakamaProcess: ChildProcess | null = null;
+let nakamaRestartAttempts = 0;
+let nakamaRestartTimer: Timer | null = null;
+let nakamaHealthTimer: Timer | null = null;
+let nakamaKilledIntentionally = false;
+const MAX_NAKAMA_RESTART_ATTEMPTS = 5;
+const NAKAMA_RESTART_DELAY_MS = 2000;
+const NAKAMA_HEALTH_INTERVAL_MS = 30000;
 let boreProcess: ChildProcess | null = null;
 let mitmRelayProcess: ChildProcess | null = null;
 let mitmRunning = false;
@@ -143,11 +150,57 @@ async function launchNakama(): Promise<void> {
   const nakamaPath = path.join(nakamaDir, "nakama.exe");
   if (!fs.existsSync(nakamaPath)) { console.error("Nakama server not found at:", nakamaPath); return; }
   const running = await checkNakamaHealth(cfg.host, cfg.port);
-  if (running) { console.log("Nakama ya está corriendo."); return; }
+  if (running) {
+    console.log("Nakama ya está corriendo.");
+    nakamaRestartAttempts = 0;
+    return;
+  }
+  if (nakamaRestartAttempts >= MAX_NAKAMA_RESTART_ATTEMPTS) {
+    console.error(`Nakama no se reinicia: máximo de ${MAX_NAKAMA_RESTART_ATTEMPTS} intentos alcanzado.`);
+    return;
+  }
   console.log("Lanzando Nakama (modo oculto)...");
+  nakamaKilledIntentionally = false;
   nakamaProcess = spawn(nakamaPath, ["--config", "local.yml"], { cwd: nakamaDir, windowsHide: true, stdio: "ignore" });
   nakamaProcess.on("error", (err) => console.error("Error al iniciar Nakama:", err));
-  if (nakamaProcess.pid) console.log(`Nakama iniciado (PID: ${nakamaProcess.pid})`);
+  if (nakamaProcess.pid) {
+    nakamaRestartAttempts++;
+    console.log(`Nakama iniciado (PID: ${nakamaProcess.pid}, intento ${nakamaRestartAttempts}/${MAX_NAKAMA_RESTART_ATTEMPTS})`);
+  }
+  nakamaProcess.on("close", (code) => {
+    nakamaProcess = null;
+    if (nakamaKilledIntentionally) {
+      console.log("Nakama finalizado intencionalmente. No se reinicia.");
+      return;
+    }
+    if (nakamaRestartAttempts >= MAX_NAKAMA_RESTART_ATTEMPTS) {
+      console.error(`Nakama cerró (código ${code}). Máximo de reintentos alcanzado.`);
+      return;
+    }
+    console.log(`Nakama cerró inesperadamente (código ${code}). Reintentando en ${NAKAMA_RESTART_DELAY_MS}ms...`);
+    nakamaRestartTimer = setTimeout(() => launchNakama(), NAKAMA_RESTART_DELAY_MS);
+  });
+}
+
+function startNakamaHealthCheck(): void {
+  if (nakamaHealthTimer) clearInterval(nakamaHealthTimer);
+  nakamaHealthTimer = setInterval(async () => {
+    const cfg = getNakamaConfig();
+    if (cfg.host !== "127.0.0.1" && cfg.host !== "localhost") return;
+    if (nakamaProcess === null && nakamaRestartAttempts < MAX_NAKAMA_RESTART_ATTEMPTS && !nakamaKilledIntentionally) {
+      console.log("[NAKAMA HEALTH] Proceso caído, reiniciando...");
+      launchNakama();
+      return;
+    }
+    const ok = await checkNakamaHealth(cfg.host, cfg.port);
+    if (!ok && nakamaProcess !== null) {
+      console.log("[NAKAMA HEALTH] Servidor no responde. Matando proceso para reinicio limpio...");
+      nakamaKilledIntentionally = false;
+      try { nakamaProcess?.kill(); } catch {}
+    } else if (ok) {
+      nakamaRestartAttempts = 0;
+    }
+  }, NAKAMA_HEALTH_INTERVAL_MS);
 }
 
 function createWindow(sessionName = "default"): void {
@@ -549,7 +602,9 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle("get-nakama-server", async () => {
-    return getNakamaConfig();
+    const cfg = getNakamaConfig();
+    console.log("[NAKAMA CFG] Leyendo config:", JSON.stringify(cfg), "desde", NAKAMA_CONFIG_PATH);
+    return cfg;
   });
 
   ipcMain.handle("set-nakama-server", async (_event, { host, port }: { host: string; port: string }) => {
@@ -672,6 +727,7 @@ app.whenReady().then(() => {
   });
 
   launchNakama();
+  startNakamaHealthCheck();
   createWindow();
 });
 
@@ -679,6 +735,9 @@ app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(
 
 app.on("before-quit", (event) => {
   console.log("[APP] before-quit iniciado. Razón:", event.reason || "desconocida");
+  nakamaKilledIntentionally = true;
+  if (nakamaHealthTimer) clearInterval(nakamaHealthTimer);
+  if (nakamaRestartTimer) clearTimeout(nakamaRestartTimer);
   if (nakamaProcess) nakamaProcess.kill();
   if (boreProcess) { console.log("🛑 Stopping Bore..."); boreProcess.kill(); }
   if (mitmRelayProcess) { console.log("🛑 Stopping MITM relay..."); mitmRelayProcess.kill(); }

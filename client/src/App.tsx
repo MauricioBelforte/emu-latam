@@ -164,7 +164,7 @@ const inline = {
 };
 
 function App() {
-  const { loginGhost, isAuthenticated, username, isConnected } = useAuth();
+  const { loginGhost, logout, isAuthenticated, username, isConnected } = useAuth();
   const [loading, setLoading] = useState({ bore: false, mitm: false, tsHost: false, tsJoin: false, directJoin: false });
   const [directHostIp, setDirectHostIp] = useState("");
   const [tailscaleHostIp, setTailscaleHostIp] = useState("");
@@ -179,6 +179,10 @@ function App() {
   const [copiedIp, setCopiedIp] = useState(false);
   const [peerReachable, setPeerReachable] = useState<boolean | null>(null);
   const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated) setJoinMode(null);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     let active = true;
@@ -390,7 +394,15 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <GlobalStyles />
-      <AppShell>
+      <AppShell
+        showBack={isAuthenticated || joinMode === "join"}
+        onBack={isAuthenticated ? () => {
+          logout();
+          setNakamaReady(false);
+          setStatusText("");
+          setPeerReachable(null);
+        } : () => setJoinMode(null)}
+      >
         <GameCard>
           <GameTitle>READY TO <span>FIGHT?</span></GameTitle>
           <DebugInfo>EMU LATAM v2.0 — RETROARCH NETPLAY</DebugInfo>

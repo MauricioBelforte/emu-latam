@@ -115,7 +115,15 @@
 - `DOCUMENTACION/05-MITM-to-Transparent-Relay/` — Documentación completa del componente
 - `DOCUMENTACION/07-Integracion-Tailscale/` — Documentación del componente Tailscale
 
-## Problema Conocido (No Resuelto)
-- **Inputs direccionales duplicados en host:** Guest presiona flecha una vez, host ve movimiento x2. Guest mantiene abajo, host ve parpadeo. Solo en pantalla del host. Botones no afectados.
-- **Probado:** delay_frames (4/6/10), shared_input=false, vsync=true, range=0+check=1. Nada funcionó. Se revirtió a config original.
-- **Hipótesis:** WiFi en host o bug de RetroArch netplay en modo --host. Pendiente probar con cable Ethernet.
+## Problemas Conocidos
+
+### ❌ Inputs duplicados del guest en host — RESUELTO (16-Jul-2026)
+- **Síntoma:** Guest presiona flecha una vez, host ve movimiento x2. Fast-forward (espacio) lo corregía temporalmente.
+- **Causa raíz:** `run_ahead_enabled = "true"` con `run_ahead_frames = "1"`. La predicción de frames de RetroArch interfería con netplay, duplicando inputs del guest.
+- **Solución:** `run_ahead_enabled = "false"` + `netplay_input_latency_frames_min = "2"` en `retroarch/netplay_optimized.cfg`.
+- **Verificado:** Ambos sentidos host/guest, cross-PC Tailscale, MITM local.
+
+### ⚠️ Nakama se cae inesperadamente — MITIGADO (16-Jul-2026)
+- **Síntoma:** Nakama.exe se detenía sin motivo, dejando la app sin servidor.
+- **Solución:** Auto-restart en crash + health check cada 30s con máx 5 reintentos.
+- **Código:** `client/src/main/index.ts` — `launchNakama()` + `startNakamaHealthCheck()`

@@ -45,13 +45,17 @@ DOCUMENTACION/
 │   │   ├── 02-Analisis.md
 │   │   ├── 03-Diseno.md
 │   │   ├── 04-Codigo.md
-│   │   └── 05-Checklist.md
+│   │   ├── 05-Checklist.md
+│   │   ├── 06-Plan-Testings.md
+│   │   └── 07-Resultados-Testings.md
 │   └── plan-actual/                   ← Documentación vigente del componente (ACTUALIZAR AQUÍ)
 │       ├── 01-Requerimientos.md
 │       ├── 02-Analisis.md
 │       ├── 03-Diseno.md
 │       ├── 04-Codigo.md
-│       └── 05-Checklist.md
+│       ├── 05-Checklist.md
+│       ├── 06-Plan-Testings.md
+│       └── 07-Resultados-Testings.md
 ├── 02-Integracion-Nakama/
 │   ├── plan-inicial/
 │   └── plan-actual/
@@ -65,7 +69,7 @@ DOCUMENTACION/
 
 ### Archivos Obligatorios por Carpeta (plan-inicial y plan-actual)
 
-Cada carpeta (`plan-inicial/` y `plan-actual/`) debe contener exactamente estos 5 archivos:
+Cada carpeta (`plan-inicial/` y `plan-actual/`) debe contener exactamente estos 7 archivos:
 
 | Archivo | Contenido |
 |---------|-----------|
@@ -74,6 +78,8 @@ Cada carpeta (`plan-inicial/` y `plan-actual/`) debe contener exactamente estos 
 | `03-Diseno.md` | Arquitectura, diagramas, flujos |
 | `04-Codigo.md` | Archivos involucrados, funciones clave, logs relacionados |
 | `05-Checklist.md` | Checklist de tareas completadas y pendientes del componente |
+| `06-Plan-Testings.md` | Plan de testings profesional para identificar bugs y fallos antes de la primera prueba manual |
+| `07-Resultados-Testings.md` | Resultados detallados de la ejecución de tests con referencias al código y soluciones propuestas |
 
 ### Reglas de Actualización por Componente
 
@@ -163,9 +169,9 @@ Al crear un nuevo componente o pipeline (ej: nueva integración con una API):
 1. Verificar el próximo número en `DOCUMENTACION/README.md`.
 2. Crear carpeta `DOCUMENTACION/{NN}-Nombre/`.
 3. Crear la carpeta `plan-inicial/` dentro del componente.
-4. Crear los 5 archivos obligatorios en `plan-inicial/` (`01-Requerimientos.md`, `02-Analisis.md`, `03-Diseno.md`, `04-Codigo.md`, `05-Checklist.md`).
+4. Crear los 7 archivos obligatorios en `plan-inicial/` (`01-Requerimientos.md`, `02-Analisis.md`, `03-Diseno.md`, `04-Codigo.md`, `05-Checklist.md`, `06-Plan-Testings.md`, `07-Resultados-Testings.md`).
 5. Crear la carpeta `plan-actual/` dentro del componente (vacía inicialmente).
-6. Crear los 5 archivos obligatorios en `plan-actual/` (pueden ser copia de plan-inicial al inicio).
+6. Crear los 7 archivos obligatorios en `plan-actual/` (pueden ser copia de plan-inicial al inicio).
 7. Actualizar `DOCUMENTACION/README.md`.
 
 ## 12. Verificación y Diagnóstico Post-Tarea
@@ -295,7 +301,128 @@ Si necesitas agregar logging en el código:
 
 **NN** = Número secuencial (se incrementa automáticamente al mover logs existentes)
 
-## 18. Archivo de Hilos de Chat Resueltos (RESUELTOS)
+## 18. Plan de Testings Profesional para Nuevos Módulos
+
+Antes de integrar un nuevo módulo al proyecto y realizar la primera prueba manual del usuario, se debe crear y ejecutar un plan de testings profesional para identificar bugs y fallos.
+
+### Requisitos del Plan de Testings
+
+1. **Tipos de pruebas a incluir:**
+   - Pruebas unitarias de cada función/componente
+   - Pruebas de integración entre módulos
+   - Pruebas de casos límite (edge cases)
+   - Pruebas de manejo de errores
+   - Pruebas de rendimiento si aplica
+
+2. **Documentación del plan:**
+   - Crear archivo `06-Plan-Testings.md` en la carpeta `plan-actual/` del componente
+   - Listar todos los escenarios a probar
+   - Definir criterios de éxito para cada prueba
+
+3. **Ejecución obligatoria:**
+   - Ejecutar todas las pruebas antes de notificar al usuario
+   - Documentar resultados (pasaron/fallaron)
+   - Corregir fallos encontrados antes de la primera prueba manual
+
+4. **Actualización de checklist:**
+   - Agregar items de testing en `05-Checklist.md`
+   - Marcar como completado solo cuando todas las pruebas pasen
+
+### Flujo de Testings
+
+1. **Diseñar el plan:** Antes de implementar, definir qué se va a probar
+2. **Implementar pruebas:** Crear tests automatizados cuando sea posible
+3. **Ejecutar pruebas:** Correr el suite de tests completo
+4. **Corregir fallos:** Solucionar bugs encontrados antes de la entrega
+5. **Documentar resultados:** Registrar en `06-Plan-Testings.md` qué pruebas pasaron
+6. **Notificar al usuario:** Solo cuando el plan de testings esté completado exitosamente
+
+### Contenido de 06-Plan-Testings.md
+
+El archivo debe incluir:
+
+```markdown
+# Plan de Testings - [Nombre del Componente]
+
+## Pruebas Unitarias
+- [ ] Prueba de función X
+- [ ] Prueba de función Y
+
+## Pruebas de Integración
+- [ ] Prueba de integración con módulo A
+- [ ] Prueba de integración con módulo B
+
+## Casos Límite (Edge Cases)
+- [ ] Caso límite 1
+- [ ] Caso límite 2
+
+## Manejo deErrores
+- [ ] Error cuando X falla
+- [ ] Error cuando Y falla
+
+## Pruebas de Rendimiento (si aplica)
+- [ ] Prueba de rendimiento 1
+- [ ] Prueba de rendimiento 2
+
+## Resultados de Ejecución
+- [ ] Todas las pruebas unitarias pasaron
+- [ ] Todas las pruebas de integración pasaron
+- [ ] Todos los casos límite pasaron
+- [ ] Todos los manejos de errores pasaron
+- [ ] Todas las pruebas de rendimiento pasaron
+
+## Fecha de Ejecución: [YYYY-MM-DD]
+## Estado: [COMPLETADO/PENDIENTE]
+```
+
+### Archivo 07-Resultados-Testings.md
+
+Después de ejecutar las pruebas definidas en `06-Plan-Testings.md`, se debe crear el archivo `07-Resultados-Testings.md` en la carpeta `plan-actual/` del componente.
+
+**Contenido obligatorio:**
+- Resultados detallados de cada prueba ejecutada
+- Referencias específicas al código que contiene los errores (archivo, línea, función)
+- Descripción detallada de cada problema encontrado
+- Soluciones propuestas para cada problema
+- Enlace cruzado desde `06-Plan-Testings.md` a `07-Resultados-Testings.md` para ver soluciones
+
+**Formato de referencia en 06-Plan-Testings.md:**
+```markdown
+- [ ] Prueba X ❌ FALLÓ - Ver solución detallada en `07-Resultados-Testings.md`
+```
+
+**Estructura de 07-Resultados-Testings.md:**
+```markdown
+# Resultados de Testings - [Nombre del Componente]
+
+## Resumen de Ejecución
+- Fecha: [YYYY-MM-DD]
+- Pruebas totales: N
+- Pruebas pasadas: N
+- Pruebas falladas: N
+- Porcentaje de éxito: X%
+
+## Problemas Encontrados
+
+### Problema 1: [Descripción breve]
+**Prueba afectada:** [Nombre de la prueba]
+**Archivo:** [ruta/archivo.ts]
+**Línea:** [número]
+**Código problemático:**
+```typescript
+// Código con error
+```
+**Descripción detallada:** [Explicación del problema]
+**Solución propuesta:**
+```typescript
+// Código corregido
+```
+
+### Problema 2: [Descripción breve]
+...
+```
+
+## 21. Archivo de Hilos de Chat Resueltos (RESUELTOS)
 
 Cuando un problema analizado en `Mensajes entre modelos/` se considere **sustancialmente resuelto** (aunque pueda tener retoques pendientes):
 
@@ -313,7 +440,7 @@ Cuando un problema analizado en `Mensajes entre modelos/` se considere **sustanc
    - O crear un hilo nuevo referenciando al anterior
 6. **Actualizar `ESTADO-PARALELO.md`:** La tarea se mueve al historial de completadas con la fecha de archivo.
 
-## 19. Empaquetado del EXE (Electron)
+## 22. Empaquetado del EXE (Electron)
 
 Para generar el `.exe` distribuible (sin Node.js):
 

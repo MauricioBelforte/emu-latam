@@ -2,6 +2,121 @@
 
 ---
 
+## [6] — Doble input del guest persistió: run_ahead era la causa real (corrige entrada [2])
+
+**Fecha:** 2026-07-16
+**Reportado por:** Usuario en pruebas cross-PC (Tailscale y directo)
+**Componente afectado:** 04-Anti-Lag-RunAhead
+
+### Síntoma
+A pesar de aplicar `check_frames = "0"` (entrada [2]), el doble input del guest en el host seguía ocurriendo. Se notó que al presionar la barra espaciadora (turbo/fast forward en RetroArch) el problema desaparecía momentáneamente.
+
+### Causa raíz
+`run_ahead_enabled = "true"` con `run_ahead_frames = "1"`. Run-ahead ejecuta 1 frame adelantado prediciendo inputs. Cuando el input real del guest llega por red, el host concilia el frame predicho con el real. Si la predicción fue incorrecta, el input se aplica dos veces (predicho + real).
+
+Fast-forward (espacio) desactiva temporalmente el frame limiting, lo que cambia el timing de run-ahead y hace que el doble input desaparezca mientras está activo.
+
+### Solución aplicada
+En `retroarch/netplay_optimized.cfg`:
+```
+run_ahead_enabled = "true"  →  run_ahead_enabled = "false"
+run_ahead_frames = "1"      →  (eliminado)
+run_ahead_secondary_instance = "true"  →  (eliminado)
+```
+
+### Código/Comandos involucrados
+- `retroarch/netplay_optimized.cfg`: `run_ahead_enabled = "false"`
+
+### Verificación
+- ✅ MITM local: inputs del guest correctos en host sin necesidad de check_frames=0
+- ✅ Tailscale cross-PC: inputs del guest correctos en host
+- Fast-forward ya no es necesario para corregir el problema
+- La solución aplica a todos los flujos (MITM, Bore, Tailscale, Directo)
+
+### Nota
+Este hallazgo reemplaza parcialmente la solución documentada en la entrada [2]. `check_frames = "0"` se mantiene por si acaso, pero la causa raíz real era run-ahead.
+
+---
+
+## [5] — Nakama Server no disponible desde el renderer (ERR_CONNECTION_REFUSED)
+
+**Fecha:** 2026-07-16
+**Reportado por:** Usuario al iniciar app en PC sin Nakama local
+**Componente afectado:** 02-Integracion-Nakama
+
+### Síntoma
+Al hacer clic en "Insert Coin", la consola del DevTools muestra:
+```
+POST http://127.0.0.1:7350/v2/account/authenticate/device... net::ERR_CONNECTION_REFUSED
+```
+Y luego aparece "Nakama no disponible, usando modo local" en la UI.
+
+### Causa raíz
+El archivo `emu_latam_nakama.json` tiene `host: "127.0.0.1"` (localhost), pero en esa PC Nakama no corre localmente. Nakama corre en la otra PC y debe conectarse vía Tailscale (IP `100.x.x.x`).
+
+El renderer llama a `get-nakama-server` vía IPC que lee este archivo, y si la IP es incorrecta, la autenticación falla.
+
+### Solución aplicada
+En `emu_latam_nakama.json`, cambiar:
+```json
+{ "host": "127.0.0.1", "port": "7350" }
+```
+por la IP de la PC que tiene Nakama corriendo:
+```json
+{ "host": "100.91.21.22", "port": "7350" }
+```
+
+### Código/Comandos involucrados
+- `emu_latam_nakama.json`: archivo de configuración leído por `getNakamaConfig()` en `client/src/main/index.ts`
+- `client/src/main/index.ts`: ipcMain.handle("get-nakama-server")
+- `client/src/context/AuthContext.tsx`: `loginGhost()` obtiene la config vía IPC
+
+### Verificación
+- La app se conecta a Nakama remoto y autentica correctamente.
+- Desde la PC remota con Nakama se debe confirmar que Nakama está funcionando.
+
+---
+
+## [4] — Auto-restart de Nakama al crashear
+
+**Fecha:** 2026-07-16
+**Reportado por:** Usuario durante prueba de conexión cross-PC
+**Componente afectado:** 02-Integracion-Nakama
+
+### Síntoma
+Nakama se caía inesperadamente en la PC remota (sin motivo aparente). La única forma de restaurarlo era cerrar la app y ejecutar `start_server.bat` manualmente, lo cual es inviable para un usuario final.
+
+### Causa raíz
+`launchNakama()` en `client/src/main/index.ts` solo se ejecutaba una vez al arrancar la app. No había:
+- Handler de evento `close` del proceso para reiniciarlo.
+- Health check periódico para detectar si el servidor dejó de responder.
+- Límite de reintentos para evitar loops infinitos.
+- Flag de "cierre intencional" para no reiniciar cuando se cierra la app.
+
+### Solución aplicada
+Se modificó `launchNakama()` y se agregó `startNakamaHealthCheck()`:
+1. **Evento `close`**: Si Nakama se cierra inesperadamente, espera 2s y lo reinicia automáticamente.
+2. **Health check c/30s**: Verifica que Nakama responda en `http://{host}:{port}`. Si no responde, mata el proceso (para reinicio limpio) o lo lanza si está caído.
+3. **Máx 5 reintentos**: Evita loops infinitos si la causa es grave (PostgreSQL caído, etc.).
+4. **`nakamaKilledIntentionally`**: Flag que evita reinicio cuando la app se cierra (before-quit).
+5. **Limpieza**: Timers e intervals se cancelan en `before-quit`.
+
+### Código/Comandos involucrados
+- `client/src/main/index.ts`:
+  - Variables: `nakamaProcess`, `nakamaRestartAttempts`, `nakamaRestartTimer`, `nakamaHealthTimer`, `nakamaKilledIntentionally`
+  - Constantes: `MAX_NAKAMA_RESTART_ATTEMPTS = 5`, `NAKAMA_RESTART_DELAY_MS = 2000`, `NAKAMA_HEALTH_INTERVAL_MS = 30000`
+  - Función `launchNakama()` modificada: agrega `on("close")` handler con auto-restart
+  - Nueva función `startNakamaHealthCheck()`: setInterval cada 30s
+  - `before-quit`: limpia timers, marca `nakamaKilledIntentionally = true`
+
+### Verificación
+- Matar Nakama manualmente (taskkill /F /IM nakama.exe) → se reinicia solo en ≤ 2s
+- El log muestra: `Nakama cerró inesperadamente (código 1). Reintentando en 2000ms...`
+- Si se cierra la app, Nakama no se reinicia
+- Health check detecta proceso colgado y lo reinicia
+
+---
+
 ## [3] — Ventana de Electron se cierra al usar MITM Local
 
 **Fecha:** 2026-07-15

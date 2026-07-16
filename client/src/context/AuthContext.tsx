@@ -8,10 +8,11 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isConnected: boolean;
   loginGhost: () => Promise<void>;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
-  userId: null, username: null, isAuthenticated: false, isConnected: false, loginGhost: async () => {},
+  userId: null, username: null, isAuthenticated: false, isConnected: false, loginGhost: async () => {}, logout: () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -46,6 +47,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       isConnecting.current = true;
       const cfg = await (window as any).electron.ipcRenderer.invoke("get-nakama-server");
+      console.log("[AUTH] Config recibida del main:", JSON.stringify(cfg));
       await nakamaService.configure(cfg.host, cfg.port);
       const session = await nakamaService.authenticateDevice();
       setUserId(session.user_id || null);
@@ -63,8 +65,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } finally { isConnecting.current = false; }
   };
 
+  const logout = () => {
+    setUserId(null);
+    setUsername(null);
+    setIsAuthenticated(false);
+    setIsConnected(false);
+    nakamaService.disconnect();
+  };
+
   return (
-    <AuthContext.Provider value={{ userId, username, isAuthenticated, isConnected, loginGhost }}>
+    <AuthContext.Provider value={{ userId, username, isAuthenticated, isConnected, loginGhost, logout }}>
       {children}
     </AuthContext.Provider>
   );

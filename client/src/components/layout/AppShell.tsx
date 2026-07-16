@@ -70,7 +70,13 @@ const TickerText = styled.div`
   }
 `;
 
-export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+interface AppShellProps {
+  children: React.ReactNode;
+  showBack?: boolean;
+  onBack?: () => void;
+}
+
+export const AppShell: React.FC<AppShellProps> = ({ children, showBack, onBack }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [chatOpen, setChatOpen] = useState(true);
 
@@ -92,6 +98,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         chatOpen={chatOpen}
         onToggleSidebar={() => setSidebarOpen((o) => !o)}
         onToggleChat={() => setChatOpen((o) => !o)}
+        showBack={showBack}
+        onBack={onBack}
       />
       <ContentArea>
         <Pane $open={sidebarOpen} $width={250}>
