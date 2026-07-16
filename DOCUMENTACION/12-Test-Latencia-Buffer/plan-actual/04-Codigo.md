@@ -2,33 +2,52 @@
 
 ---
 
-## [2] — 2026-07-16: Buffer 1 + check 180 + run_ahead false
+## [3] — 2026-07-16: Buffer 2 + check 180 + run_ahead false
+
+### Config
+- run_ahead_enabled: false
+- netplay_input_latency_frames_min: 2
+- netplay_check_frames: 180
+
+### Objetivo
+Volver a buffer=2 que funcionó. Evaluar si la sensación de lentitud
+es aceptable o si se puede mitigar con otros ajustes.
+
+### Modo
+- Tipo: Tailscale cross-PC
+- Host: PC2 / Guest: PC1
+
+### Resultados
+- Doble toque: ✅ No hay
+- Desync: ?
+- Lag percibido: ?
+
+### Observaciones
+Pendiente de prueba completa.
+
+---
+
+## [2] — 2026-07-16: Buffer 1 + check 180 + run_ahead false ❌
 
 ### Config
 - run_ahead_enabled: false
 - netplay_input_latency_frames_min: 1
 - netplay_check_frames: 180
 
-### Objetivo
-Verificar si con run_ahead=false el buffer=1 sigue sin doble toque.
-Si es así, ganamos capacidad de respuesta (16ms vs 33ms) y el fix real era run_ahead todo el tiempo.
-
-### Modo
-- Tipo: Tailscale cross-PC
-- Host: PC2 / Guest: PC1
-
-### Resultados (PENDIENTE)
-- Doble toque: ?
+### Resultados
+- Doble toque: ❌ VOLVIÓ (confirmado, misma configuración que [1] pero con buffer=1)
 - Desync: ?
-- Lag percibido: ?
+- Lag percibido: 1 (instantáneo)
 
-### Observaciones
-Prueba en curso. Se cambió netplay_optimized.cfg en esta PC.
-La otra PC debe actualizar con git pull.
+### Conclusión
+El buffer de 1 frame es insuficiente. Incluso con run_ahead=false,
+el doble toque aparece. El mínimo necesario es 2 frames.
+Run-ahead no era la causa principal; el buffer de 1 frame no da
+margen para que los inputs del guest lleguen a tiempo.
 
 ---
 
-## [1] — 2026-07-16: Buffer 2 + check 180
+## [1] — 2026-07-16: Buffer 2 + check 180 ✅
 
 ### Config
 - run_ahead_enabled: false
