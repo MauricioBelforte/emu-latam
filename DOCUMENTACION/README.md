@@ -10,3 +10,4 @@
 | 07-Integracion-Tailscale | Conexión P2P directa vía Tailscale | 🔄 Plan inicial | 2026-07-03 | — | Tailscale, WireGuard |
 | 08-Sistema-Retos | Sistema de retos con selección de método | 🔄 Plan inicial | 2026-07-09 | — | Nakama, Tailscale, Bore |
 | 09-Testing | Módulo centralizado de testing automatizado | ✅ Completado | 2026-07-14 | Automatizado (23 tests UX) | Node.js, net, child_process |
+| 10-Automatizacion-Conexion | Automatización de conexión P2P sin compartir IP manualmente | 🔄 Plan inicial | 2026-07-15 | — | Nakama Storage, Tailscale, Retos, Matchmaking |
