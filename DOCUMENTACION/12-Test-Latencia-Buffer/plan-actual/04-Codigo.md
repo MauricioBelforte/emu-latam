@@ -2,6 +2,25 @@
 
 ---
 
+## [5] — 2026-07-16: Buffer dinámico + check=30
+
+### Config
+- run_ahead_enabled: false
+- netplay_input_latency_frames_min: 1
+- netplay_input_latency_frames_range: 1
+- netplay_check_frames: 30 (↓ desde 180)
+
+### Objetivo
+Reducir check_frames de 180 a 30 (0.5s) para corregir desyncs más rápido.
+El desync ocurría con 180 porque tardaba 3s en detectarse.
+
+### Resultados (PENDIENTE)
+- Desync: ?
+- Doble toque: ?
+- Select personajes: ?
+
+---
+
 ## [4] — 2026-07-16: Buffer dinámico 1-2 (min=1, range=1) ✅ JUGABLE
 
 ### Config
