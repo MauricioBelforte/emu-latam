@@ -2,28 +2,31 @@
 
 ---
 
-## [3] — 2026-07-16: Buffer 2 + check 180 + run_ahead false
+## [4] — 2026-07-16: Buffer dinámico 1-2 (min=1, range=1)
 
 ### Config
 - run_ahead_enabled: false
-- netplay_input_latency_frames_min: 2
+- netplay_input_latency_frames_min: 1
+- netplay_input_latency_frames_range: 1
 - netplay_check_frames: 180
 
 ### Objetivo
-Volver a buffer=2 que funcionó. Evaluar si la sensación de lentitud
-es aceptable o si se puede mitigar con otros ajustes.
+Probar buffer dinámico: arranca en 1 frame (rápido) pero sube a 2
+automáticamente si hay fluctuación. Busca el punto medio entre
+velocidad (buffer=1) y estabilidad (buffer=2).
 
-### Modo
-- Tipo: Tailscale cross-PC
-- Host: PC2 / Guest: PC1
-
-### Resultados
-- Doble toque: ✅ No hay
-- Desync: ?
+### Resultados (PENDIENTE)
+- Doble toque: ?
 - Lag percibido: ?
 
-### Observaciones
-Pendiente de prueba completa.
+---
+
+## [3] — 2026-07-16: Buffer 2 + check 180 + run_ahead false (suspendido)
+
+### Config
+- run_ahead_enabled: false
+- netplay_input_latency_frames_min: 2 (no probado, saltamos a [4])
+- netplay_check_frames: 180
 
 ---
 
