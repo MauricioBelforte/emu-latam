@@ -16,7 +16,13 @@ Este archivo coordina los agentes que trabajan en paralelo. **Leerlo siempre ant
 
 ## Tareas activas
 
-*(No hay tareas activas)*
+### Tarea: Investigar optimización netplay (latencia, desync, audio)
+**Agente:** Pendiente (asignar a Gemini/Claude/GPT-4)
+**Carpeta:** `Mensajes entre modelos/inputs-retroarch-netplay-latencia-desync-audio/`
+**Archivo planteo:** `2026-07-16_21-18-00_1-DEEPSEEK-planteo-investigacion.md`
+**Estado:** `disponible` (esperando que otro modelo lo tome)
+**Prioridad:** Alta (bloquea experiencia de juego)
+**Inicio:** 2026-07-16 21:18
 
 ---
 
