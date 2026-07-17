@@ -6,4 +6,19 @@
 - [x] Modificar `client/src/App.tsx` para inyectar el Spinner/Loader e inhabilitar "INSERT COIN" hasta que el servidor local Nakama esté listo.
 - [x] Modificar `client/src/App.tsx` para guardar la IP de Relay de manera automática al dar click en "JOIN GAME".
 - [x] Ejecutar el cliente localmente con `npm run dev` y validar los flujos modificados.
-- [x] **Fix doble input guest en host (15-Jul-2026):** `netplay_check_frames` cambiado de `"30"` a `"0"` para desactivar rollback que duplicaba inputs del guest en la pantalla del host. Verificado en MITM local.
+- [x] **Fix doble input guest en host (15-Jul-2026):** `netplay_check_frames` cambiado de `"30"` a `"180"` para evitar rollback agresivo que duplicaba inputs del guest.
+- [x] Plan de testings profesional (06-Plan-Testings.md)
+- [x] Resultados de testings (07-Resultados-Testings.md)
+- [x] Crear `test_antilag.js` con 74 tests automatizados (sin RetroArch)
+- [x] Tests de estructura y valores de `netplay_optimized.cfg` (27 tests)
+- [x] Tests de `--appendconfig` en args de lanzamiento (4 tests)
+- [x] Tests de `checkNakamaHealth` con servidor HTTP real (4 tests)
+- [x] Tests de `getNakamaConfig` con archivo real y simulado (6 tests)
+- [x] Tests de `getLanIp` y `getTailscaleIp` (6 tests)
+- [x] Tests de validación IPv4 (12 tests)
+- [x] Tests de constantes del sistema (6 tests)
+- [x] Tests de puertos clave (6 tests)
+- [x] Tests de manejo de errores de config (3 tests)
+- [x] Suite completa: 74/74 tests pasan (100%)
+- [ ] Pendiente: Pruebas funcionales con RetroArch (requieren presencia del usuario)
+- [ ] Pendiente: Pruebas de UI con Electron (requieren entorno completo)

@@ -14,6 +14,22 @@
 - [x] 35/35 tests estables sin regresiones
 - [x] Conexión netplay exitosa: ambas ventanas RA se ven
 
+## Testings
+- [x] Plan de testings profesional (06-Plan-Testings.md)
+- [x] Resultados de testings (07-Resultados-Testings.md)
+- [x] Crear `test_mitm_relay.js` con 62 tests automatizados (sin RetroArch)
+- [x] Tests de estructura y defaults de mitm-relay.js (17 tests)
+- [x] Tests de forwarder TCP: pipe, multi-conexión, cierre graceful (5 tests)
+- [x] Tests de spawn args: host, guest, relay (13 tests)
+- [x] Tests de spawn real de mitm-relay.js como child process (3 tests)
+- [x] Tests de concurrencia: mitmRunning flag (2 tests)
+- [x] Tests de manejo de errores: archivos faltantes (3 tests)
+- [x] Tests de comparación MITM vs Transparent (6 tests)
+- [x] Tests de parseo de argumentos (8 tests)
+- [x] Tests de puertos del flujo (6 tests)
+- [x] Suite completa: 62/62 tests pasan (100%)
+
 ## Pendiente
 - [ ] Probar con dos PCs reales (host en una, relay+guest en otra)
 - [ ] Evaluar latencia del forwarder vs conexión directa
+- [ ] Pruebas funcionales con RetroArch (requieren presencia del usuario)

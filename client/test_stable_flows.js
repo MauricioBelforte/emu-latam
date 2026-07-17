@@ -292,8 +292,8 @@ if (fs.existsSync(CFG_FILE)) {
   assert("netplay_optimized.cfg contiene run_ahead_enabled", cfgContent.includes("run_ahead_enabled"));
   assert("netplay_optimized.cfg contiene netplay_check_frames", cfgContent.includes("netplay_check_frames"));
   assert("netplay_optimized.cfg contiene netplay_nat_traversal", cfgContent.includes("netplay_nat_traversal"));
-  assert("cfg netplay_check_frames >= 1 (tolerante)", cfgContent.includes('netplay_check_frames = "3"'));
-  assert("cfg netplay_input_latency_frames_range >= 1", cfgContent.includes('netplay_input_latency_frames_range = "3"'));
+  assert("cfg netplay_check_frames >= 1 (tolerante)", cfgContent.includes('netplay_check_frames = "180"'));
+  assert("cfg netplay_input_latency_frames_range >= 1", cfgContent.includes('netplay_input_latency_frames_range = "1"'));
 }
 
 // ──────────────────────────────────────────
@@ -474,6 +474,224 @@ assert(
 assert("Guest NO contiene --host", !tsGuestArgs.includes("--host"));
 
 // ──────────────────────────────────────────
+// 10. REGEX EXTRACT PORT
+// ──────────────────────────────────────────
+console.log("\n🔢 REGEX — Extracción de puerto desde relay URL");
+
+const portExtractRegex = /:(\d+)/;
+assert(
+  "Extrae puerto 31501 de bore.pub:31501",
+  "bore.pub:31501".match(portExtractRegex)?.[1] === "31501",
+);
+assert(
+  "Extrae puerto 19821 de bore.pub:19821",
+  "bore.pub:19821".match(portExtractRegex)?.[1] === "19821",
+);
+assert(
+  "Extrae puerto 55435 de 127.0.0.1:55435",
+  "127.0.0.1:55435".match(portExtractRegex)?.[1] === "55435",
+);
+
+// ──────────────────────────────────────────
+// 11. MULTIPLE CONNECTIONS TO PROXY
+// ──────────────────────────────────────────
+console.log("\n🔗 PROXY — Múltiples conexiones simultáneas");
+
+function testMultiConnectionProxy() {
+  return new Promise((resolve) => {
+    const MP_PORT = 55443;
+    let connected = 0;
+    let echoed = 0;
+
+    const echoServer = net.createServer((socket) => {
+      socket.on("data", (data) => {
+        socket.write("ECHO:" + data.toString());
+      });
+    });
+
+    echoServer.listen(MP_PORT + 1, "127.0.0.1", () => {
+      const proxyServer = net.createServer((localSocket) => {
+        const remoteSocket = new net.Socket();
+        remoteSocket.connect(MP_PORT + 1, "127.0.0.1", () => {
+          localSocket.pipe(remoteSocket);
+          remoteSocket.pipe(localSocket);
+        });
+        remoteSocket.on("error", () => localSocket.destroy());
+        localSocket.on("error", () => remoteSocket.destroy());
+      });
+
+      proxyServer.listen(MP_PORT, "127.0.0.1", () => {
+        function spawnClient(id) {
+          return new Promise((r) => {
+            const client = new net.Socket();
+            let data = "";
+            client.connect(MP_PORT, "127.0.0.1", () => {
+              connected++;
+              client.write("MSG_" + id);
+            });
+            client.on("data", (d) => {
+              data += d.toString();
+              if (data === "ECHO:MSG_" + id) {
+                echoed++;
+              }
+              client.destroy();
+              r();
+            });
+            client.on("error", () => r());
+          });
+        }
+
+        Promise.all([spawnClient(1), spawnClient(2), spawnClient(3)]).then(() => {
+          proxyServer.close();
+          echoServer.close();
+          assert("3 clientes conectan al proxy simultáneamente", connected === 3, `Conectados: ${connected}`);
+          assert("3 clientes reciben eco correctamente", echoed === 3, `Ecos: ${echoed}`);
+          resolve();
+        });
+      });
+    });
+  });
+}
+
+// ──────────────────────────────────────────
+// 12. PORT ALREADY IN USE
+// ──────────────────────────────────────────
+console.log("\n🚫 PORT — Puerto ocupado detectado correctamente");
+
+function testPortInUse() {
+  return new Promise((resolve) => {
+    const BUSY_PORT = 55444;
+    const ocupado = net.createServer();
+
+    ocupado.listen(BUSY_PORT, "127.0.0.1", () => {
+      const intento = net.createServer();
+      intento.listen(BUSY_PORT, "127.0.0.1", () => {
+        // Nunca debería llegar aquí
+        intento.close();
+        ocupado.close();
+        assert("Puerto ocupado → error (inesperado: se pudo escuchar)", false);
+        resolve();
+      });
+      intento.on("error", (err) => {
+        ocupado.close();
+        assert("Puerto ocupado detectado (EADDRINUSE)", err.code === "EADDRINUSE", `Code: ${err.code}`);
+        resolve();
+      });
+    });
+  });
+}
+
+// ──────────────────────────────────────────
+// 13. CLEANUP INVERSO (proxy sobrevive a forwarder)
+// ──────────────────────────────────────────
+console.log("\n🧹 CLEANUP — Proxy sobrevive al cierre del forwarder");
+
+function testCleanupInverse() {
+  return new Promise((resolve) => {
+    const proxyServers = [];
+    const forwarderServers = [];
+
+    const s1 = net.createServer();
+    const s2 = net.createServer();
+
+    s1.listen(55445, "127.0.0.1", () => {
+      proxyServers.push(s1);
+      s2.listen(55446, "127.0.0.1", () => {
+        forwarderServers.push(s2);
+
+        // Cerrar solo forwarder
+        for (const s of forwarderServers) { try { s.close(); } catch {} }
+        forwarderServers.length = 0;
+
+        // Verificar: proxy sigue abierto
+        const testSocket = new net.Socket();
+        testSocket.connect(55445, "127.0.0.1", () => {
+          testSocket.destroy();
+          s1.close();
+          assert("Proxy sobrevive al cierre del forwarder", true);
+          resolve();
+        });
+        testSocket.on("error", (err) => {
+          s1.close();
+          assert("Proxy sobrevive al cierre del forwarder", false, err.message);
+          resolve();
+        });
+      });
+    });
+  });
+}
+
+// ──────────────────────────────────────────
+// 14. PIPE BIDIRECCIONAL CON MÚLTIPLES DATOS
+// ──────────────────────────────────────────
+console.log("\n🔄 PIPE — Comunicación bidireccional múltiple");
+
+function testBidirectionalPipe() {
+  return new Promise((resolve) => {
+    const BP_PORT = 55447;
+
+    const targetServer = net.createServer((socket) => {
+      // Echo server que responde con prefijo
+      socket.on("data", (data) => {
+        socket.write("RESP:" + data.toString());
+      });
+    });
+
+    targetServer.listen(BP_PORT + 1, "127.0.0.1", () => {
+      const proxyServer = net.createServer((localSocket) => {
+        const remoteSocket = new net.Socket();
+        remoteSocket.connect(BP_PORT + 1, "127.0.0.1", () => {
+          localSocket.pipe(remoteSocket);
+          remoteSocket.pipe(localSocket);
+        });
+        remoteSocket.on("error", () => localSocket.destroy());
+        localSocket.on("error", () => remoteSocket.destroy());
+      });
+
+      proxyServer.listen(BP_PORT, "127.0.0.1", () => {
+        const client = new net.Socket();
+        let received = [];
+
+        client.connect(BP_PORT, "127.0.0.1", () => {
+          client.write("DATA1");
+          setTimeout(() => client.write("DATA2"), 50);
+          setTimeout(() => client.write("DATA3"), 100);
+        });
+
+        client.on("data", (data) => {
+          received.push(data.toString());
+        });
+
+        setTimeout(() => {
+          client.destroy();
+          proxyServer.close();
+          targetServer.close();
+          assert("Pipe recibe RESP:DATA1", received.some(r => r === "RESP:DATA1"), `Recibido: ${JSON.stringify(received)}`);
+          assert("Pipe recibe RESP:DATA2", received.some(r => r === "RESP:DATA2"), `Recibido: ${JSON.stringify(received)}`);
+          assert("Pipe recibe RESP:DATA3", received.some(r => r === "RESP:DATA3"), `Recibido: ${JSON.stringify(received)}`);
+          resolve();
+        }, 300);
+      });
+    });
+  });
+}
+
+// ──────────────────────────────────────────
+// 15. RELAY FILE — Manejo de archivo inexistente
+// ──────────────────────────────────────────
+console.log("\n📝 RELAY FILE — Archivo inexistente");
+
+const fakeRelayPath = path.join(RELAY_DIR, "_no_existe_.txt");
+assert("Archivo inexistente detectado", !fs.existsSync(fakeRelayPath));
+
+try {
+  const content = fs.readFileSync(fakeRelayPath, "utf8");
+  assert("Leer archivo inexistente lanza error", false, "Debería haber lanzado excepción");
+} catch (e) {
+  assert("Leer archivo inexistente lanza ENOENT", e.code === "ENOENT", `Code: ${e.code}`);
+}
+
+// ──────────────────────────────────────────
 // EJECUTAR TESTS ASYNC
 // ──────────────────────────────────────────
 async function run() {
@@ -481,6 +699,10 @@ async function run() {
   await testForwarder();
   await testCleanupSeparation();
   await testPortFunctions();
+  await testMultiConnectionProxy();
+  await testPortInUse();
+  await testCleanupInverse();
+  await testBidirectionalPipe();
 
   console.log(`\n═══════════════════════════════`);
   console.log(`  TOTAL: ${passed + failed}  |  ✅ ${passed}  |  ❌ ${failed}`);

@@ -102,8 +102,8 @@ export const Header: React.FC<HeaderProps> = ({
             <span>NOT AUTHENTICATED</span>
           )}
           {showBack && onBack && (
-            <button onClick={onBack} style={{ background: "#c44", border: "none", color: "#fff", cursor: "pointer", padding: "2px 8px", fontSize: "0.55rem", fontFamily: "Inter", borderRadius: 3 }}>
-              ← VOLVER
+            <button onClick={onBack} style={{ background: "#c44", border: "none", color: "#fff", cursor: "pointer", padding: "4px 12px", fontSize: "0.75rem", fontFamily: "Inter", borderRadius: 4, lineHeight: 1 }}>
+              ◀ VOLVER
             </button>
           )}
         </span>

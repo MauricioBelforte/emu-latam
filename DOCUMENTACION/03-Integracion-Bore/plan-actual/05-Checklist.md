@@ -4,3 +4,11 @@
 - [x] Fix: proxy TCP local para bypass del bug `--port` en RetroArch (guest siempre conecta a 55435)
 - [x] Fix: host con relay usa puerto 55436 para liberar 55435 para el proxy del guest
 - [x] Fix: directorio de logs con timestamp en main process
+- [x] Plan de testings profesional (06-Plan-Testings.md)
+- [x] Resultados de testings (07-Resultados-Testings.md)
+- [x] Tests de regex, spawn args, proxy TCP, forwarder, waitForPort
+- [x] Tests de archivos de configuración, relay file, cleanup, bore command, Tailscale
+- [x] Tests de extracción de puerto, múltiples conexiones, puerto ocupado
+- [x] Tests de cleanup inverso, pipe bidireccional, archivo inexistente
+- [x] Corrección de tests de cfg (check_frames, latency_frames_range)
+- [x] Suite completa: 51/51 tests pasan (100%)

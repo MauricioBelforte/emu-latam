@@ -158,6 +158,33 @@ const SalaButton = styled(Btn)<{ $active?: boolean }>`
   font-size: 0.85rem;
 `;
 
+const ToggleBtn = styled(Btn)<{ $isOpen?: boolean }>`
+  width: 100%;
+  padding: 10px;
+  font-size: 0.65rem;
+  font-family: ${(p) => p.theme.fonts.arcade};
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: transparent;
+  color: ${(p) => p.theme.colors.textSecondary};
+  border: 1px dashed ${(p) => p.theme.colors.border};
+  cursor: pointer;
+  transition: ${(p) => p.theme.transitions.default};
+  margin-bottom: 12px;
+  &:hover {
+    background: rgba(255,255,255,0.03);
+    color: #fff;
+    border-color: #555;
+  }
+`;
+
+const Collapsible = styled.div<{ $open: boolean }>`
+  overflow: hidden;
+  max-height: ${(p) => (p.$open ? "2000px" : "0")};
+  opacity: ${(p) => (p.$open ? 1 : 0)};
+  transition: max-height 0.4s ease, opacity 0.3s ease;
+`;
+
 const inline = {
   flex: { display: "flex", alignItems: "center", gap: 10 } as React.CSSProperties,
   flexCol: { display: "flex", flexDirection: "column" as const },
@@ -178,6 +205,7 @@ function App() {
   const [joinMode, setJoinMode] = useState<"create" | "join" | null>(null);
   const [copiedIp, setCopiedIp] = useState(false);
   const [peerReachable, setPeerReachable] = useState<boolean | null>(null);
+  const [showOtherMethods, setShowOtherMethods] = useState(false);
   const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -395,6 +423,7 @@ function App() {
     <ThemeProvider theme={theme}>
       <GlobalStyles />
       <AppShell
+        isHostingSala={isHostingSala}
         showBack={isAuthenticated || joinMode === "join"}
         onBack={isAuthenticated ? () => {
           logout();
@@ -513,43 +542,8 @@ function App() {
                 </Section>
               )}
 
-              {/* ───── MODO DIRECTO (LAN) ───── */}
-              <Section $accent="#0a4a2a">
-                <SectionHeader $color="#0f0">
-                  <Badge $bg="#0f0">LAN</Badge> MODO DIRECTO — SIN RELAY, SOLO RED LOCAL
-                </SectionHeader>
-                <Btn onClick={handleDirectHost} $accent="#0f0" $bg="#0a2a1a">
-                  INICIAR HOST DIRECTO
-                </Btn>
-                <Input $accent="#0f0" type="text" value={directHostIp} onChange={(e) => setDirectHostIp(e.target.value)} placeholder="IP del host (ej: 192.168.1.100)" style={{ marginTop: 10 }} />
-                <Btn onClick={handleDirectJoin} disabled={loading.directJoin || !directHostIp} $loading={loading.directJoin} $accent="#0f0" $bg={loading.directJoin ? "#0f022" : "transparent"} style={{ marginTop: 10 }}>
-                  {loading.directJoin ? "CONECTANDO..." : "JOIN DIRECTO"}
-                </Btn>
-                <StatusText $color="#888">Host → INICIAR HOST | Guest → pegar IP del host y JOIN</StatusText>
-              </Section>
-
-              {/* ───── MODO BORE (TÚNEL) ───── */}
-              <Section $accent={theme.colors.primary}>
-                <SectionHeader $color={theme.colors.primary}>
-                  <Badge $bg={theme.colors.primary}>BORE</Badge> MODO TÚNEL — JUEGA CON AMIGOS POR INTERNET
-                </SectionHeader>
-                <Btn onClick={() => handleTestGame(true)} disabled={loading.bore} $loading={loading.bore} $accent={theme.colors.primary} $bg={loading.bore ? theme.colors.primary + "22" : "transparent"}>
-                  {loading.bore ? "CREANDO TÚNEL..." : "1. HOST GAME"}
-                </Btn>
-                <div style={{ ...inline.flex, marginTop: 10 }}>
-                  <Input $accent={theme.colors.primary} type="text" value={customRelay} onChange={(e) => setCustomRelay(e.target.value)} placeholder="URL del túnel (se copia automática)" />
-                  <Btn onClick={handleSaveRelay} $accent="#555" $bg="#222" style={{ width: "auto", whiteSpace: "nowrap", fontSize: "0.6rem", padding: "10px 14px" }}>
-                    GUARDAR
-                  </Btn>
-                </div>
-                <Btn onClick={() => handleTestGame(false)} $accent={theme.colors.primary} style={{ marginTop: 10 }}>
-                  2. JOIN GAME
-                </Btn>
-                <StatusText $color="#888">Host → 1. HOST GAME | Guest → 2. JOIN GAME</StatusText>
-              </Section>
-
-              {/* ───── MODO TAILSCALE (P2P) ───── */}
-              <Section $accent="#0af">
+              {/* ───── MODO TAILSCALE (P2P) — OFICIAL ───── */}
+              <Section $accent="#0af" style={{ borderWidth: 2 }}>
                 <SectionHeader $color="#0af">
                   <Badge $bg="#0af">P2P</Badge> MODO TAILSCALE — CONEXIÓN DIRECTA SIN TÚNEL
                 </SectionHeader>
@@ -563,15 +557,56 @@ function App() {
                 {tsStatus && <StatusText $color="#0af">{tsStatus}</StatusText>}
               </Section>
 
-              {/* ───── MODO DEBUG ───── */}
-              <Section $accent="#a0a">
-                <SectionHeader $color="#a0a">
-                  <Badge $bg="#a0a">DBG</Badge> DEBUG — PRUEBAS LOCALES
-                </SectionHeader>
-                <Btn onClick={handleTestMitmLocal} disabled={loading.mitm} $loading={loading.mitm} $accent="#a0a" $bg={loading.mitm ? "#a0a22" : "transparent"}>
-                  {loading.mitm ? "INICIANDO..." : "MITM LOCAL (HOST+GUEST MISMA PC)"}
-                </Btn>
-              </Section>
+              <ToggleBtn $isOpen={showOtherMethods} onClick={() => setShowOtherMethods((p) => !p)}>
+                {showOtherMethods ? "▲ OCULTAR OTROS MÉTODOS" : "▼ OTROS MÉTODOS DE CONEXIÓN"}
+              </ToggleBtn>
+
+              <Collapsible $open={showOtherMethods}>
+                {/* ───── MODO DIRECTO (LAN) ───── */}
+                <Section $accent="#0a4a2a">
+                  <SectionHeader $color="#0f0">
+                    <Badge $bg="#0f0">LAN</Badge> MODO DIRECTO — SIN RELAY, SOLO RED LOCAL
+                  </SectionHeader>
+                  <Btn onClick={handleDirectHost} $accent="#0f0" $bg="#0a2a1a">
+                    INICIAR HOST DIRECTO
+                  </Btn>
+                  <Input $accent="#0f0" type="text" value={directHostIp} onChange={(e) => setDirectHostIp(e.target.value)} placeholder="IP del host (ej: 192.168.1.100)" style={{ marginTop: 10 }} />
+                  <Btn onClick={handleDirectJoin} disabled={loading.directJoin || !directHostIp} $loading={loading.directJoin} $accent="#0f0" $bg={loading.directJoin ? "#0f022" : "transparent"} style={{ marginTop: 10 }}>
+                    {loading.directJoin ? "CONECTANDO..." : "JOIN DIRECTO"}
+                  </Btn>
+                  <StatusText $color="#888">Host → INICIAR HOST | Guest → pegar IP del host y JOIN</StatusText>
+                </Section>
+
+                {/* ───── MODO BORE (TÚNEL) ───── */}
+                <Section $accent={theme.colors.primary}>
+                  <SectionHeader $color={theme.colors.primary}>
+                    <Badge $bg={theme.colors.primary}>BORE</Badge> MODO TÚNEL — JUEGA CON AMIGOS POR INTERNET
+                  </SectionHeader>
+                  <Btn onClick={() => handleTestGame(true)} disabled={loading.bore} $loading={loading.bore} $accent={theme.colors.primary} $bg={loading.bore ? theme.colors.primary + "22" : "transparent"}>
+                    {loading.bore ? "CREANDO TÚNEL..." : "1. HOST GAME"}
+                  </Btn>
+                  <div style={{ ...inline.flex, marginTop: 10 }}>
+                    <Input $accent={theme.colors.primary} type="text" value={customRelay} onChange={(e) => setCustomRelay(e.target.value)} placeholder="URL del túnel (se copia automática)" />
+                    <Btn onClick={handleSaveRelay} $accent="#555" $bg="#222" style={{ width: "auto", whiteSpace: "nowrap", fontSize: "0.6rem", padding: "10px 14px" }}>
+                      GUARDAR
+                    </Btn>
+                  </div>
+                  <Btn onClick={() => handleTestGame(false)} disabled={!customRelay} $accent={theme.colors.primary} style={{ marginTop: 10 }}>
+                    2. JOIN GAME
+                  </Btn>
+                  <StatusText $color="#888">Host → 1. HOST GAME | Guest → 2. JOIN GAME</StatusText>
+                </Section>
+
+                {/* ───── MODO DEBUG ───── */}
+                <Section $accent="#a0a">
+                  <SectionHeader $color="#a0a">
+                    <Badge $bg="#a0a">DBG</Badge> DEBUG — PRUEBAS LOCALES
+                  </SectionHeader>
+                  <Btn onClick={handleTestMitmLocal} disabled={loading.mitm} $loading={loading.mitm} $accent="#a0a" $bg={loading.mitm ? "#a0a22" : "transparent"}>
+                    {loading.mitm ? "INICIANDO..." : "MITM LOCAL (HOST+GUEST MISMA PC)"}
+                  </Btn>
+                </Section>
+              </Collapsible>
 
               {statusText && <StatusText $color={theme.colors.accent} style={{ textAlign: "center" }}>{statusText}</StatusText>}
 

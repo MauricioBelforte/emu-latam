@@ -12,6 +12,8 @@
     "preview": "electron-vite preview",
     "test:stable": "node test_stable_flows.js",
     "test:ux": "node test_ux_features.js",
+    "test:antilag": "node test_antilag.js",
+    "test:mitm": "node test_mitm_relay.js",
     "package": "node scripts/package.js"
   },
   "dependencies": {

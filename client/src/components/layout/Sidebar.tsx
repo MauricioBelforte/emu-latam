@@ -103,14 +103,18 @@ const StatusBadge = styled.span`
   margin-left: auto;
 `;
 
-export const Sidebar: React.FC = () => {
+interface SidebarProps {
+  isHostingSala?: boolean;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ isHostingSala }) => {
   const { onlineUsers } = useSocial();
   const { userId } = useAuth();
   const { initiateChallenge, challengeStatus } = useChallenge();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const handleUserClick = (clickedUserId: string) => {
-    if (clickedUserId === userId) return; // No seleccionar a uno mismo
+    if (clickedUserId === userId) return;
     setSelectedUserId(selectedUserId === clickedUserId ? null : clickedUserId);
   };
 
@@ -120,6 +124,17 @@ export const Sidebar: React.FC = () => {
   };
 
   const isBusy = challengeStatus !== "idle";
+
+  if (!isHostingSala) {
+    return (
+      <SidebarContainer>
+        <Title>PLAYERS ONLINE (0)</Title>
+        <span style={{ color: "#555", fontSize: "0.8rem", fontFamily: "Inter" }}>
+          CREÁ UNA SALA PARA VER JUGADORES EN LÍNEA
+        </span>
+      </SidebarContainer>
+    );
+  }
 
   return (
     <SidebarContainer>
@@ -146,7 +161,6 @@ export const Sidebar: React.FC = () => {
                 {!isSelf && <StatusBadge>ONLINE</StatusBadge>}
               </UserItem>
 
-              {/* Mostrar botón de reto si el usuario está seleccionado */}
               {isSelected && !isSelf && (
                 <ChallengeButton
                   onClick={() => handleChallenge(user.userId, user.username)}

@@ -159,3 +159,12 @@ netplay_check_frames = "0"
 ---
 
 *(Al concluir cada fase, el asistente correrá los 'TEST AUTOMÁTICO' indicados y documentará los resultados)*
+
+---
+
+## ✅ Fase 5: Propuestas de Mejoras de Modelos (Módulo 06)
+
+- [x] **Propuesta de DeepSeek V4 Flash Free:** Mantenibilidad y dockerización de VPS.
+- [x] **Propuesta de Nemotron 3 Ultra:** Reestructuración exhaustiva y modularización del Main Process.
+- [x] **Propuesta de Gemini 3.5 Flash:** Diagnóstico de Tailscale, watchdog central de procesos, comandos UDP de control, handshake en forwarder y replays de Nakama.
+
