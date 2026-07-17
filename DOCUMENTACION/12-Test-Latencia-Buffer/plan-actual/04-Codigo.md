@@ -2,7 +2,7 @@
 
 ---
 
-## [5] — 2026-07-16: Buffer dinámico + check=30
+## [5] — 2026-07-16: Buffer dinámico + check=30 ❌
 
 ### Config
 - run_ahead_enabled: false
@@ -12,12 +12,19 @@
 
 ### Objetivo
 Reducir check_frames de 180 a 30 (0.5s) para corregir desyncs más rápido.
-El desync ocurría con 180 porque tardaba 3s en detectarse.
 
-### Resultados (PENDIENTE)
+### Resultados
+- Doble toque: ❌ Se nota claramente. Al mantener agachado, el personaje
+  se para solo intermitentemente (rollback corrigiendo inputs cada 0.5s).
 - Desync: ?
-- Doble toque: ?
 - Select personajes: ?
+
+### Conclusión
+check_frames=30 es demasiado frecuente. El rollback de RetroArch corrige
+los inputs del guest cada 0.5s y eso se traduce en que un "hold" se
+interrumpa visiblemente. Se vuelve a check_frames=180.
+
+---
 
 ---
 
