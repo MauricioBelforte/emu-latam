@@ -119,9 +119,10 @@
 
 ### ❌ Inputs duplicados del guest en host — RESUELTO (16-Jul-2026)
 - **Síntoma:** Guest presiona flecha una vez, host ve movimiento x2. Fast-forward (espacio) lo corregía temporalmente.
-- **Causa raíz:** `run_ahead_enabled = "true"` con `run_ahead_frames = "1"`. La predicción de frames de RetroArch interfería con netplay, duplicando inputs del guest.
-- **Solución:** `run_ahead_enabled = "false"` + `netplay_input_latency_frames_min = "2"` en `retroarch/netplay_optimized.cfg`.
-- **Verificado:** Ambos sentidos host/guest, cross-PC Tailscale, MITM local.
+- **Causa raíz:** `run_ahead_enabled = "true"` + buffer=1 insuficiente. Combinación de predicción de frames y buffer ajustado causaba duplicación.
+- **Solución final:** `run_ahead_enabled = "false"` + `netplay_input_latency_frames_min = "1"` + `range = "1"` (buffer dinámico 1-2) + `check_frames = "180"` en `retroarch/netplay_optimized.cfg`.
+- **Excepción conocida:** Select de personajes puede mostrar doble movimiento visual en host (artefacto de FBNeo, no afecta selección real).
+- **Verificado:** Jugabilidad muy buena en ambos sentidos host/guest.
 
 ### ⚠️ Nakama se cae inesperadamente — MITIGADO (16-Jul-2026)
 - **Síntoma:** Nakama.exe se detenía sin motivo, dejando la app sin servidor.

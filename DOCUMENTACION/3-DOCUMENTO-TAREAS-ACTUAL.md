@@ -134,27 +134,33 @@ netplay_check_frames = "0"
 - **Localhost:** ✅ Parcial. Mejoró pero el doble toque persistía.
 - **Cross-PC Tailscale:** ⚠️ Seguía apareciendo.
 
-### ✅ Solución final (run_ahead desactivado + 2 frames buffer)
-**Causa raíz real:** `run_ahead_enabled = "true"` con `run_ahead_frames = "1"`. RetroArch ejecutaba 1 frame adelantado prediciendo inputs. Cuando el input real del guest llegaba por red, se aplicaba dos veces (predicho + real). Fast-forward (espacio) desactivaba temporalmente el frame limiting y el doble toque desaparecía (señal inequívoca de run-ahead).
+### ✅ Solución final (run_ahead desactivado + buffer dinámico 1-2)
+**Causa raíz:**
+- `run_ahead_enabled = "true"` → duplicaba inputs del guest en host
+- `buffer=1` no daba margen suficiente → inputs llegaban tarde y se repetían
+- `buffer=2` fijo solucionaba el doble toque pero se sentía lento (33ms)
 
-**Solución en `retroarch/netplay_optimized.cfg`:**
+**Solución final en `retroarch/netplay_optimized.cfg`:**
 ```ini
 run_ahead_enabled = "false"
-netplay_input_latency_frames_min = "2"
-netplay_input_latency_frames_range = "0"
-netplay_check_frames = "0"
+netplay_input_latency_frames_min = "1"
+netplay_input_latency_frames_range = "1"
+netplay_check_frames = "180"
 ```
+Buffer dinámico 1-2: arranca en 1 frame (instantáneo) pero sube a 2 automáticamente si hay fluctuación. Da lo mejor de ambos mundos.
 
 ### Resultados finales (verificado 16-Jul-2026 cross-PC Tailscale)
-- **Host PC2, Guest PC1:** ✅ Doble toque ELIMINADO. Sin necesidad de fast-forward.
-- **Host PC1, Guest PC2:** ✅ Doble toque ELIMINADO.
-- **Ambos sentidos verificados:** Sin run-ahead no hay predicción que duplique inputs.
+- **Jugabilidad:** ✅ MUY BUENA. Respuesta rápida, sin lag perceptible.
+- **Doble input en pelea:** ✅ No hay.
+- **Select de personajes:** ⚠️ Doble movimiento visual solo en host (no afecta selección real, parece artefacto de FBNeo en esa pantalla).
+- **Audio:** Sin cortes.
 
 ### Retoques postergables
-- [x] Probar `latency_frames_min = "2"` → ✅ Resultó ser la solución definitiva
+- [x] Probar `latency_frames_min = "2"` → ❌ Se siente lento
+- [x] Probar `latency_frames_min = "1"` + `range = "1"` → ✅ MEJOR CONFIG
+- [ ] Investigar doble visual en select de personajes (¿check_frames=0 ayuda?)
 - [ ] Probar RetroArch 1.18.0/1.16.0 para ver si tienen netplay nativo mejor
 - [ ] Test con otro core (Snes9x) para aislar si es específico de FBNeo
-- [ ] Probar rollback real (Fightcade o fork de RA con rollback netcode)
 
 ---
 

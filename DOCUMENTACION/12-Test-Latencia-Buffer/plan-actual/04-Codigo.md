@@ -2,7 +2,7 @@
 
 ---
 
-## [4] — 2026-07-16: Buffer dinámico 1-2 (min=1, range=1)
+## [4] — 2026-07-16: Buffer dinámico 1-2 (min=1, range=1) ✅ JUGABLE
 
 ### Config
 - run_ahead_enabled: false
@@ -12,12 +12,31 @@
 
 ### Objetivo
 Probar buffer dinámico: arranca en 1 frame (rápido) pero sube a 2
-automáticamente si hay fluctuación. Busca el punto medio entre
-velocidad (buffer=1) y estabilidad (buffer=2).
+automáticamente si hay fluctuación.
 
-### Resultados (PENDIENTE)
-- Doble toque: ?
-- Lag percibido: ?
+### Modo
+- Tipo: Tailscale cross-PC
+- Host: PC2 / Guest: PC1 (guest presiona ← en select, host ve doble)
+- Sentido inverso también probado
+
+### Resultados
+- **Jugabilidad general**: ✅ MUY BUENA. Sin lag perceptible. Respuesta rápida.
+- **Doble input en juego**: ✅ No hay. Los movimientos durante la pelea son correctos.
+- **Select de personajes**: ⚠️ En PC del host se ve un doble movimiento visual
+  cuando el guest elige personaje (se mueve 2 slots y vuelve), pero en la
+  PC del guest se ve normal. Es solo visual, no afecta la selección real.
+- **Lag percibido**: 1 (instantáneo, mejor que buffer=2 fijo)
+- **Audio**: Sin cortes durante la pelea.
+
+### Conclusión
+Esta es la mejor configuración hasta ahora. El doble movimiento en el select
+de personajes parece ser un artefacto visual de netplay en esa pantalla
+específica (FBNeo maneja distinto los inputs en select), no un problema real
+de input duplicado. Durante la pelea el comportamiento es correcto en ambos lados.
+
+### Recomendación
+Usar esta configuración como estable: `min=1, range=1, check=180, run_ahead=false`.
+El doble visual en select es aceptable y no afecta la jugabilidad.
 
 ---
 
