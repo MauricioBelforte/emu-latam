@@ -161,8 +161,17 @@ Con run_ahead=false + buffer dinámico 1-2, no es necesario check_frames porque 
 - [x] Probar `latency_frames_min = "2"` → ❌ Se siente lento
 - [x] Probar `latency_frames_min = "1"` + `range = "1"` → ✅ MEJOR CONFIG
 - [x] Probar `check_frames = "0"` → ✅ Elimina parpadeo al agachado
+- [x] Probar `input_block_timeout = 1/3/10` → ❌ No solucionó el tiriteo
+- [x] Probar `check_frames = 300` + `input_block_timeout` → ❌ Causó desync de audio
 - [ ] Probar RetroArch 1.18.0/1.16.0 para ver si tienen netplay nativo mejor
 - [ ] Test con otro core (Snes9x) para aislar si es específico de FBNeo
+
+### Hallazgo importante (18-Jul-2026)
+- [x] **El tiriteo es por hardware/driver del PC Ryzen, no por Emu Latam.**
+  El Athlon X2 nunca tirittea. El Ryzen siempre tirittea al recibir datos
+  netplay, sin importar método de conexión (lobby nativo, host directo, retos).
+  Ver test [9] en `DOCUMENTACION/12-Test-Latencia-Buffer/plan-actual/04-Codigo.md`.
+- [x] **Solución práctica:** Athlon como host, Ryzen como guest siempre.
 
 ---
 

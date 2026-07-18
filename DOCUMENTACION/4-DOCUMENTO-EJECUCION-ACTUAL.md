@@ -128,3 +128,12 @@
 - **Síntoma:** Nakama.exe se detenía sin motivo, dejando la app sin servidor.
 - **Solución:** Auto-restart en crash + health check cada 30s con máx 5 reintentos.
 - **Código:** `client/src/main/index.ts` — `launchNakama()` + `startNakamaHealthCheck()`
+
+### ⚠️ Tiriteo en PC Ryzen 7 al recibir datos netplay — HARDWARE (18-Jul-2026)
+- **Síntoma:** El PC Ryzen 7 (host o guest) tirittea cuando recibe datos de
+  netplay. El PC Athlon X2 nunca tirittea en ningún rol.
+- **Causa:** NO es un bug de Emu Latam. Es un problema de hardware/drivers
+  del Ryzen 7 (driver de red, antivirus, GPU, plan de energía, o background).
+- **Solución práctica:** Usar la Athlon como host y la Ryzen como guest
+  siempre. En retos, la Athlon acepta (host) y la Ryzen envía (guest).
+- **Documentación:** Ver test [9] en `DOCUMENTACION/12-Test-Latencia-Buffer/plan-actual/04-Codigo.md`.

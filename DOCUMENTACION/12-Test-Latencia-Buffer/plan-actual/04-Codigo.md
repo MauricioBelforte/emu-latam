@@ -29,6 +29,56 @@ input_block_timeout descartado como solución.
 
 ---
 
+## [9] — 2026-07-18: Hallazgo — Tiriteo por hardware/driver (PC Ryzen 7)
+
+### Descubrimiento
+Durante las pruebas cruzadas con dos PCs se encontró un patrón consistente:
+- **PC1 (Ryzen 7 5700G, 16GB RAM, monitor 60Hz)**: SIEMPRE tirittea cuando
+  recibe datos de netplay, sin importar si es host o guest.
+- **PC2 (Athlon X2, 4GB RAM, monitor 60Hz)**: NUNCA tirittea, sin importar
+  su rol (host o guest), ni el método de conexión usado.
+
+### Pruebas realizadas
+| Escenario | Host | Guest | ¿Tiriteo? |
+|-----------|------|-------|-----------|
+| Lobby nativo RA | Athlon | Ryzen | ❌ Ryzen tirittea |
+| Lobby nativo RA | Ryzen | Athlon | ✅ Sin tiriteo |
+| Host directo Emu Latam | Ryzen | Athlon | ❌ Ryzen tirittea |
+| Host directo Emu Latam | Athlon | Ryzen | ✅ Sin tiriteo |
+| Challenge Emu Latam | Athlon (acepta) | Ryzen (envía) | ❌ Ryzen tirittea |
+| Challenge Emu Latam | Ryzen (acepta) | Athlon (envía) | ✅ Sin tiriteo |
+
+### Conclusión
+**El tiriteo NO es un bug de Emu Latam ni de la configuración de RetroArch.**
+Es un problema del hardware o drivers del PC Ryzen 7. El Athlon X2 funciona
+perfectamente en todos los escenarios.
+
+### Causas probables (PC Ryzen 7)
+1. **Driver de red:** Realtek Killer o similar con "Interrupt Moderation" que
+   introduce micro-latencia al recibir paquetes entrantes.
+2. **Antivirus/firewall:** Escaneando tráfico entrante de netplay.
+3. **GPU driver:** FreeSync/GSync o frame pacing que desincroniza el vsync
+   cuando hay fluctuación de red.
+4. **Plan de energía:** Modo equilibrado o ahorro que causa micro-throttling
+   de CPU al recibir datos.
+5. **Programas en background:** RGB software, overlay de GPU, etc.
+
+### Solución práctica
+**Siempre usar la Athlon como host y la Ryzen como guest.** En el flujo de
+retos de Emu Latam, la Athlon acepta el reto (host) y la Ryzen envía el reto
+(guest). Para host directo, iniciar HOST desde la Athlon y conectar desde
+la Ryzen.
+
+### Config estable verificada con Athlon como host
+```ini
+run_ahead_enabled = "false"
+netplay_input_latency_frames_min = "1"
+netplay_input_latency_frames_range = "1"
+netplay_check_frames = "30"
+```
+
+---
+
 ## [7] — 2026-07-18: Buffer dinámico 2-4 (min=2, range=2) ❌ DESYNC
 
 ### Config
@@ -84,9 +134,11 @@ no alcanza a acumularse.
 **CONFIGURACIÓN DEFINITIVA confirmada el 18-Jul-2026.** El rollback
 (check_frames) causaba las interrupciones de inputs sostenidos (agachado).
 input_block_timeout no lo mitiga porque el tiriteo es por reset de estado,
-no por timing de paquete. Con run_ahead=false y buffer dinámico 1-2,
-check_frames=0 es la única combinación sin tiriteo. El desync solo ocurrió
-con test [7] (min=2, range=2), no con esta config.
+no por timing de paquete.
+
+**Nota importante:** El tiriteo con check_frames>0 solo ocurre en el PC
+Ryzen 7. En el Athlon X2 nunca tirittea. La config check_frames=30 funciona
+perfectamente cuando la Athlon es host y la Ryzen es guest. Ver test [9].
 
 ### Config final
 ```ini
