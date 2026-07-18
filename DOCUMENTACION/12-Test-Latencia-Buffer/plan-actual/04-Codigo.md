@@ -2,6 +2,22 @@
 
 ---
 
+## [6] — 2026-07-16: Buffer dinámico + check=0 (sin rollback)
+
+### Config
+- run_ahead_enabled: false
+- netplay_input_latency_frames_min: 1
+- netplay_input_latency_frames_range: 1
+- netplay_check_frames: 0
+
+### Objetivo
+Probar sin rollback. Si el personaje deja de pararse al agachado,
+confirmamos que el culpable es check_frames. Evaluar si hay desync.
+
+### Resultados (PENDIENTE)
+
+---
+
 ## [5] — 2026-07-16: Buffer dinámico + check=30 ❌
 
 ### Config
