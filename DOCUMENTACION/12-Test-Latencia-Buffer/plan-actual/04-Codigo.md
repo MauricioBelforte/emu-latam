@@ -2,31 +2,30 @@
 
 ---
 
-## [8] — 2026-07-18: check_frames=300 + input_block_timeout=1 🔄 EN PRUEBA
+## [8] — 2026-07-18: check_frames=300 + input_block_timeout (3 y 10) ❌ NO FUNCIONÓ
 
-### Config
+### Config probada
 - run_ahead_enabled: false
 - netplay_input_latency_frames_min: 1
 - netplay_input_latency_frames_range: 1
 - netplay_check_frames: 300
-- input_block_timeout: 3
+- input_block_timeout: 3 (luego 10)
 
 ### Objetivo
-Mantener verificación de sync (check_frames) sin que el personaje del
-guest se pare en el host durante la corrección. input_block_timeout=3
-le da 3ms extra al poll para capturar paquetes que llegan justo en el
-borde del frame, evitando falsos "releases".
+Evitar que el check sync interrumpa inputs que llegan justo en el
+borde del frame (tiriteo al presionar tecla durante el check).
 
 ### Resultados
-- **Personaje parado al agachado**: ?
-- **Doble toque en pelea**: ?
-- **Select de personajes**: ?
-- **Desync**: ?
-- **Lag percibido**: ?
-- **Audio**: ?
+- **input_block_timeout=3**: ❌ No solucionó el tiriteo
+- **input_block_timeout=10**: ❌ No solucionó el tiriteo, y causó desync de audio
+- **Conclusión**: El tiriteo no es un problema de "paquete que llega 1ms
+  tarde" — el check sync resetea estado del juego y ningún timeout
+  de input lo mitiga.
 
-### Conclusión
-Pendiente de prueba manual cross-PC.
+### Veredicto
+Volvemos a test [6] (check_frames=0, min=1, range=1).
+El desync ocurrió en test [7] (buffer 2-4), no en esta config.
+input_block_timeout descartado como solución.
 
 ---
 
@@ -82,11 +81,12 @@ no alcanza a acumularse.
 - **Audio**: ✅ Sin cortes
 
 ### Conclusión
-**ESTA ES LA CONFIGURACIÓN DEFINITIVA.** El rollback (check_frames) causaba
-las interrupciones de inputs sostenidos (agachado). Con run_ahead=false y
-buffer dinámico 1-2, no es necesario tener check_frames activo porque
-no hay desync. Anteriormente probamos check_frames=0 pero con run_ahead=true,
-por eso parecía que no funcionaba.
+**CONFIGURACIÓN DEFINITIVA confirmada el 18-Jul-2026.** El rollback
+(check_frames) causaba las interrupciones de inputs sostenidos (agachado).
+input_block_timeout no lo mitiga porque el tiriteo es por reset de estado,
+no por timing de paquete. Con run_ahead=false y buffer dinámico 1-2,
+check_frames=0 es la única combinación sin tiriteo. El desync solo ocurrió
+con test [7] (min=2, range=2), no con esta config.
 
 ### Config final
 ```ini
