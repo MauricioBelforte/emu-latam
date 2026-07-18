@@ -134,31 +134,33 @@ netplay_check_frames = "0"
 - **Localhost:** ✅ Parcial. Mejoró pero el doble toque persistía.
 - **Cross-PC Tailscale:** ⚠️ Seguía apareciendo.
 
-### ✅ Solución final (run_ahead desactivado + buffer dinámico 1-2)
+### ✅ Solución final (run_ahead desactivado + buffer dinámico 1-2 + check_frames=0)
 **Causa raíz:**
 - `run_ahead_enabled = "true"` → duplicaba inputs del guest en host
-- `buffer=1` no daba margen suficiente → inputs llegaban tarde y se repetían
-- `buffer=2` fijo solucionaba el doble toque pero se sentía lento (33ms)
+- `check_frames > 0` → rollback interrumpía inputs sostenidos (personaje se paraba al agachado)
+- `buffer=1` sin range → no daba margen, inputs llegaban tarde
 
-**Solución final en `retroarch/netplay_optimized.cfg`:**
+**Solución final en `retroarch/netplay_optimized.cfg` (test [6]):**
 ```ini
 run_ahead_enabled = "false"
 netplay_input_latency_frames_min = "1"
 netplay_input_latency_frames_range = "1"
-netplay_check_frames = "180"
+netplay_check_frames = "0"
 ```
-Buffer dinámico 1-2: arranca en 1 frame (instantáneo) pero sube a 2 automáticamente si hay fluctuación. Da lo mejor de ambos mundos.
+Con run_ahead=false + buffer dinámico 1-2, no es necesario check_frames porque no hay desync.
 
 ### Resultados finales (verificado 16-Jul-2026 cross-PC Tailscale)
 - **Jugabilidad:** ✅ MUY BUENA. Respuesta rápida, sin lag perceptible.
-- **Doble input en pelea:** ✅ No hay.
-- **Select de personajes:** ⚠️ Doble movimiento visual solo en host (no afecta selección real, parece artefacto de FBNeo en esa pantalla).
-- **Audio:** Sin cortes.
+- **Parpadeo al agachado:** ✅ Desapareció por completo (check_frames=0)
+- **Doble input en pelea:** ✅ No hay
+- **Select de personajes:** ⚠️ Mínimo doble visual en host (imperceptible, no afecta)
+- **Desync:** ✅ No se detectó
+- **Audio:** ✅ Sin cortes
 
 ### Retoques postergables
 - [x] Probar `latency_frames_min = "2"` → ❌ Se siente lento
 - [x] Probar `latency_frames_min = "1"` + `range = "1"` → ✅ MEJOR CONFIG
-- [ ] Investigar doble visual en select de personajes (¿check_frames=0 ayuda?)
+- [x] Probar `check_frames = "0"` → ✅ Elimina parpadeo al agachado
 - [ ] Probar RetroArch 1.18.0/1.16.0 para ver si tienen netplay nativo mejor
 - [ ] Test con otro core (Snes9x) para aislar si es específico de FBNeo
 

@@ -2,7 +2,7 @@
 
 ---
 
-## [6] — 2026-07-16: Buffer dinámico + check=0 (sin rollback)
+## [6] — 2026-07-16: Buffer dinámico + check=0 ✅ CONFIG FINAL
 
 ### Config
 - run_ahead_enabled: false
@@ -10,11 +10,28 @@
 - netplay_input_latency_frames_range: 1
 - netplay_check_frames: 0
 
-### Objetivo
-Probar sin rollback. Si el personaje deja de pararse al agachado,
-confirmamos que el culpable es check_frames. Evaluar si hay desync.
+### Resultados
+- **Personaje parado al agachado**: ✅ Desapareció por completo
+- **Doble toque en pelea**: ✅ No hay
+- **Select personajes**: ⚠️ Mínimo doble visual en host (imperceptible)
+- **Desync**: ✅ No se detectó
+- **Lag percibido**: 1 (instantáneo)
+- **Audio**: ✅ Sin cortes
 
-### Resultados (PENDIENTE)
+### Conclusión
+**ESTA ES LA CONFIGURACIÓN DEFINITIVA.** El rollback (check_frames) causaba
+las interrupciones de inputs sostenidos (agachado). Con run_ahead=false y
+buffer dinámico 1-2, no es necesario tener check_frames activo porque
+no hay desync. Anteriormente probamos check_frames=0 pero con run_ahead=true,
+por eso parecía que no funcionaba.
+
+### Config final
+```ini
+run_ahead_enabled = "false"
+netplay_input_latency_frames_min = "1"
+netplay_input_latency_frames_range = "1"
+netplay_check_frames = "0"
+```
 
 ---
 

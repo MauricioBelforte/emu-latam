@@ -118,11 +118,11 @@
 ## Problemas Conocidos
 
 ### ❌ Inputs duplicados del guest en host — RESUELTO (16-Jul-2026)
-- **Síntoma:** Guest presiona flecha una vez, host ve movimiento x2. Fast-forward (espacio) lo corregía temporalmente.
-- **Causa raíz:** `run_ahead_enabled = "true"` + buffer=1 insuficiente. Combinación de predicción de frames y buffer ajustado causaba duplicación.
-- **Solución final:** `run_ahead_enabled = "false"` + `netplay_input_latency_frames_min = "1"` + `range = "1"` (buffer dinámico 1-2) + `check_frames = "180"` en `retroarch/netplay_optimized.cfg`.
-- **Excepción conocida:** Select de personajes puede mostrar doble movimiento visual en host (artefacto de FBNeo, no afecta selección real).
-- **Verificado:** Jugabilidad muy buena en ambos sentidos host/guest.
+- **Síntoma:** Guest presiona flecha una vez, host ve movimiento x2. Fast-forward (espacio) lo corregía temporalmente. Personaje se paraba solo al mantener agachado.
+- **Causa raíz:** `run_ahead_enabled = "true"` (predicción duplicaba inputs) + `check_frames > 0` (rollback interrumpía inputs sostenidos) + buffer=1 sin range.
+- **Solución final:** `run_ahead_enabled = "false"` + `netplay_input_latency_frames_min = "1"` + `range = "1"` (buffer dinámico 1-2) + `check_frames = "0"` en `retroarch/netplay_optimized.cfg`.
+- **Excepción conocida:** Mínimo doble visual en select de personajes en host (imperceptible, no afecta).
+- **Verificado:** ✅ Jugabilidad excelente, sin parpadeo, sin desync. Config definitiva test [6].
 
 ### ⚠️ Nakama se cae inesperadamente — MITIGADO (16-Jul-2026)
 - **Síntoma:** Nakama.exe se detenía sin motivo, dejando la app sin servidor.
