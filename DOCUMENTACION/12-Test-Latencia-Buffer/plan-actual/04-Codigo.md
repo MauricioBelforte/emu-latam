@@ -92,27 +92,26 @@ está en la PC más potente (Ryzen).
 
 ---
 
-## [10] — 2026-07-18: Delay 5s en spawn RA 🔄 EN PRUEBA
+## [10] — 2026-07-18: Delay 5s en spawn RA ❌ DESCATADO
 
 ### Cambio en código
-Se agregó `await new Promise(r => setTimeout(r, 5000))` antes del
-`spawn()` de RetroArch en `client/src/main/index.ts` (handler `launch-game`).
+Se agregó `LAUNCH_DELAY_MS` configurable antes del `spawn()` de RetroArch.
 
 ### Objetivo
-Si el Ryzen abre RA instantáneamente y la Athlon tarda, el Ryzen acumula
-frames de ventaja antes de la conexión netplay, y el primer check sync
-encuentra diferencias que causan tiriteo. El delay de 5s busca que ambas
-PCs inicien netplay sincronizadas (ambas esperan 5s).
+Sincronizar el inicio de RetroArch entre ambas PCs. Hipótesis: si el Ryzen
+abre RA instantáneamente y la Athlon tarda, el Ryzen acumula ventaja de
+frames antes de la conexión netplay, y el primer check sync corregía
+bruscamente.
 
-### Resultados
-- **Ryzen como host**: ?
-- **Athlon como host**: ?
-- **Ryzen como guest**: ?
-- **Tiriteo**: ?
-- **Desync**: ?
+### Resultado
+- **Delay 500s:** ❌ No hizo ninguna diferencia. El tiriteo persistió igual.
+- **Conclusión:** El tiriteo NO es por desincronización de inicio entre PCs.
+  Es inherente al check sync de RetroArch.
 
-### Conclusión
-Pendiente de prueba cross-PC.
+### Veredicto
+Test descartado. El delay en el spawn no afecta el tiriteo.
+`LAUNCH_DELAY_MS` vuelto a 0 en `index.ts`.
+Revertir comentarios en PR apuntando a lo experimental de este test.
 
 ---
 

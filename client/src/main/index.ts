@@ -11,7 +11,7 @@ import type { ChildProcess } from "child_process";
 // ========================================
 // CONSTANTES DE AYUDA
 // ========================================
-const LAUNCH_DELAY_MS = 0; // ← CAMBIAR A 5000 en PC rápida (Ryzen) para sincronizar inicio
+const LAUNCH_DELAY_MS = 0; // Descartado: no afecta el tiriteo (test [10])
 // ========================================
 
 const LOG_DIR = path.resolve(__dirname, "../../../logs");
