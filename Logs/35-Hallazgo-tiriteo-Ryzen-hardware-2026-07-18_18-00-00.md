@@ -1,12 +1,16 @@
-# Log 35 — Hallazgo: Tiriteo por hardware/driver del PC Ryzen 7
+# Log 35 — Hallazgo: Tiriteo por check sync en AMBAS PCs
 
 **Fecha:** 2026-07-18 18:00:00
 
 ## Resumen
-Se descubrió que el tiriteo (personaje se para al agachado durante netplay)
-NO es un bug de Emu Latam ni de la configuración de RetroArch, sino un
-problema de hardware/drivers del PC Ryzen 7. El PC Athlon X2 nunca presenta
-tiriteo en ningún escenario.
+Se descubrió que el tiriteo (personaje se agacha/se para, frena/acelera
+durante netplay) NO es exclusivo del PC Ryzen 7. Ocurre en AMBAS PCs,
+pero el Ryzen lo muestra muy notorio (rítmico, sincrónico con el intervalo
+check_frames) mientras el Athlon lo muestra casi imperceptible.
+
+El tiriteo afecta TODOS los inputs direccionales (← → ↓), no solo el
+agachado. Es una consecuencia directa del check sync de RetroArch que
+congela momentáneamente el sistema de inputs.
 
 ## Pruebas realizadas este día
 
@@ -22,13 +26,19 @@ tiriteo en ningún escenario.
   porque el check sync resetea estado del juego, no es un problema de timing.
   input_block_timeout=10 causó desync de audio.
 
-### Hallazgo [9] — Tiriteo por hardware
-- **Descubrimiento clave:** El tiriteo depende de QUÉ PC recibe los datos,
-  no del método de conexión ni de quién es host/guest.
-- **PC Ryzen 7 5700G:** SIEMPRE tirittea al recibir datos netplay
-- **PC Athlon X2:** NUNCA tirittea
-- **Confirmado en:** Lobby nativo RA, host directo, retos Emu Latam
-- **Solución práctica:** Athlon como host, Ryzen como guest
+### Hallazgo [9] — Tiriteo por check sync en AMBAS PCs
+- **Descubrimiento clave:** El tiriteo NO es exclusivo del Ryzen.
+  - Ryzen: Muy notorio, rítmico, sincrónico con check_frames.
+    Afecta todos los inputs direccionales (↓ ← →). Con check=30 se
+    agacha/se para cada ~0.5s. Con check=180 cada ~3s.
+  - Athlon: El MISMO tiriteo existe pero es casi imperceptible.
+    Esporádico y asimétrico.
+- **Confirmado en:** Lobby nativo RA, host directo, retos Emu Latam.
+- **Causa:** El check sync de RetroArch congela momentáneamente el
+  sistema de inputs. No es un problema de "paquete que llega tarde".
+- **Solución:** check_frames=0 elimina el tiriteo (test [6]) pero sin
+  verificación de sync. Con check_frames=30, usar Athlon como host
+  minimiza el tiriteo percibido en el Ryzen.
 
 ### Config estable final
 ```ini

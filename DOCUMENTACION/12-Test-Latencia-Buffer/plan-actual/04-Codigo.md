@@ -29,53 +29,57 @@ input_block_timeout descartado como solución.
 
 ---
 
-## [9] — 2026-07-18: Hallazgo — Tiriteo por hardware/driver (PC Ryzen 7)
+## [9] — 2026-07-18: Hallazgo — Tiriteo por check sync en AMBAS PCs
 
 ### Descubrimiento
-Durante las pruebas cruzadas con dos PCs se encontró un patrón consistente:
-- **PC1 (Ryzen 7 5700G, 16GB RAM, monitor 60Hz)**: SIEMPRE tirittea cuando
-  recibe datos de netplay, sin importar si es host o guest.
-- **PC2 (Athlon X2, 4GB RAM, monitor 60Hz)**: NUNCA tirittea, sin importar
-  su rol (host o guest), ni el método de conexión usado.
+Se encontró un patrón que inicialmente parecía específico del PC Ryzen 7,
+pero tras análisis más detallado:
 
-### Pruebas realizadas
-| Escenario | Host | Guest | ¿Tiriteo? |
-|-----------|------|-------|-----------|
-| Lobby nativo RA | Athlon | Ryzen | ❌ Ryzen tirittea |
-| Lobby nativo RA | Ryzen | Athlon | ✅ Sin tiriteo |
-| Host directo Emu Latam | Ryzen | Athlon | ❌ Ryzen tirittea |
-| Host directo Emu Latam | Athlon | Ryzen | ✅ Sin tiriteo |
-| Challenge Emu Latam | Athlon (acepta) | Ryzen (envía) | ❌ Ryzen tirittea |
-| Challenge Emu Latam | Ryzen (acepta) | Athlon (envía) | ✅ Sin tiriteo |
+- **PC1 (Ryzen 7 5700G, 16GB RAM, monitor 60Hz)**: Tiriteo MUY NOTORIO.
+  El personaje se agacha/se para, frena/acelera, cada `check_frames/60`
+  segundos. Con check=30 → cada ~0.5s. Con check=180 → cada ~3s.
+  Sin importar si es host o guest, ni el método de conexión.
+- **PC2 (Athlon X2, 4GB RAM, monitor 60Hz)**: El MISMO tiriteo existe pero
+  es casi imperceptible. Esporádico y asimétrico.
+
+### Características del tiriteo
+- **No es solo agachado:** Afecta TODOS los inputs direccionales (← → también).
+- **Es rítmico:** Perfectamente sincronizado con el intervalo de `check_frames`.
+- **Ocurre en AMBAS PCs:** La diferencia es la intensidad con que se percibe.
+- **Causa:** El check sync de RetroArch congela momentáneamente el sistema
+  de inputs. No es un problema de "paquete que llega tarde" — es una
+  pausa/rolback que interrumpe el input fluido.
 
 ### Conclusión
-**El tiriteo NO es un bug de Emu Latam ni de la configuración de RetroArch.**
-Es un problema del hardware o drivers del PC Ryzen 7. El Athlon X2 funciona
-perfectamente en todos los escenarios.
+**El tiriteo NO es exclusivo del Ryzen.** El Athlon también lo tiene pero
+es imperceptible. La diferencia de notoriedad probablemente se deba a:
+1. Ryzen maneja las interrupciones/sincronización de forma más agresiva
+2. Ryzen tiene frecuencias de CPU que fluctúan más (boost vs idle)
+3. Ryzen tiene GPU/displays que acentúan micro-pausas
 
-### Causas probables (PC Ryzen 7)
-1. **Driver de red:** Realtek Killer o similar con "Interrupt Moderation" que
-   introduce micro-latencia al recibir paquetes entrantes.
-2. **Antivirus/firewall:** Escaneando tráfico entrante de netplay.
-3. **GPU driver:** FreeSync/GSync o frame pacing que desincroniza el vsync
-   cuando hay fluctuación de red.
-4. **Plan de energía:** Modo equilibrado o ahorro que causa micro-throttling
-   de CPU al recibir datos.
-5. **Programas en background:** RGB software, overlay de GPU, etc.
+### Soluciones viables
+- **check_frames=0**: Elimina el tiriteo por completo en ambas PCs, pero
+  no hay verificación de sync. Riesgo de desync asumido. Solo ocurrió
+  con test [7] (buffer 2-4), no con test [6] (buffer 1-2).
+- **check_frames=30 (o más)**: Verifica sync, pero el tiriteo es inevitable
+  en el Ryzen. En el Athlon pasa desapercibido. La dirección correcta
+  (Athlon host, Ryzen guest) no elimina el tiriteo — solo evita que sea
+  en la PC que más lo nota en ese rol específico.
+- En la práctica, con check_frames=30 ambos lados lo tienen, pero el que
+  está en la Athlon no lo nota y el que está en el Ryzen sí.
+  Por eso la "solución" de Athlon host funciona: el tiriteo del Ryzen
+  como guest no existe (porque el check lo hace el host, que es la Athlon
+  y pasa desapercibido).
 
-### Solución práctica
-**Siempre usar la Athlon como host y la Ryzen como guest.** En el flujo de
-retos de Emu Latam, la Athlon acepta el reto (host) y la Ryzen envía el reto
-(guest). Para host directo, iniciar HOST desde la Athlon y conectar desde
-la Ryzen.
-
-### Config estable verificada con Athlon como host
+### Config recomendada
 ```ini
 run_ahead_enabled = "false"
 netplay_input_latency_frames_min = "1"
 netplay_input_latency_frames_range = "1"
 netplay_check_frames = "30"
 ```
+Athlon como host para minimizar el tiriteo percibido por el usuario que
+está en la PC más potente (Ryzen).
 
 ---
 

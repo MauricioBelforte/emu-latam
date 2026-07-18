@@ -167,11 +167,11 @@ Con run_ahead=false + buffer dinámico 1-2, no es necesario check_frames porque 
 - [ ] Test con otro core (Snes9x) para aislar si es específico de FBNeo
 
 ### Hallazgo importante (18-Jul-2026)
-- [x] **El tiriteo es por hardware/driver del PC Ryzen, no por Emu Latam.**
-  El Athlon X2 nunca tirittea. El Ryzen siempre tirittea al recibir datos
-  netplay, sin importar método de conexión (lobby nativo, host directo, retos).
+- [x] **El tiriteo con check_frames > 0 ocurre en AMBAS PCs.**
+  El Ryzen lo muestra muy notorio (rítmico, sincrónico con el intervalo
+  check). El Athlon lo muestra casi imperceptible. Afecta todos los inputs
+  direccionales (↓ ← →), no solo el agachado.
   Ver test [9] en `DOCUMENTACION/12-Test-Latencia-Buffer/plan-actual/04-Codigo.md`.
-- [x] **Solución práctica:** Athlon como host, Ryzen como guest siempre.
 
 ---
 

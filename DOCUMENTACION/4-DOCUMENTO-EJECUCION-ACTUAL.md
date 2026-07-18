@@ -129,11 +129,15 @@
 - **Solución:** Auto-restart en crash + health check cada 30s con máx 5 reintentos.
 - **Código:** `client/src/main/index.ts` — `launchNakama()` + `startNakamaHealthCheck()`
 
-### ⚠️ Tiriteo en PC Ryzen 7 al recibir datos netplay — HARDWARE (18-Jul-2026)
-- **Síntoma:** El PC Ryzen 7 (host o guest) tirittea cuando recibe datos de
-  netplay. El PC Athlon X2 nunca tirittea en ningún rol.
-- **Causa:** NO es un bug de Emu Latam. Es un problema de hardware/drivers
-  del Ryzen 7 (driver de red, antivirus, GPU, plan de energía, o background).
-- **Solución práctica:** Usar la Athlon como host y la Ryzen como guest
-  siempre. En retos, la Athlon acepta (host) y la Ryzen envía (guest).
-- **Documentación:** Ver test [9] en `DOCUMENTACION/12-Test-Latencia-Buffer/plan-actual/04-Codigo.md`.
+### ⚠️ Tiriteo en check_frames > 0 en AMBAS PCs (18-Jul-2026)
+- **Síntoma:** Con `check_frames > 0`, los inputs direccionales se
+  interrumpen rítmicamente (check_frames/60 segundos). El personaje
+  se agacha/se para, frena/acelera. Ocurre en TODOS los inputs (← → ↓).
+- **Causa:** El check sync de RetroArch congela momentáneamente el sistema
+  de inputs. NO es bug de Emu Latam.
+- **Ambas PCs afectadas:** El Ryzen 7 lo muestra muy notorio (rítmico,
+  predecible). El Athlon X2 lo muestra casi imperceptible (esporádico).
+- **Solución práctica:** `check_frames=0` elimina el tiriteo por completo
+  (test [6]). Alternativamente, usar la Athlon como host minimiza el
+  tiriteo percibido por el usuario en el Ryzen.
+- **Documentación:** Ver tests [4]-[9] en `DOCUMENTACION/12-Test-Latencia-Buffer/plan-actual/04-Codigo.md`.
