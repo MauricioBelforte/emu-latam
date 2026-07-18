@@ -375,6 +375,10 @@ app.whenReady().then(() => {
     }
     try {
       console.log("🚀 SPAWNING:", retroArchPath, spawnArgs.join(" "));
+      // PRUEBA: delay 5s para sincronizar inicio entre PCs (test [10])
+      // Hipótesis: si una PC abre RA al instante y la otra tarda, el netplay
+      // arranca desincronizado y el primer check sync corrige bruscamente.
+      await new Promise(r => setTimeout(r, 5000));
       const child = spawn(retroArchPath, spawnArgs, { cwd: retroArchDir, detached: true, stdio: ["ignore", "pipe", "pipe"] });
       child.on("error", (err) => console.error("❌ FALLO DE SPAWN:", err));
       child.on("close", (code) => {
