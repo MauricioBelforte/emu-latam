@@ -9,12 +9,12 @@
 - netplay_input_latency_frames_min: 1
 - netplay_input_latency_frames_range: 1
 - netplay_check_frames: 300
-- input_block_timeout: 1
+- input_block_timeout: 3
 
 ### Objetivo
 Mantener verificación de sync (check_frames) sin que el personaje del
-guest se pare en el host durante la corrección. input_block_timeout=1
-le da 1ms extra al poll para capturar paquetes que llegan justo en el
+guest se pare en el host durante la corrección. input_block_timeout=3
+le da 3ms extra al poll para capturar paquetes que llegan justo en el
 borde del frame, evitando falsos "releases".
 
 ### Resultados
