@@ -8,6 +8,12 @@ import http from "http";
 import net from "net";
 import type { ChildProcess } from "child_process";
 
+// ========================================
+// CONSTANTES DE AYUDA
+// ========================================
+const LAUNCH_DELAY_MS = 0; // ← CAMBIAR A 5000 en PC rápida (Ryzen) para sincronizar inicio
+// ========================================
+
 const LOG_DIR = path.resolve(__dirname, "../../../logs");
 const LOG_ROTATED_DIR = path.join(LOG_DIR, "rotated");
 const LOG_FILE = path.join(LOG_DIR, "main_process.log");
@@ -375,10 +381,10 @@ app.whenReady().then(() => {
     }
     try {
       console.log("🚀 SPAWNING:", retroArchPath, spawnArgs.join(" "));
-      // PRUEBA: delay 5s para sincronizar inicio entre PCs (test [10])
-      // Hipótesis: si una PC abre RA al instante y la otra tarda, el netplay
-      // arranca desincronizado y el primer check sync corrige bruscamente.
-      await new Promise(r => setTimeout(r, 5000));
+      if (LAUNCH_DELAY_MS > 0) {
+        console.log(`⏳ Esperando ${LAUNCH_DELAY_MS}ms antes de lanzar RA (LAUNCH_DELAY_MS)...`);
+        await new Promise(r => setTimeout(r, LAUNCH_DELAY_MS));
+      }
       const child = spawn(retroArchPath, spawnArgs, { cwd: retroArchDir, detached: true, stdio: ["ignore", "pipe", "pipe"] });
       child.on("error", (err) => console.error("❌ FALLO DE SPAWN:", err));
       child.on("close", (code) => {
