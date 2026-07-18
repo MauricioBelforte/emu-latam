@@ -11,7 +11,7 @@ import type { ChildProcess } from "child_process";
 // ========================================
 // CONSTANTES DE AYUDA
 // ========================================
-const LAUNCH_DELAY_MS = 0; // Descartado: no afecta el tiriteo (test [10])
+// LAUNCH_DELAY_MS descartado — test [10] demostró que no afecta el tiriteo
 // ========================================
 
 const LOG_DIR = path.resolve(__dirname, "../../../logs");
@@ -381,10 +381,6 @@ app.whenReady().then(() => {
     }
     try {
       console.log("🚀 SPAWNING:", retroArchPath, spawnArgs.join(" "));
-      if (LAUNCH_DELAY_MS > 0) {
-        console.log(`⏳ Esperando ${LAUNCH_DELAY_MS}ms antes de lanzar RA (LAUNCH_DELAY_MS)...`);
-        await new Promise(r => setTimeout(r, LAUNCH_DELAY_MS));
-      }
       const child = spawn(retroArchPath, spawnArgs, { cwd: retroArchDir, detached: true, stdio: ["ignore", "pipe", "pipe"] });
       child.on("error", (err) => console.error("❌ FALLO DE SPAWN:", err));
       child.on("close", (code) => {
