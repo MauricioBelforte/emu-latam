@@ -81,6 +81,15 @@ netplay_check_frames = "30"
 Athlon como host para minimizar el tiriteo percibido por el usuario que
 está en la PC más potente (Ryzen).
 
+### Pendiente para próxima sesión
+- [ ] **Probar delay intencional al lanzar RA en Ryzen:** Si la Athlon
+  tarda en abrir RetroArch y el Ryzen abre instantáneo, el Ryzen tiene
+  una "ventaja" de frames antes de que la conexión netplay se establezca.
+  Agregar un setTimeout de 3-5s antes de spawnear RA en el Ryzen para
+  que ambas PCs inicien netplay sincronizadas. Hipótesis: esto podría
+  reducir o eliminar el tiriteo porque el primer check sync no encontraría
+  diferencias de inicialización.
+
 ---
 
 ## [7] — 2026-07-18: Buffer dinámico 2-4 (min=2, range=2) ❌ DESYNC
