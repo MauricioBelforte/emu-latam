@@ -104,10 +104,10 @@ const StatusBadge = styled.span`
 `;
 
 interface SidebarProps {
-  isHostingSala?: boolean;
+  showPlayers?: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ isHostingSala }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ showPlayers }) => {
   const { onlineUsers } = useSocial();
   const { userId } = useAuth();
   const { initiateChallenge, challengeStatus } = useChallenge();
@@ -125,7 +125,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isHostingSala }) => {
 
   const isBusy = challengeStatus !== "idle";
 
-  if (!isHostingSala) {
+  if (!showPlayers) {
     return (
       <SidebarContainer>
         <Title>PLAYERS ONLINE (0)</Title>

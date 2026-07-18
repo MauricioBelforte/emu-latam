@@ -74,10 +74,10 @@ interface AppShellProps {
   children: React.ReactNode;
   showBack?: boolean;
   onBack?: () => void;
-  isHostingSala?: boolean;
+  showPlayers?: boolean;
 }
 
-export const AppShell: React.FC<AppShellProps> = ({ children, showBack, onBack, isHostingSala }) => {
+export const AppShell: React.FC<AppShellProps> = ({ children, showBack, onBack, showPlayers }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [chatOpen, setChatOpen] = useState(true);
 
@@ -105,7 +105,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children, showBack, onBack, 
       <ContentArea>
         <Pane $open={sidebarOpen} $width={250}>
           <SidebarInner>
-            <Sidebar isHostingSala={isHostingSala} />
+            <Sidebar showPlayers={showPlayers} />
           </SidebarInner>
         </Pane>
         <MainContent>{children}</MainContent>

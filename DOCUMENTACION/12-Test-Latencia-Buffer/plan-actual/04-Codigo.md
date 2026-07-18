@@ -2,6 +2,69 @@
 
 ---
 
+## [8] — 2026-07-18: check_frames=300 + input_block_timeout=1 🔄 EN PRUEBA
+
+### Config
+- run_ahead_enabled: false
+- netplay_input_latency_frames_min: 1
+- netplay_input_latency_frames_range: 1
+- netplay_check_frames: 300
+- input_block_timeout: 1
+
+### Objetivo
+Mantener verificación de sync (check_frames) sin que el personaje del
+guest se pare en el host durante la corrección. input_block_timeout=1
+le da 1ms extra al poll para capturar paquetes que llegan justo en el
+borde del frame, evitando falsos "releases".
+
+### Resultados
+- **Personaje parado al agachado**: ?
+- **Doble toque en pelea**: ?
+- **Select de personajes**: ?
+- **Desync**: ?
+- **Lag percibido**: ?
+- **Audio**: ?
+
+### Conclusión
+Pendiente de prueba manual cross-PC.
+
+---
+
+## [7] — 2026-07-18: Buffer dinámico 2-4 (min=2, range=2) ❌ DESYNC
+
+### Config
+- run_ahead_enabled: false
+- netplay_input_latency_frames_min: 2
+- netplay_input_latency_frames_range: 2
+- netplay_check_frames: 0
+
+### Objetivo
+Eliminar el doble visual en select de personajes subiendo el buffer
+base a 2 frames, con rango dinámico hasta 4 si hay jitter.
+
+### Resultados
+- **Jugabilidad general**: ✅ Igual que antes, no se siente más lento
+- **Doble input en pelea**: ✅ Sin doble toque
+- **Select de personajes**: ⚠️ 1er intento: doble movimiento; 2do intento: no
+- **Lag percibido**: 2 (igual que min=1, tolerable)
+- **Desync**: ❌ OCURRIÓ (mató la partida)
+- **Audio**: Sin cortes
+
+### Verificación (revertido a test [6])
+Se revirtió a `min=1, range=1, check_frames=0` y se probó de nuevo:
+- No se logró reproducir el desync
+- La config test [6] se mantiene estable sin desync
+
+### Conclusión
+El buffer más grande (`min=2, range=2`) causó desync. Posiblemente
+porque al tener 2-4 frames de margen, el estado del juego divergió
+sin que `check_frames=0` lo detectara. Con buffer 1-2 la divergencia
+no alcanza a acumularse.
+
+**CONFIG DEFINITIVA: test [6] — min=1, range=1, check_frames=0, run_ahead=false**
+
+---
+
 ## [6] — 2026-07-16: Buffer dinámico + check=0 ✅ CONFIG FINAL
 
 ### Config

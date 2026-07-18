@@ -423,7 +423,7 @@ function App() {
     <ThemeProvider theme={theme}>
       <GlobalStyles />
       <AppShell
-        isHostingSala={isHostingSala}
+        showPlayers={isAuthenticated}
         showBack={isAuthenticated || joinMode === "join"}
         onBack={isAuthenticated ? () => {
           logout();
