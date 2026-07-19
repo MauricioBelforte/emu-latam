@@ -5,6 +5,7 @@ import { theme } from "./styles/theme";
 import { GlobalStyles } from "./styles/GlobalStyles";
 import { AppShell } from "./components/layout/AppShell";
 import { ChallengeModal } from "./components/ui/ChallengeModal";
+import { NetplayConfigModal } from "./components/ui/NetplayConfigModal";
 
 const pulse = keyframes`
   0%, 100% { opacity: 1; }
@@ -206,6 +207,7 @@ function App() {
   const [copiedIp, setCopiedIp] = useState(false);
   const [peerReachable, setPeerReachable] = useState<boolean | null>(null);
   const [showOtherMethods, setShowOtherMethods] = useState(false);
+  const [showNetplayConfig, setShowNetplayConfig] = useState(false);
   const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -431,6 +433,8 @@ function App() {
           setStatusText("");
           setPeerReachable(null);
         } : () => setJoinMode(null)}
+        showNetplayConfig={showNetplayConfig}
+        onToggleNetplayConfig={() => setShowNetplayConfig((o) => !o)}
       >
         <GameCard>
           <GameTitle>READY TO <span>FIGHT?</span></GameTitle>
@@ -621,6 +625,7 @@ function App() {
         </GameCard>
       </AppShell>
       <ChallengeModal />
+      {showNetplayConfig && <NetplayConfigModal isOpen={showNetplayConfig} onClose={() => setShowNetplayConfig(false)} />}
     </ThemeProvider>
   );
 }

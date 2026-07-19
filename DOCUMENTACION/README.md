@@ -14,4 +14,5 @@
 | 09-Testing | Módulo centralizado de testing automatizado | ✅ Completado | 2026-07-14 | Automatizado (23 tests UX) | Node.js, net, child_process |
 | 10-Automatizacion-Conexion | Automatización de conexión P2P sin compartir IP manualmente | 🔄 Plan inicial | 2026-07-15 | — | Nakama Storage, Tailscale, Retos, Matchmaking |
 | 11-Posibles-Fallas | Registro incremental de fallas y soluciones | ✅ Completado | 2026-07-16 | — | Referencia (no contiene código) |
-| 12-Test-Latencia-Buffer | Laboratorio de pruebas de latencia, buffer y rollback | 🔄 Pruebas activas | 2026-07-16 | Manual | RetroArch, netplay_optimized.cfg |
+| 12-Test-Latencia-Buffer | Laboratorio de pruebas de latencia, buffer y rollback | ✅ Completado | 2026-07-18 | Manual (10 tests) | RetroArch, netplay_optimized.cfg |
+| 13-Netplay-Config-Editor | Editor visual de configuración netplay desde Emu Latam | 🔄 Plan inicial | 2026-07-18 | — | RetroArch, netplay_optimized.cfg, IPC |

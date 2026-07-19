@@ -75,9 +75,11 @@ interface AppShellProps {
   showBack?: boolean;
   onBack?: () => void;
   showPlayers?: boolean;
+  showNetplayConfig?: boolean;
+  onToggleNetplayConfig?: () => void;
 }
 
-export const AppShell: React.FC<AppShellProps> = ({ children, showBack, onBack, showPlayers }) => {
+export const AppShell: React.FC<AppShellProps> = ({ children, showBack, onBack, showPlayers, showNetplayConfig, onToggleNetplayConfig }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [chatOpen, setChatOpen] = useState(true);
 
@@ -101,6 +103,8 @@ export const AppShell: React.FC<AppShellProps> = ({ children, showBack, onBack, 
         onToggleChat={() => setChatOpen((o) => !o)}
         showBack={showBack}
         onBack={onBack}
+        showNetplayConfig={showNetplayConfig}
+        onToggleNetplayConfig={onToggleNetplayConfig}
       />
       <ContentArea>
         <Pane $open={sidebarOpen} $width={250}>

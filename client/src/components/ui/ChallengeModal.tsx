@@ -153,6 +153,20 @@ const StatusText = styled.p<{ $color?: string }>`
   text-shadow: 0 0 10px ${(p) => p.$color || p.theme.colors.accent};
 `;
 
+const CloseButton = styled.button`
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  background: none;
+  border: none;
+  color: ${(p) => p.theme.colors.textSecondary || "#888"};
+  font-size: 1.5rem;
+  cursor: pointer;
+  z-index: 10;
+  line-height: 1;
+  &:hover { color: #fff; }
+`;
+
 const METHOD_META: Record<string, { label: string; accent: string }> = {
   tailscale: { label: "Tailscale (P2P)", accent: "#0af" },
   bore: { label: "Bore (Tnnel)", accent: "#00f3ff" },
@@ -160,7 +174,7 @@ const METHOD_META: Record<string, { label: string; accent: string }> = {
 };
 
 export const ChallengeModal: React.FC = () => {
-  const { challengeStatus, currentChallenge, pendingTarget, selectMethod, cancelMethodPicker, acceptChallenge, rejectChallenge, cancelChallenge } = useChallenge();
+  const { challengeStatus, currentChallenge, pendingTarget, selectMethod, cancelMethodPicker, acceptChallenge, rejectChallenge, cancelChallenge, resetChallenge } = useChallenge();
 
   if (challengeStatus === "idle" || !currentChallenge && challengeStatus !== "picking_method") return null;
 
@@ -213,6 +227,7 @@ export const ChallengeModal: React.FC = () => {
     return (
       <Overlay>
         <ModalBox>
+          <CloseButton onClick={resetChallenge}>&times;</CloseButton>
           <ChallengeIcon>🔥</ChallengeIcon>
           <Title>PELEA!</Title>
           <StatusText $color="#00ff66">CARGANDO KOF '98...</StatusText>
@@ -225,9 +240,10 @@ export const ChallengeModal: React.FC = () => {
     return (
       <Overlay>
         <ModalBox>
+          <CloseButton onClick={resetChallenge}>&times;</CloseButton>
           <ChallengeIcon>🚫</ChallengeIcon>
           <Title>RETO RECHAZADO</Title>
-          <StatusText $color="#ff0033">Mejor suerte la prxima...</StatusText>
+          <StatusText $color="#ff0033">Mejor suerte la próxima...</StatusText>
         </ModalBox>
       </Overlay>
     );
@@ -237,6 +253,7 @@ export const ChallengeModal: React.FC = () => {
     return (
       <Overlay>
         <ModalBox>
+          <CloseButton onClick={resetChallenge}>&times;</CloseButton>
           <ChallengeIcon>⏰</ChallengeIcon>
           <Title>TIEMPO AGOTADO</Title>
           <StatusText $color="#ffea00">El reto ha expirado</StatusText>

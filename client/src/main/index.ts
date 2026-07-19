@@ -732,6 +732,70 @@ app.whenReady().then(() => {
     }
   });
 
+  // ========================================
+  // NETPLAY CONFIG EDITOR (Módulo 13)
+  // ========================================
+  const NETPLAY_CFG_PATH = path.join(getProjectRoot(), "retroarch", "netplay_optimized.cfg");
+  const NETPLAY_EDITABLE_KEYS = [
+    "netplay_check_frames",
+    "netplay_input_latency_frames_min",
+    "netplay_input_latency_frames_range",
+    "run_ahead_enabled",
+    "netplay_input_block_timeout",
+  ];
+  const NETPLAY_DEFAULTS: Record<string, string> = {
+    netplay_check_frames: "30",
+    netplay_input_latency_frames_min: "1",
+    netplay_input_latency_frames_range: "1",
+    run_ahead_enabled: "false",
+    netplay_input_block_timeout: "0",
+  };
+
+  ipcMain.handle("read-netplay-config", async () => {
+    try {
+      const content = fs.readFileSync(NETPLAY_CFG_PATH, "utf-8");
+      const config: Record<string, string> = {};
+      for (const line of content.split("\n")) {
+        const match = line.match(/^(\w+)\s*=\s*"([^"]*)"\s*$/);
+        if (match && NETPLAY_EDITABLE_KEYS.includes(match[1])) {
+          config[match[1]] = match[2];
+        }
+      }
+      return { success: true, config };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  });
+
+  ipcMain.handle("write-netplay-config", async (_event, { key, value }: { key: string; value: string }) => {
+    try {
+      if (!NETPLAY_EDITABLE_KEYS.includes(key)) return { success: false, error: "Clave no editable" };
+      let content = fs.readFileSync(NETPLAY_CFG_PATH, "utf-8");
+      const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      content = content.replace(new RegExp(`^(${escapedKey}\\s*=\\s*)"([^"]*)"`, "m"), `$1"${value}"`);
+      fs.writeFileSync(NETPLAY_CFG_PATH, content, "utf-8");
+      console.log(`[NETPLAY CFG] ${key} = "${value}"`);
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  });
+
+  ipcMain.handle("restore-netplay-config", async () => {
+    try {
+      let content = fs.readFileSync(NETPLAY_CFG_PATH, "utf-8");
+      for (const [key, value] of Object.entries(NETPLAY_DEFAULTS)) {
+        const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        content = content.replace(new RegExp(`^(${escapedKey}\\s*=\\s*)"([^"]*)"`, "m"), `$1"${value}"`);
+      }
+      fs.writeFileSync(NETPLAY_CFG_PATH, content, "utf-8");
+      console.log("[NETPLAY CFG] Valores restaurados a defaults");
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  });
+
   launchNakama();
   startNakamaHealthCheck();
   createWindow();

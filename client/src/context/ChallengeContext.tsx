@@ -255,6 +255,7 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
       challengeStatus, currentChallenge, pendingTarget,
       sendChallenge, initiateChallenge, selectMethod,
       cancelChallenge, cancelMethodPicker, acceptChallenge, rejectChallenge,
+      resetChallenge,
     }}>
       {children}
     </ChallengeContext.Provider>

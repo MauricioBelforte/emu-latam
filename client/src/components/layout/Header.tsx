@@ -63,6 +63,8 @@ interface HeaderProps {
   onToggleChat: () => void;
   showBack?: boolean;
   onBack?: () => void;
+  showNetplayConfig?: boolean;
+  onToggleNetplayConfig?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -72,6 +74,8 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleChat,
   showBack,
   onBack,
+  showNetplayConfig,
+  onToggleNetplayConfig,
 }) => {
   const { isConnected, isAuthenticated, username } = useAuth();
 
@@ -104,6 +108,11 @@ export const Header: React.FC<HeaderProps> = ({
           {showBack && onBack && (
             <button onClick={onBack} style={{ background: "#c44", border: "none", color: "#fff", cursor: "pointer", padding: "4px 12px", fontSize: "0.75rem", fontFamily: "Inter", borderRadius: 4, lineHeight: 1 }}>
               ◀ VOLVER
+            </button>
+          )}
+          {onToggleNetplayConfig && (
+            <button onClick={onToggleNetplayConfig} style={{ background: "transparent", border: "1px solid #0ff", color: "#0ff", cursor: "pointer", padding: "4px 8px", fontSize: "1rem", fontFamily: "Inter", borderRadius: 4, lineHeight: 1, marginLeft: 6 }} title="Configuración netplay">
+              ⚙
             </button>
           )}
         </span>
