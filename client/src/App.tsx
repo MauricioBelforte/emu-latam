@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import styled, { ThemeProvider, keyframes } from "styled-components";
 import { useAuth } from "./context/AuthContext";
+import { useSocial } from "./context/SocialContext";
+import { nakamaService } from "./lib/nakama";
 import { theme } from "./styles/theme";
 import { GlobalStyles } from "./styles/GlobalStyles";
 import { AppShell } from "./components/layout/AppShell";
@@ -192,7 +194,8 @@ const inline = {
 };
 
 function App() {
-  const { loginGhost, logout, isAuthenticated, username, isConnected } = useAuth();
+  const { loginGhost, logout, isAuthenticated, username, isConnected, userId } = useAuth();
+  const { onlineUsers } = useSocial();
   const [loading, setLoading] = useState({ bore: false, mitm: false, tsHost: false, tsJoin: false, directJoin: false });
   const [directHostIp, setDirectHostIp] = useState("");
   const [tailscaleHostIp, setTailscaleHostIp] = useState("");
@@ -209,6 +212,7 @@ function App() {
   const [showOtherMethods, setShowOtherMethods] = useState(false);
   const [showNetplayConfig, setShowNetplayConfig] = useState(false);
   const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const discoveryDoneRef = useRef(false);
 
   useEffect(() => {
     if (!isAuthenticated) setJoinMode(null);
@@ -414,12 +418,38 @@ function App() {
     if (!isAuthenticated || !isHostingSala) return;
     const refresh = async () => {
       const ts = await (window as any).electron.ipcRenderer.invoke("get-tailscale-ip");
-      if (ts.ip && ts.ip !== myTailscaleIp) setMyTailscaleIp(ts.ip);
+      if (ts.ip) {
+        if (ts.ip !== myTailscaleIp) setMyTailscaleIp(ts.ip);
+        await nakamaService.publishHostInfo(ts.ip, "tailscale");
+      }
     };
     refresh();
     const interval = setInterval(refresh, 30000);
     return () => clearInterval(interval);
   }, [isAuthenticated, isHostingSala, myTailscaleIp]);
+
+  // Auto-descubrimiento: guest lee IP del host desde Nakama Storage
+  useEffect(() => {
+    if (!isAuthenticated || isHostingSala || !onlineUsers.length || discoveryDoneRef.current) return;
+    const discover = async () => {
+      for (const user of onlineUsers) {
+        if (user.userId === userId) continue;
+        const info = await nakamaService.fetchHostInfoForUser(user.userId);
+        if (info && info.ip) {
+          discoveryDoneRef.current = true;
+          setTailscaleHostIp(info.ip);
+          setStatusText(`IP del host detectada automticamente: ${info.ip}`);
+          break;
+        }
+      }
+    };
+    discover();
+  }, [isAuthenticated, isHostingSala, onlineUsers, userId]);
+
+  // Reset discovery flag cuando se desconecta
+  useEffect(() => {
+    if (!isAuthenticated) discoveryDoneRef.current = false;
+  }, [isAuthenticated]);
 
   return (
     <ThemeProvider theme={theme}>
@@ -446,11 +476,15 @@ function App() {
                 <Row style={{ maxWidth: 500, marginTop: 20 }}>
                   <SalaButton onClick={async () => {
                     setJoinMode("create");
+                    discoveryDoneRef.current = false;
                     await (window as any).electron.ipcRenderer.invoke("set-nakama-server", { host: "127.0.0.1", port: "7350" });
                     setNakamaHost("127.0.0.1"); setNakamaPort("7350");
                     await loginGhost();
                     const ts = await (window as any).electron.ipcRenderer.invoke("get-tailscale-ip");
-                    if (ts.ip) setMyTailscaleIp(ts.ip);
+                    if (ts.ip) {
+                      setMyTailscaleIp(ts.ip);
+                      await nakamaService.publishHostInfo(ts.ip, "tailscale");
+                    }
                     await (window as any).electron.ipcRenderer.invoke("open-firewall-port");
                   }} $accent="#0f0">
                     CREAR SALA

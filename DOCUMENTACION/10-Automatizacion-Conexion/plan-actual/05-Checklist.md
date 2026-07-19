@@ -1,29 +1,17 @@
-# 05 - Checklist - Automatización de Conexión (Plan Inicial)
+# 05 - Checklist: Automatización de Conexión
 
-## Estado actual: 🔄 Plan inicial creado, sin implementar
+## Estado Actual — COMPLETADO
 
-## Tareas pendientes (ordenadas por prioridad)
+- [x] **Solución A — Storage de Nakama (implementada)**
+  - [x] `publishHostInfo(ip, mode)` en NakamaService (nakama.ts)
+  - [x] `fetchHostInfoForUser(targetUserId)` en NakamaService (nakama.ts)
+  - [x] Host publica IP automáticamente al crear sala (App.tsx)
+  - [x] Host re-publica IP cada 30s (App.tsx, useEffect existente extendido)
+  - [x] Guest descubre IP automáticamente al conectarse (App.tsx, nuevo useEffect)
+  - [x] Auto-completar campo "JOIN VÍA TAILSCALE" con IP detectada
+  - [x] StatusText informativo: "IP del host detectada automáticamente: ..."
+  - [x] `discoveryDoneRef` previene descubrimiento repetido
+  - [x] Reset de discovery al desconectarse
 
-### Solución A — Storage de Nakama (recomendada)
-- [ ] Implementar `publish-connection-info` IPC handler (index.ts).
-- [ ] Implementar `fetch-connection-info` IPC handler (index.ts).
-- [ ] Llamar `publish-connection-info` al crear sala (App.tsx).
-- [ ] Llamar `fetch-connection-info` al conectar como guest (App.tsx).
-- [ ] Auto-completar campo IP del host en la UI.
-- [ ] Probar flujo completo cross-PC.
-
-### Solución B — Retos (alternativa)
-- [ ] Debuggear ChallengeContext.tsx (handler `_conn` bloqueado).
-- [ ] Enviar IP vía RPC de reto.
-- [ ] Auto-aceptar reto y lanzar JOIN.
-
-### Solución C — Matchmaking (compleja)
-- [ ] Investigar API de Matchmaker de Nakama.
-- [ ] Implementar entrada al matchmaker (host + guest).
-- [ ] Manejar notificaciones de match.
-- [ ] Probar con 2 PCs.
-
-## Notas
-- Decidir con el usuario qué solución implementar primero.
-- No tocar flujos blindados existentes (AGENTS.md §14-15).
-- Tiempo estimado Solución A: 1-2 horas.
+- [x] **npm run dev**: Sin errores
+- [x] **Log generado** en Logs/

@@ -84,6 +84,41 @@ class NakamaService {
     }
   }
 
+  async publishHostInfo(ip: string, mode: string): Promise<boolean> {
+    if (!this.session) return false;
+    try {
+      await this.client.writeStorageObjects(this.session, [
+        {
+          collection: "emu_latam_rooms",
+          key: "active_host",
+          value: { ip, mode, username: this.session.username, userId: this.session.user_id, timestamp: Date.now() },
+          permission_read: 2,
+          permission_write: 1,
+        },
+      ]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async fetchHostInfoForUser(targetUserId: string): Promise<{ ip: string; mode: string; username: string } | null> {
+    if (!this.session) return null;
+    try {
+      const result = await this.client.readStorageObjects(this.session, {
+        object_ids: [{ collection: "emu_latam_rooms", key: "active_host", user_id: targetUserId }],
+      });
+      if (result.objects && result.objects.length > 0) {
+        const obj = result.objects[0];
+        const value = typeof obj.value === "string" ? JSON.parse(obj.value) : obj.value;
+        return { ip: value.ip, mode: value.mode, username: value.username };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
   disconnect(): void {
     if (this.socket) {
       try { this.socket.disconnect(); } catch {}

@@ -1,32 +1,115 @@
-# 04 - Código - Automatización de Conexión (Plan Inicial)
+# 04 - Código: Automatización de Conexión
 
-## Estado: ⏳ No implementado aún
+## Archivos Modificados
 
-Este documento describe el código que se **planea** escribir. Se actualizará cuando se comience la implementación.
+| Archivo | Cambio |
+|---------|--------|
+| `client/src/lib/nakama.ts` | +2 métodos: `publishHostInfo()`, `fetchHostInfoForUser()` |
+| `client/src/App.tsx` | + auto-publicación al crear sala + auto-descubrimiento al unirse |
 
-## Archivos que se modificarán
+## NakamaService (nakama.ts)
 
-| Archivo | Cambio planeado |
-|---------|-----------------|
-| `client/src/main/index.ts` | Nuevos IPC handlers: `publish-connection-info`, `fetch-connection-info` |
-| `client/src/preload/index.ts` | Exponer nuevos handlers via contextBridge (si no usa ya exposición genérica) |
-| `client/src/App.tsx` | Auto-completar IP del guest al conectar, publicar IP al crear sala |
+### `publishHostInfo(ip, mode)`
+Escribe la IP del host en Nakama Storage con permisos de lectura pública.
 
-## Funciones planeadas
+```typescript
+async publishHostInfo(ip: string, mode: string): Promise<boolean>
+```
 
-### `publishConnectionInfo(ip, mode)` (index.ts)
-- Llama a Nakama REST API (`POST /v2/storage`).
-- Guarda `{ ip, mode, timestamp }` en colección `emu_latam`, clave `connection_info`.
-- Permiso de lectura: público (2), escritura: solo owner (1).
+- **Colección:** `emu_latam_rooms`
+- **Key:** `active_host`
+- **Valor:** `{ ip, mode, username, userId, timestamp }`
+- **Permisos:** `permission_read: 2` (público), `permission_write: 1` (solo owner)
+- **Retorna:** `true` si se guardó correctamente, `false` si falla o no hay sesión
 
-### `fetchConnectionInfo(hostIpOrUserId)` (index.ts)
-- Llama a Nakama REST API (`GET /v2/storage/...`).
-- Retorna `{ ip, mode }` si existe, o `null`.
+### `fetchHostInfoForUser(targetUserId)`
+Lee la IP publicada por un usuario específico desde Nakama Storage.
 
-### UI (App.tsx)
-- En `handleJoinSession` (o equivalente): después de conectar a Nakama, llamar `fetchConnectionInfo`.
-- Si hay datos, auto-completar `tailscaleHostIp` y mostrar mensaje "IP detectada automáticamente".
-- Opcional: disparar `handleTailscaleGuest` automáticamente.
+```typescript
+async fetchHostInfoForUser(targetUserId: string): Promise<{ ip: string; mode: string; username: string } | null>
+```
 
-## Logs relacionados
-- (Pendiente — se creará al implementar)
+- Usa `readStorageObjects` con `{ collection: "emu_latam_rooms", key: "active_host", user_id: targetUserId }`
+- Retorna `null` si no encuentra datos o si falla la lectura
+- El valor se parsea automáticamente (soporta string JSON u objeto)
+
+## App.tsx
+
+### Flujo CREAR SALA (línea ~447)
+```typescript
+// Después de loginGhost() y get-tailscale-ip:
+if (ts.ip) {
+  setMyTailscaleIp(ts.ip);
+  await nakamaService.publishHostInfo(ts.ip, "tailscale");
+}
+```
+
+### Auto-descubrimiento del Guest (nuevo useEffect, después de línea 426)
+```typescript
+useEffect(() => {
+  if (!isAuthenticated || isHostingSala || !onlineUsers.length || discoveryDoneRef.current) return;
+  const discover = async () => {
+    for (const user of onlineUsers) {
+      if (user.userId === userId) continue;
+      const info = await nakamaService.fetchHostInfoForUser(user.userId);
+      if (info && info.ip) {
+        discoveryDoneRef.current = true;
+        setTailscaleHostIp(info.ip);
+        setStatusText(`IP del host detectada automáticamente: ${info.ip}`);
+        break;
+      }
+    }
+  };
+  discover();
+}, [isAuthenticated, isHostingSala, onlineUsers, userId]);
+```
+
+### Refresco periódico del Host (línea ~417)
+El host re-publica su IP cada 30s (junto con el refresco de Tailscale IP):
+```typescript
+useEffect(() => {
+  if (!isAuthenticated || !isHostingSala) return;
+  const refresh = async () => {
+    const ts = await (window as any).electron.ipcRenderer.invoke("get-tailscale-ip");
+    if (ts.ip) {
+      if (ts.ip !== myTailscaleIp) setMyTailscaleIp(ts.ip);
+      await nakamaService.publishHostInfo(ts.ip, "tailscale");
+    }
+  };
+  refresh();
+  const interval = setInterval(refresh, 30000);
+  return () => clearInterval(interval);
+}, [isAuthenticated, isHostingSala, myTailscaleIp]);
+```
+
+### Control de descubrimiento único
+- `discoveryDoneRef` (useRef): evita que el guest intente descubrir la IP múltiples veces
+- Se resetea a `false` cuando `isAuthenticated` pasa a `false` (desconexión)
+- Se resetea al hacer CREAR SALA
+
+## Flujo Completo
+
+### Host
+```
+CREAR SALA → loginGhost() → getTailscaleIp() → publishHostInfo(ip, "tailscale")
+                                                      ↓
+                                              (refresco cada 30s)
+```
+
+### Guest
+```
+UNIRSE A SALA → CONECTAR → loginGhost() → SocialContext.onlineUsers se puebla
+                                                ↓
+                          useEffect detecta: isAuthenticated=true, !isHostingSala, onlineUsers.length>0
+                                                ↓
+                          Itera onlineUsers → fetchHostInfoForUser(user.userId)
+                                                ↓
+                          Si encuentra → setTailscaleHostIp(info.ip) + setStatusText("IP detectada automáticamente")
+```
+
+## APIs de Nakama Utilizadas
+
+| API | Propósito |
+|-----|-----------|
+| `writeStorageObjects` | Host escribe `emu_latam_rooms/active_host` |
+| `readStorageObjects` | Guest lee `emu_latam_rooms/active_host` de un userId específico |

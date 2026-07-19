@@ -86,8 +86,8 @@ export const AppShell: React.FC<AppShellProps> = ({ children, showBack, onBack, 
   useEffect(() => {
     const check = () => {
       const w = window.innerWidth;
-      if (w < 1100) setSidebarOpen(false);
-      if (w < 800) setChatOpen(false);
+      if (w < 1100) setChatOpen(false);
+      if (w < 800) setSidebarOpen(false);
     };
     check();
     window.addEventListener("resize", check);
