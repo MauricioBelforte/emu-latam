@@ -549,22 +549,6 @@ function App() {
                 {`> ${username} CONECTADO <`}
               </p>
 
-              {isHostingSala && myTailscaleIp && (
-                <Section $accent="#00f3ff" style={{ borderStyle: "dashed" }}>
-                  <p style={{ color: "#0af", fontFamily: theme.fonts.arcade, fontSize: "0.7rem", marginBottom: 4 }}>
-                    SALA CREADA
-                  </p>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                    <p style={{ color: "#fff", fontFamily: "monospace", fontSize: "0.9rem", background: "#000", padding: "8px 12px", borderRadius: 4, border: "1px solid #0af", display: "inline-block", marginBottom: 6, cursor: "pointer", userSelect: "text" }} onClick={handleCopyIp} title="Click para copiar | Seleccioná el texto para copiar manualmente">
-                      {myTailscaleIp} {copiedIp ? "✅ COPIADO!" : "📋"}
-                    </p>
-                  </div>
-                  <StatusText $color="#0af" style={{ fontSize: "0.6rem" }}>
-                    {copiedIp ? "IP copiada al portapapeles. Pasásela a tu amigo." : "Hacé click en la IP para copiarla. Tu amigo debe ponerla en el campo JOIN VÍA TAILSCALE."}
-                  </StatusText>
-                </Section>
-              )}
-
               {!isHostingSala && (
                 <Section $accent="#0a0" style={{ borderStyle: "dashed" }}>
                   <p style={{ color: "#0f0", fontFamily: theme.fonts.arcade, fontSize: "0.7rem", marginBottom: 4 }}>
@@ -581,28 +565,44 @@ function App() {
                 </Section>
               )}
 
-              {/* ───── MODO TAILSCALE (P2P) — OFICIAL ───── */}
-              <Section $accent="#00f3ff" style={{ borderWidth: 2 }}>
-                <SectionHeader $color="#00f3ff">
-                  <Badge $bg="#00f3ff">P2P</Badge> MODO TAILSCALE — CONEXIÓN DIRECTA SIN TÚNEL
-                </SectionHeader>
-                <Btn onClick={handleTailscaleHost} disabled={loading.tsHost} $loading={loading.tsHost} $accent="#00f3ff" $bg={loading.tsHost ? "#00f3ff22" : "transparent"}>
-                  {loading.tsHost ? "INICIANDO..." : "HOST TAILSCALE"}
-                </Btn>
-                <Row style={{ marginTop: 10 }}>
-                  <Btn onClick={handleTailscaleGuest} disabled={loading.tsJoin || !tailscaleHostIp} $loading={loading.tsJoin} $accent="#00f3ff" $bg={loading.tsJoin ? "#00f3ff22" : "transparent"}>
-                    {loading.tsJoin ? "CONECTANDO..." : "JOIN VÍA TAILSCALE"}
-                  </Btn>
-                  <Input $accent="#00f3ff" type="text" value={tailscaleHostIp} onChange={(e) => setTailscaleHostIp(e.target.value)} placeholder="IP Tailscale del host" />
-                </Row>
-                {tsStatus && <StatusText $color="#00f3ff">{tsStatus}</StatusText>}
-              </Section>
-
               <ToggleBtn $isOpen={showOtherMethods} onClick={() => setShowOtherMethods((p) => !p)}>
                 {showOtherMethods ? "▲ OCULTAR OTROS MÉTODOS" : "▼ OTROS MÉTODOS DE CONEXIÓN"}
               </ToggleBtn>
 
               <Collapsible $open={showOtherMethods}>
+                {isHostingSala && myTailscaleIp && (
+                  <Section $accent="#00f3ff" style={{ borderStyle: "dashed" }}>
+                    <p style={{ color: "#0af", fontFamily: theme.fonts.arcade, fontSize: "0.7rem", marginBottom: 4 }}>
+                      SALA CREADA
+                    </p>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                      <p style={{ color: "#fff", fontFamily: "monospace", fontSize: "0.9rem", background: "#000", padding: "8px 12px", borderRadius: 4, border: "1px solid #0af", display: "inline-block", marginBottom: 6, cursor: "pointer", userSelect: "text" }} onClick={handleCopyIp} title="Click para copiar | Seleccioná el texto para copiar manualmente">
+                        {myTailscaleIp} {copiedIp ? "✅ COPIADO!" : "📋"}
+                      </p>
+                    </div>
+                    <StatusText $color="#0af" style={{ fontSize: "0.6rem" }}>
+                      {copiedIp ? "IP copiada al portapapeles. Pasásela a tu amigo." : "Hacé click en la IP para copiarla. Tu amigo debe ponerla en el campo JOIN VÍA TAILSCALE."}
+                    </StatusText>
+                  </Section>
+                )}
+
+                {/* ───── MODO TAILSCALE (P2P) — OFICIAL ───── */}
+                <Section $accent="#00f3ff" style={{ borderWidth: 2 }}>
+                  <SectionHeader $color="#00f3ff">
+                    <Badge $bg="#00f3ff">P2P</Badge> MODO TAILSCALE — CONEXIÓN DIRECTA SIN TÚNEL
+                  </SectionHeader>
+                  <Btn onClick={handleTailscaleHost} disabled={loading.tsHost} $loading={loading.tsHost} $accent="#00f3ff" $bg={loading.tsHost ? "#00f3ff22" : "transparent"}>
+                    {loading.tsHost ? "INICIANDO..." : "HOST TAILSCALE"}
+                  </Btn>
+                  <Row style={{ marginTop: 10 }}>
+                    <Btn onClick={handleTailscaleGuest} disabled={loading.tsJoin || !tailscaleHostIp} $loading={loading.tsJoin} $accent="#00f3ff" $bg={loading.tsJoin ? "#00f3ff22" : "transparent"}>
+                      {loading.tsJoin ? "CONECTANDO..." : "JOIN VÍA TAILSCALE"}
+                    </Btn>
+                    <Input $accent="#00f3ff" type="text" value={tailscaleHostIp} onChange={(e) => setTailscaleHostIp(e.target.value)} placeholder="IP Tailscale del host" />
+                  </Row>
+                  {tsStatus && <StatusText $color="#00f3ff">{tsStatus}</StatusText>}
+                </Section>
+
                 {/* ───── MODO DIRECTO (LAN) ───── */}
                 <Section $accent="#0a4a2a">
                   <SectionHeader $color="#0f0">
