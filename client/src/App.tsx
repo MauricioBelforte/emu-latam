@@ -362,6 +362,7 @@ function App() {
       if (result.success) {
         setTailscaleHostIp(result.ip);
         setTsStatus(result.message || `Host activo — IP: ${result.ip}`);
+        await nakamaService.publishHostInfo(result.ip, "tailscale");
       } else {
         alert("Error Tailscale: " + result.error);
         setTsStatus("");
@@ -428,37 +429,22 @@ function App() {
     return () => clearInterval(interval);
   }, [isAuthenticated, isHostingSala, myTailscaleIp]);
 
-  // Auto-descubrimiento + auto-join: guest lee IP del host y se conecta automáticamente
+  // Auto-descubrimiento: guest lee IP del host desde Nakama Storage (sin auto-join)
   useEffect(() => {
     if (!isAuthenticated || isHostingSala || !onlineUsers.length || discoveryDoneRef.current) return;
-    const discoverAndJoin = async () => {
+    const discover = async () => {
       for (const user of onlineUsers) {
         if (user.userId === userId) continue;
         const info = await nakamaService.fetchHostInfoForUser(user.userId);
         if (info && info.ip) {
           discoveryDoneRef.current = true;
           setTailscaleHostIp(info.ip);
-          setStatusText(`IP del host detectada: ${info.ip}. Conectando...`);
-          setLoading(p => ({ ...p, tsJoin: true }));
-          setTsStatus("Conectando a host via Tailscale (auto)...");
-          try {
-            const result = await (window as any).electron.ipcRenderer.invoke("tailscale-guest", { hostIp: info.ip });
-            if (result.success) {
-              setTsStatus("Conectado a host via Tailscale");
-            } else {
-              setTsStatus("");
-            }
-          } catch (e) {
-            console.error("Error auto-join Tailscale:", e);
-            setTsStatus("");
-          }
-          setLoading(p => ({ ...p, tsJoin: false }));
-          setStatusText("");
+          setStatusText(`IP del host detectada automáticamente: ${info.ip}`);
           break;
         }
       }
     };
-    discoverAndJoin();
+    discover();
   }, [isAuthenticated, isHostingSala, onlineUsers, userId]);
 
   // Reset discovery flag cuando se desconecta
