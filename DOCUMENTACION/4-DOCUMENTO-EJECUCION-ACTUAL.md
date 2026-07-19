@@ -114,6 +114,8 @@
 - `Logs/` — Registro de cambios cronológico
 - `DOCUMENTACION/05-MITM-to-Transparent-Relay/` — Documentación completa del componente
 - `DOCUMENTACION/07-Integracion-Tailscale/` — Documentación del componente Tailscale
+- `client/src/components/ui/NetplayConfigModal.tsx` — Editor visual de config netplay (módulo 13)
+- `DOCUMENTACION/13-Netplay-Config-Editor/` — Documentación del componente editor netplay
 
 ## Problemas Conocidos
 

@@ -55,10 +55,27 @@ El objetivo de esta fase es hacer que la experiencia del usuario sea "un solo cl
 - [ ] **Integración en BD App:** Endpoint principal en VPS.
 
 ### 2.3. Retos (Challenges) vía Nakama
-- [ ] **Flujo de reto funcional:** Host crea bore + forwarder, guest recibe URL por Nakama.
-- [ ] **Handlers:** `start-relay-tunnel-v2`, `kill-retroarch`.
-- [ ] **IPC separado:** No modifica flujos manuales blindados.
-- [ ] **⚙️ TEST:** Verificar que host y guest RA se conectan sin matar procesos del otro.
+- [x] **Flujo de reto funcional:** Sistema completo implementado y documentado (módulo 08).
+- [x] **Documentación completada:** 7 archivos en plan-inicial y plan-actual.
+
+## ✅ COMPLETADO — Módulo 10: Automatización de Conexión
+
+- [x] **Nakama Storage:** `publishHostInfo()` y `fetchHostInfoForUser()` en nakama.ts.
+- [x] **Host:** IP se publica automáticamente al CREAR SALA y al presionar HOST TAILSCALE.
+- [x] **Host:** Re-publicación periódica cada 30s.
+- [x] **Guest:** Auto-descubrimiento de IP del host al conectarse (vía onlineUsers + Storage).
+- [x] **UI:** Rediseño sección Tailscale con JOIN + IP en fila horizontal.
+- [x] **Documentación completa:** 7 archivos en plan-inicial y plan-actual.
+
+## ✅ COMPLETADO — Auto-Reconexión WebSocket
+
+- [x] **AuthContext.tsx:** Hasta 10 reintentos con 3s de espera al detectar desconexión.
+- [x] **Logueo en consola:** `[AUTH] Reintento N/10...`.
+- [x] **Cleanup:** `logout()` cancela temporizadores de reconexión.
+
+## ✅ COMPLETADO — Prioridad Responsive
+
+- [x] **AppShell.tsx:** Chat se oculta a los 1100px, players a los 800px (antes era al revés).
 
 ### 2.4. UX Pulido
 - [x] **Copiar IP con 1 click:** IP clickeable en SALA CREADA, feedback "✅ COPIADO!" + timeout 2s.
@@ -184,4 +201,18 @@ Con run_ahead=false + buffer dinámico 1-2, no es necesario check_frames porque 
 - [x] **Propuesta de DeepSeek V4 Flash Free:** Mantenibilidad y dockerización de VPS.
 - [x] **Propuesta de Nemotron 3 Ultra:** Reestructuración exhaustiva y modularización del Main Process.
 - [x] **Propuesta de Gemini 3.5 Flash:** Diagnóstico de Tailscale, watchdog central de procesos, comandos UDP de control, handshake en forwarder y replays de Nakama.
+
+## ✅ Módulo 13 — Editor de Configuración Netplay (19-Jul-2026)
+
+- [x] **IPC handlers:** `read-netplay-config`, `write-netplay-config`, `restore-netplay-config` en index.ts
+- [x] **NetplayConfigModal.tsx:** Modal con check_frames, latency min/range, run-ahead, input_block_timeout
+- [x] **Tooltips en español:** CSS tooltip con 1s de delay en cada campo
+- [x] **Integración UI:** Botón ⚙ en Header → AppShell → App.tsx
+- [x] **netplay_optimized.cfg:** Agregada clave `netplay_input_block_timeout = "0"`
+- [x] **ChallengeModal:** Botón de cierre (×) en estados accepted/rejected/timeout + resetChallenge expuesto
+- [x] **Swap de colores:** Tailscale ahora turquesa (#00f3ff), Bore ahora azul (#0af)
+- [x] **Simplificación UI:** Tailscale y Sala Creada movidos dentro de "OTROS MÉTODOS DE CONEXIÓN"
+- [x] **npm run dev:** Compila sin errores
+- [x] **Commits:** 27f1ad0, c431629, 3ae7db9
+
 

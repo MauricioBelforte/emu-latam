@@ -4,87 +4,74 @@
 
 | Archivo | Acción |
 |---------|--------|
-| `client/src/main/index.ts` | +3 IPC handlers |
-| `client/src/components/ui/NetplayConfigModal.tsx` | **NUEVO** |
-| `client/src/components/layout/Header.tsx` | +prop + botón |
-| `client/src/components/layout/AppShell.tsx` | +prop pass-through |
-| `client/src/App.tsx` | +estado + montaje |
-| `retroarch/netplay_optimized.cfg` | Archivo objetivo (solo lectura/escritura) |
+| `client/src/main/index.ts` | +3 IPC handlers + `netplay_input_block_timeout` en lists |
+| `client/src/components/ui/NetplayConfigModal.tsx` | **NUEVO** — modal con sliders, tooltips |
+| `client/src/components/layout/Header.tsx` | +props + botón ⚙ |
+| `client/src/components/layout/AppShell.tsx` | +props pass-through |
+| `client/src/App.tsx` | +estado + montaje del modal |
+| `retroarch/netplay_optimized.cfg` | Archivo objetivo + nueva clave `netplay_input_block_timeout` |
 
 ## Funciones clave
 
-### Main Process — IPC handlers
+### Main Process — IPC handlers (index.ts)
 
 ```typescript
-// read-netplay-config
-ipcMain.handle("read-netplay-config", async () => {
-  const cfgPath = path.join(getProjectRoot(), "retroarch", "netplay_optimized.cfg");
-  const content = fs.readFileSync(cfgPath, "utf-8");
-  const config: Record<string, string> = {};
-  for (const line of content.split("\n")) {
-    const match = line.match(/^(\w+)\s*=\s*"([^"]*)"\s*$/);
-    if (match && ["netplay_check_frames", "netplay_input_latency_frames_min",
-                  "netplay_input_latency_frames_range", "run_ahead_enabled"].includes(match[1])) {
-      config[match[1]] = match[2];
-    }
-  }
-  return config;
-});
+const NETPLAY_EDITABLE_KEYS = [
+  "netplay_check_frames",
+  "netplay_input_latency_frames_min",
+  "netplay_input_latency_frames_range",
+  "run_ahead_enabled",
+  "netplay_input_block_timeout",    // AGREGADO 19-Jul
+];
+const NETPLAY_DEFAULTS: Record<string, string> = {
+  netplay_check_frames: "30",
+  netplay_input_latency_frames_min: "1",
+  netplay_input_latency_frames_range: "1",
+  run_ahead_enabled: "false",
+  netplay_input_block_timeout: "0",  // AGREGADO 19-Jul
+};
 
-// write-netplay-config
-ipcMain.handle("write-netplay-config", async (_event, { key, value }) => {
-  const cfgPath = path.join(getProjectRoot(), "retroarch", "netplay_optimized.cfg");
-  let content = fs.readFileSync(cfgPath, "utf-8");
-  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  content = content.replace(new RegExp(`^(${escapedKey}\\s*=\\s*)"([^"]*)"`, "m"), `$1"${value}"`);
-  fs.writeFileSync(cfgPath, content, "utf-8");
-  return { success: true };
-});
-
-// restore-netplay-config
-ipcMain.handle("restore-netplay-config", async () => {
-  const cfgPath = path.join(getProjectRoot(), "retroarch", "netplay_optimized.cfg");
-  let content = fs.readFileSync(cfgPath, "utf-8");
-  const defaults: Record<string, string> = {
-    netplay_check_frames: "30",
-    netplay_input_latency_frames_min: "1",
-    netplay_input_latency_frames_range: "1",
-    run_ahead_enabled: "false",
-  };
-  for (const [key, value] of Object.entries(defaults)) {
-    const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    content = content.replace(new RegExp(`^(${escapedKey}\\s*=\\s*)"([^"]*)"`, "m"), `$1"${value}"`);
-  }
-  fs.writeFileSync(cfgPath, content, "utf-8");
-  return { success: true };
-});
+// read-netplay-config — parsea el .cfg y devuelve solo claves editables
+// write-netplay-config — reemplaza valor vía regex preservando comentarios
+// restore-netplay-config — restaura todos los defaults
 ```
 
-### NetplayConfigModal.tsx
+### NetplayConfigModal.tsx — Características implementadas
 
 ```tsx
-// Patrón: Overlay + ModalBox (como ChallengeModal)
-// Estados: loading, editing, saving
-// Sliders para check_frames (valores discretos), lat_min, lat_range, run_ahead toggle
-// Botones: GUARDAR, RESTAURAR, CERRAR
+// Props: isOpen, onClose
+// Estados: loading, config (datos), saving, statusMsg
+
+// Campos editables:
+// - check_frames: SegmentedControl con OFF/30/60/120/180/300/600
+// - latency min: Botones −/+ con rango 0-3
+// - latency range: Botones −/+ con rango 0-3
+// - run-ahead: Toggle ON/OFF
+// - input block timeout: SegmentedControl con OFF/1/3/10 (AGREGADO 19-Jul)
+
+// Tooltips con CSS puro (AGREGADO 19-Jul):
+// - TooltipLabel con ::after (texto) y ::before (flecha)
+// - Aparecen tras 1s de hover, max-width 380px
+// - Explicaciones en español para cada campo
+
+// Botones:
+// - GUARDAR: escribe cada clave vía write-netplay-config
+// - RESTAURAR: restore-netplay-config + recarga
+// - CERRAR (×) o click fuera del modal
 ```
 
-### Header.tsx — Nuevo botón
+### Header.tsx — Botón ⚙
 
 ```tsx
-// Se agrega a HeaderProps:
 interface HeaderProps {
   // ... existentes ...
   showNetplayConfig?: boolean;
   onToggleNetplayConfig?: () => void;
 }
 
-// Botón en el StatusBox (junto a VOLVER):
-{showBack && onBack && (
-  <BackButton onClick={onBack}>◀ VOLVER</BackButton>
-)}
+// En StatusBox, junto a VOLVER:
 {onToggleNetplayConfig && (
-  <ConfigButton onClick={onToggleNetplayConfig} title="Configuración netplay">⚙</ConfigButton>
+  <button onClick={onToggleNetplayConfig} title="Configuración netplay">⚙</button>
 )}
 ```
 
@@ -92,20 +79,10 @@ interface HeaderProps {
 
 ```tsx
 interface AppShellProps {
-  children: React.ReactNode;
-  showBack?: boolean;
-  onBack?: () => void;
-  showPlayers?: boolean;
-  showNetplayConfig?: boolean;       // NUEVO
-  onToggleNetplayConfig?: () => void; // NUEVO
+  // ... existentes ...
+  showNetplayConfig?: boolean;
+  onToggleNetplayConfig?: () => void;
 }
-
-// Pasar a Header:
-<Header
-  ...
-  showNetplayConfig={showNetplayConfig}
-  onToggleNetplayConfig={onToggleNetplayConfig}
-/>
 ```
 
 ### App.tsx — Integración
@@ -113,16 +90,24 @@ interface AppShellProps {
 ```tsx
 const [showNetplayConfig, setShowNetplayConfig] = useState(false);
 
-// En el return:
 <AppShell
-  ...
   showNetplayConfig={showNetplayConfig}
-  onToggleNetplayConfig={() => setShowNetplayConfig(prev => !prev)}
+  onToggleNetplayConfig={() => setShowNetplayConfig((o) => !o)}
 >
   ...
 </AppShell>
-<NetplayConfigModal
-  isOpen={showNetplayConfig}
-  onClose={() => setShowNetplayConfig(false)}
-/>
+
+{showNetplayConfig && (
+  <NetplayConfigModal isOpen={showNetplayConfig} onClose={() => setShowNetplayConfig(false)} />
+)}
 ```
+
+## Cambios relacionados (19-Jul-2026)
+
+### ChallengeModal.tsx — Botón de cierre en estados bloqueantes
+- Se expuso `resetChallenge()` en `ChallengeContext`
+- Se agregó CloseButton (×) en estados `accepted`, `rejected`, `timeout`
+- Permite cerrar el modal cuando se traba y reiniciar el flujo de retos
+
+### netplay_optimized.cfg
+- Se agregó `netplay_input_block_timeout = "0"` con comentario explicativo
