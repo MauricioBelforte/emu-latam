@@ -7,6 +7,8 @@
 - `6a485c0` — Auto-descubrimiento sin auto-join
 - `0efeeac` — Rediseño sección Tailscale (JOIN + IP en fila horizontal)
 - `1053955` — Auto-reconexión WebSocket (10 intentos, 3s de espera)
+- `7e3feba` — Persistencia de IP guest en localStorage (recupera última IP al abrir UNIRSE A SALA)
+- `9e7760f` — SALA CREADA movida al inicio con diseño prominente; Tailscale dentro de OTROS MÉTODOS
 
 ## Cambios Realizados
 
@@ -45,3 +47,15 @@
 
 ### 7. Documentación Módulo 10 (plan-inicial)
 - `06-Plan-Testings.md` y `07-Resultados-Testings.md`: Creados como plan original.
+
+### 8. Persistencia de IP Guest (localStorage)
+- Al hacer CONECTAR como guest, se guarda `nakamaHost:nakamaPort` en `localStorage` bajo clave `emu_latam_last_guest_ip`.
+- Al abrir UNIRSE A SALA, se recupera la última IP usada desde localStorage y se auto-completa el campo.
+- Ya no es necesario tipear la IP del host cada vez que se reinicia la app.
+
+### 9. Rediseño de Sala Creada
+- "SALA CREADA" movida fuera del collapsible OTROS MÉTODOS, ahora es lo primero que ve el host tras autenticarse.
+- Diseño más grande y prominente: IP en fuente monoespaciada 1.5rem, borde más grueso, glow.
+- Mensaje claro: "Hacé click en la IP para copiarla. Tu amigo debe poner esta IP en UNIRSE A SALA."
+- La sección MODO TAILSCALE (HOST + JOIN + IP input) quedó dentro de OTROS MÉTODOS DE CONEXIÓN, junto con LAN, BORE y DEBUG.
+- Divisor gráfico entre la sala/estado y los métodos de conexión.

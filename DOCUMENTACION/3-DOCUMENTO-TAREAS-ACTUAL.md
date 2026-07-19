@@ -73,6 +73,19 @@ El objetivo de esta fase es hacer que la experiencia del usuario sea "un solo cl
 - [x] **Logueo en consola:** `[AUTH] Reintento N/10...`.
 - [x] **Cleanup:** `logout()` cancela temporizadores de reconexión.
 
+## ✅ COMPLETADO — Persistencia IP Guest
+
+- [x] **localStorage:** Se guarda la última IP del host al hacer CONECTAR como guest.
+- [x] **Auto-recuperación:** Al abrir UNIRSE A SALA se restaura la última IP usada.
+- [x] Ya no es necesario re-tipear la IP del host al reiniciar la app.
+
+## ✅ COMPLETADO — Rediseño Sala Creada y Layout
+
+- [x] **SALA CREADA** movida fuera de OTROS MÉTODOS, ahora es lo primero que ve el host.
+- [x] **Diseño prominente:** IP grande (1.5rem), glow, borde grueso, instrucciones claras.
+- [x] **MODO TAILSCALE** movido dentro de OTROS MÉTODOS junto con LAN, BORE, DEBUG.
+- [x] **Divisor visual** entre el estado de sala y los métodos de conexión.
+
 ## ✅ COMPLETADO — Prioridad Responsive
 
 - [x] **AppShell.tsx:** Chat se oculta a los 1100px, players a los 800px (antes era al revés).
