@@ -558,6 +558,22 @@ function App() {
                 {`> ${username} CONECTADO <`}
               </p>
 
+              {isHostingSala && myTailscaleIp && (
+                <Section $accent="#0af" style={{ borderStyle: "solid", borderWidth: 3, borderColor: "#0af" }}>
+                  <p style={{ color: "#0af", fontFamily: theme.fonts.arcade, fontSize: "1rem", marginBottom: 8, textShadow: "0 0 20px #0af" }}>
+                    🏠 SALA CREADA
+                  </p>
+                  <p style={{ color: "#fff", fontFamily: "monospace", fontSize: "1.5rem", background: "#000", padding: "12px 20px", borderRadius: 6, border: "2px solid #0af", display: "inline-block", marginBottom: 8, cursor: "pointer", userSelect: "text", letterSpacing: 2 }} onClick={handleCopyIp} title="Click para copiar">
+                    {myTailscaleIp} <span style={{ fontSize: "0.9rem" }}>{copiedIp ? "✅" : "📋"}</span>
+                  </p>
+                  <StatusText $color="#0af" style={{ fontSize: "0.7rem" }}>
+                    {copiedIp
+                      ? "✅ IP copiada. Pasásela a tu amigo para que la pegue en UNIRSE A SALA → CONECTAR."
+                      : "Hacé click en la IP para copiarla. Tu amigo debe poner esta IP en UNIRSE A SALA."}
+                  </StatusText>
+                </Section>
+              )}
+
               {!isHostingSala && (
                 <Section $accent="#0a0" style={{ borderStyle: "dashed" }}>
                   <p style={{ color: "#0f0", fontFamily: theme.fonts.arcade, fontSize: "0.7rem", marginBottom: 4 }}>
@@ -574,27 +590,13 @@ function App() {
                 </Section>
               )}
 
+              <Divider />
+
               <ToggleBtn $isOpen={showOtherMethods} onClick={() => setShowOtherMethods((p) => !p)}>
                 {showOtherMethods ? "▲ OCULTAR OTROS MÉTODOS" : "▼ OTROS MÉTODOS DE CONEXIÓN"}
               </ToggleBtn>
 
               <Collapsible $open={showOtherMethods}>
-                {isHostingSala && myTailscaleIp && (
-                  <Section $accent="#00f3ff" style={{ borderStyle: "dashed" }}>
-                    <p style={{ color: "#0af", fontFamily: theme.fonts.arcade, fontSize: "0.7rem", marginBottom: 4 }}>
-                      SALA CREADA
-                    </p>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                      <p style={{ color: "#fff", fontFamily: "monospace", fontSize: "0.9rem", background: "#000", padding: "8px 12px", borderRadius: 4, border: "1px solid #0af", display: "inline-block", marginBottom: 6, cursor: "pointer", userSelect: "text" }} onClick={handleCopyIp} title="Click para copiar | Seleccioná el texto para copiar manualmente">
-                        {myTailscaleIp} {copiedIp ? "✅ COPIADO!" : "📋"}
-                      </p>
-                    </div>
-                    <StatusText $color="#0af" style={{ fontSize: "0.6rem" }}>
-                      {copiedIp ? "IP copiada al portapapeles. Pasásela a tu amigo." : "Hacé click en la IP para copiarla. Tu amigo debe ponerla en el campo JOIN VÍA TAILSCALE."}
-                    </StatusText>
-                  </Section>
-                )}
-
                 {/* ───── MODO TAILSCALE (P2P) — OFICIAL ───── */}
                 <Section $accent="#00f3ff" style={{ borderWidth: 2 }}>
                   <SectionHeader $color="#00f3ff">
