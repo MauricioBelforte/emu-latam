@@ -589,10 +589,12 @@ function App() {
                 <Btn onClick={handleTailscaleHost} disabled={loading.tsHost} $loading={loading.tsHost} $accent="#0af" $bg={loading.tsHost ? "#0af22" : "transparent"}>
                   {loading.tsHost ? "INICIANDO..." : "HOST TAILSCALE"}
                 </Btn>
-                <Input $accent="#0af" type="text" value={tailscaleHostIp} onChange={(e) => setTailscaleHostIp(e.target.value)} placeholder="IP Tailscale del host (ej: 100.x.x.x)" style={{ marginTop: 10 }} />
-                <Btn onClick={handleTailscaleGuest} disabled={loading.tsJoin || !tailscaleHostIp} $loading={loading.tsJoin} $accent="#0af" $bg={loading.tsJoin ? "#0af22" : "transparent"} style={{ marginTop: 10 }}>
-                  {loading.tsJoin ? "CONECTANDO..." : "JOIN VÍA TAILSCALE"}
-                </Btn>
+                <Row style={{ marginTop: 10 }}>
+                  <Btn onClick={handleTailscaleGuest} disabled={loading.tsJoin || !tailscaleHostIp} $loading={loading.tsJoin} $accent="#0af" $bg={loading.tsJoin ? "#0af22" : "transparent"}>
+                    {loading.tsJoin ? "CONECTANDO..." : "JOIN VÍA TAILSCALE"}
+                  </Btn>
+                  <Input $accent="#0af" type="text" value={tailscaleHostIp} onChange={(e) => setTailscaleHostIp(e.target.value)} placeholder="IP Tailscale del host" />
+                </Row>
                 {tsStatus && <StatusText $color="#0af">{tsStatus}</StatusText>}
               </Section>
 
