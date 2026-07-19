@@ -168,8 +168,8 @@ const CloseButton = styled.button`
 `;
 
 const METHOD_META: Record<string, { label: string; accent: string }> = {
-  tailscale: { label: "Tailscale (P2P)", accent: "#0af" },
-  bore: { label: "Bore (Tnnel)", accent: "#00f3ff" },
+  tailscale: { label: "Tailscale (P2P)", accent: "#00f3ff" },
+  bore: { label: "Bore (Tnnel)", accent: "#0af" },
   lan: { label: "LAN Directo", accent: "#0f0" },
 };
 

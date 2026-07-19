@@ -550,7 +550,7 @@ function App() {
               </p>
 
               {isHostingSala && myTailscaleIp && (
-                <Section $accent="#0af" style={{ borderStyle: "dashed" }}>
+                <Section $accent="#00f3ff" style={{ borderStyle: "dashed" }}>
                   <p style={{ color: "#0af", fontFamily: theme.fonts.arcade, fontSize: "0.7rem", marginBottom: 4 }}>
                     SALA CREADA
                   </p>
@@ -582,20 +582,20 @@ function App() {
               )}
 
               {/* ───── MODO TAILSCALE (P2P) — OFICIAL ───── */}
-              <Section $accent="#0af" style={{ borderWidth: 2 }}>
-                <SectionHeader $color="#0af">
-                  <Badge $bg="#0af">P2P</Badge> MODO TAILSCALE — CONEXIÓN DIRECTA SIN TÚNEL
+              <Section $accent="#00f3ff" style={{ borderWidth: 2 }}>
+                <SectionHeader $color="#00f3ff">
+                  <Badge $bg="#00f3ff">P2P</Badge> MODO TAILSCALE — CONEXIÓN DIRECTA SIN TÚNEL
                 </SectionHeader>
-                <Btn onClick={handleTailscaleHost} disabled={loading.tsHost} $loading={loading.tsHost} $accent="#0af" $bg={loading.tsHost ? "#0af22" : "transparent"}>
+                <Btn onClick={handleTailscaleHost} disabled={loading.tsHost} $loading={loading.tsHost} $accent="#00f3ff" $bg={loading.tsHost ? "#00f3ff22" : "transparent"}>
                   {loading.tsHost ? "INICIANDO..." : "HOST TAILSCALE"}
                 </Btn>
                 <Row style={{ marginTop: 10 }}>
-                  <Btn onClick={handleTailscaleGuest} disabled={loading.tsJoin || !tailscaleHostIp} $loading={loading.tsJoin} $accent="#0af" $bg={loading.tsJoin ? "#0af22" : "transparent"}>
+                  <Btn onClick={handleTailscaleGuest} disabled={loading.tsJoin || !tailscaleHostIp} $loading={loading.tsJoin} $accent="#00f3ff" $bg={loading.tsJoin ? "#00f3ff22" : "transparent"}>
                     {loading.tsJoin ? "CONECTANDO..." : "JOIN VÍA TAILSCALE"}
                   </Btn>
-                  <Input $accent="#0af" type="text" value={tailscaleHostIp} onChange={(e) => setTailscaleHostIp(e.target.value)} placeholder="IP Tailscale del host" />
+                  <Input $accent="#00f3ff" type="text" value={tailscaleHostIp} onChange={(e) => setTailscaleHostIp(e.target.value)} placeholder="IP Tailscale del host" />
                 </Row>
-                {tsStatus && <StatusText $color="#0af">{tsStatus}</StatusText>}
+                {tsStatus && <StatusText $color="#00f3ff">{tsStatus}</StatusText>}
               </Section>
 
               <ToggleBtn $isOpen={showOtherMethods} onClick={() => setShowOtherMethods((p) => !p)}>
@@ -619,20 +619,20 @@ function App() {
                 </Section>
 
                 {/* ───── MODO BORE (TÚNEL) ───── */}
-                <Section $accent={theme.colors.primary}>
-                  <SectionHeader $color={theme.colors.primary}>
-                    <Badge $bg={theme.colors.primary}>BORE</Badge> MODO TÚNEL — JUEGA CON AMIGOS POR INTERNET
+                <Section $accent="#0af">
+                  <SectionHeader $color="#0af">
+                    <Badge $bg="#0af">BORE</Badge> MODO TÚNEL — JUEGA CON AMIGOS POR INTERNET
                   </SectionHeader>
-                  <Btn onClick={() => handleTestGame(true)} disabled={loading.bore} $loading={loading.bore} $accent={theme.colors.primary} $bg={loading.bore ? theme.colors.primary + "22" : "transparent"}>
+                  <Btn onClick={() => handleTestGame(true)} disabled={loading.bore} $loading={loading.bore} $accent="#0af" $bg={loading.bore ? "#0af22" : "transparent"}>
                     {loading.bore ? "CREANDO TÚNEL..." : "1. HOST GAME"}
                   </Btn>
                   <div style={{ ...inline.flex, marginTop: 10 }}>
-                    <Input $accent={theme.colors.primary} type="text" value={customRelay} onChange={(e) => setCustomRelay(e.target.value)} placeholder="URL del túnel (se copia automática)" />
+                    <Input $accent="#0af" type="text" value={customRelay} onChange={(e) => setCustomRelay(e.target.value)} placeholder="URL del túnel (se copia automática)" />
                     <Btn onClick={handleSaveRelay} $accent="#555" $bg="#222" style={{ width: "auto", whiteSpace: "nowrap", fontSize: "0.6rem", padding: "10px 14px" }}>
                       GUARDAR
                     </Btn>
                   </div>
-                  <Btn onClick={() => handleTestGame(false)} disabled={!customRelay} $accent={theme.colors.primary} style={{ marginTop: 10 }}>
+                  <Btn onClick={() => handleTestGame(false)} disabled={!customRelay} $accent="#0af" style={{ marginTop: 10 }}>
                     2. JOIN GAME
                   </Btn>
                   <StatusText $color="#888">Host → 1. HOST GAME | Guest → 2. JOIN GAME</StatusText>
