@@ -493,7 +493,15 @@ function App() {
                       Iniciá tu propia sala y compartí la IP
                     </span>
                   </SalaButton>
-                  <SalaButton onClick={() => setJoinMode("join")} $accent={theme.colors.primary}>
+                  <SalaButton onClick={() => {
+                    setJoinMode("join");
+                    const saved = localStorage.getItem("emu_latam_last_guest_ip");
+                    if (saved) {
+                      const parts = saved.split(":");
+                      setNakamaHost(parts[0]);
+                      if (parts[1]) setNakamaPort(parts[1]);
+                    }
+                  }} $accent={theme.colors.primary}>
                     UNIRSE A SALA
                     <span style={{ display: "block", fontSize: "0.5rem", opacity: 0.6, marginTop: 6, fontFamily: "Inter" }}>
                       Conectate a la sala de un amigo
@@ -525,6 +533,7 @@ function App() {
                         await loginGhost();
                         const ts = await (window as any).electron.ipcRenderer.invoke("get-tailscale-ip");
                         if (ts.ip) setMyTailscaleIp(ts.ip);
+                        localStorage.setItem("emu_latam_last_guest_ip", `${nakamaHost}:${nakamaPort}`);
                       } else {
                         alert("No se pudo conectar al servidor. Verificá la IP.");
                       }
