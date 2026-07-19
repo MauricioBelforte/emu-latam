@@ -1,6 +1,9 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from "react";
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
 import type { ReactNode } from "react";
 import { nakamaService } from "../lib/nakama";
+
+const RECONNECT_MAX_ATTEMPTS = 10;
+const RECONNECT_DELAY_MS = 3000;
 
 interface AuthContextType {
   userId: string | null;
@@ -23,6 +26,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const isConnecting = useRef(false);
+  const reconnectAttempts = useRef(0);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearReconnect = useCallback(() => {
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+    reconnectAttempts.current = 0;
+  }, []);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -42,7 +55,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     initAuth();
   }, []);
 
-  const loginGhost = async () => {
+  const loginGhost = useCallback(async () => {
     if (isConnecting.current) return;
     try {
       isConnecting.current = true;
@@ -54,8 +67,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUsername(session.username || null);
       setIsAuthenticated(true);
       const socket = await nakamaService.connectSocket();
-      socket.ondisconnect = () => setIsConnected(false);
+      socket.ondisconnect = () => {
+        setIsConnected(false);
+        if (reconnectAttempts.current < RECONNECT_MAX_ATTEMPTS) {
+          reconnectAttempts.current++;
+          console.log(`[AUTH] Reintento ${reconnectAttempts.current}/${RECONNECT_MAX_ATTEMPTS} en ${RECONNECT_DELAY_MS}ms...`);
+          reconnectTimerRef.current = setTimeout(() => loginGhost(), RECONNECT_DELAY_MS);
+        }
+      };
       setIsConnected(true);
+      reconnectAttempts.current = 0;
     } catch (e) {
       console.warn("Nakama no disponible, usando modo local:", e);
       setUserId(`local-${crypto.randomUUID()}`);
@@ -63,15 +84,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setIsAuthenticated(true);
       setIsConnected(false);
     } finally { isConnecting.current = false; }
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
+    clearReconnect();
     setUserId(null);
     setUsername(null);
     setIsAuthenticated(false);
     setIsConnected(false);
     nakamaService.disconnect();
-  };
+  }, [clearReconnect]);
 
   return (
     <AuthContext.Provider value={{ userId, username, isAuthenticated, isConnected, loginGhost, logout }}>
