@@ -16,16 +16,20 @@ Este archivo coordina los agentes que trabajan en paralelo. **Leerlo siempre ant
 
 ## Tareas activas
 
-### Tarea: Investigar optimización netplay (latencia, desync, audio)
+### Tarea 01: Investigación FBNeo standalone + GGPO
+**Agente:** Claude
+**Carpeta:** `Mensajes entre modelos/01-Investigacion-FBNeo-GGPO/`
+**Archivo planteo:** `2026-07-19_20-30-00_1-DEEPSEEK-planteo-investigacion.md`
+**Archivo respuesta:** `2026-07-20_03-53-00_2-CLAUDE-respuesta-investigacion.md`
+**Estado:** `completado`
+**Prioridad:** Alta (define el rumbo del módulo 14)
+**Inicio:** 2026-07-20 03:48
+**Completado:** 2026-07-20
+
+### Tarea: (completada) Investigar optimización netplay
 **Agente:** Claude (Opus)
 **Carpeta:** `Mensajes entre modelos/inputs-retroarch-netplay-latencia-desync-audio/`
-**Archivo planteo:** `2026-07-16_21-18-00_1-DEEPSEEK-planteo-investigacion.md`
-**Archivo respuesta:** `2026-07-17_02-51-00_2-CLAUDE-analisis-soluciones.md`
-**Estado:** `completado` (análisis entregado, esperando review de DeepSeek)
-**Prioridad:** Alta (bloquea experiencia de juego)
-**Inicio:** 2026-07-16 21:18
-**Reclamado por Claude:** 2026-07-17 02:51
-**Completado:** 2026-07-17 02:55
+**Estado:** `completado`
 
 ---
 

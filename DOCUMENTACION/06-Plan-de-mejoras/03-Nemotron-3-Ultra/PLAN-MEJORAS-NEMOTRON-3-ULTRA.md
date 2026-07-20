@@ -1459,4 +1459,4 @@ export class NakamaService implements INakamaService {
 
 **Fin del Documento**  
 *Generado automáticamente desde análisis de Nemotron 3 Ultra - 2026-07-02*  
-*Para actualizaciones, modificar este archivo en `DOCUMENTACION/06-Plan-de-mejoras/nemotron 3 ultra/PLAN-MEJORAS-NEMOTRON-3-ULTRA.md`*
+*Para actualizaciones, modificar este archivo en `DOCUMENTACION/06-Plan-de-mejoras/03-Nemotron-3-Ultra/PLAN-MEJORAS-NEMOTRON-3-ULTRA.md`*

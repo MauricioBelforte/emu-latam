@@ -95,9 +95,37 @@
 - [ ] Inputs del guest se ven correctos en el host
 
 ## Resultados de Ejecución
-- [x] 62/62 tests automatizados pasan (sin RetroArch)
-- [ ] Pruebas funcionales con RetroArch pendientes
-- [ ] Pruebas de latencia con instrumentación pendientes
+
+### Tests Automatizados (sin RetroArch/Electron)
+- [x] 62/62 tests automatizados pasan (100%)
+- [x] Pruebas de Script mitm-relay.js (17 tests)
+- [x] Pruebas de Forwarder TCP (5 tests)
+- [x] Pruebas de Spawn Args start-mitm-local (13 tests)
+- [x] Pruebas de Spawn Real child_process (3 tests)
+- [x] Pruebas de Concurrencia mitmRunning flag (2 tests)
+- [x] Pruebas de Manejo de Errores (3 tests)
+- [x] Pruebas de Comparación MITM vs Transparent (6 tests)
+- [x] Pruebas de Parseo de Argumentos (7 tests)
+- [x] Pruebas de Puertos (6 tests)
+
+### Pruebas de Latencia (requieren instrumentación)
+- [ ] Latencia del forwarder TCP < 5ms
+- [ ] Throughput del forwarder suficiente para netplay
+
+### Pruebas Funcionales (requieren RetroArch)
+- [ ] Flujo completo host → relay → guest con RetroArch
+- [ ] Host responde REQ_SAVE con estado real de juego
+- [ ] No hay desconexión por timeout
+- [ ] Frame sync funciona correctamente
+- [ ] Inputs del guest se ven correctos en el host
+
+### Resumen
+- **Tests automatizados:** 62/62 pasaron (100%)
+- **Tests de latencia (instrumentación):** 2 pendientes
+- **Tests funcionales (RetroArch):** 5 pendientes
+- **Estado:** COMPLETADO (tests automatizados) — 62/62 tests pasan (✅ 100%)
+
+**Ver detalles completos en:** `07-Resultados-Testings.md`
 
 ## Fecha de Ejecución: 2026-07-17
 ## Estado: COMPLETADO (tests automatizados) — 62/62 tests pasan (✅ 100%)

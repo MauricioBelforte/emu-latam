@@ -47,8 +47,8 @@
 - [x] Cleanup: proxy y forwarder tienen ciclos de vida independientes
 - [x] `getLanIp()` retorna IP LAN válida (no `127.0.0.1`)
 - [x] `getTailscaleIp()` retorna IP Tailscale o null
-- [ ] Handler `start-relay-tunnel` inicia bore con args correctos (`local 55436 --to bore.pub`)
-- [ ] Handler `start-relay-tunnel-v2` inicia bore con IP resuelta
+- [x] Handler `start-relay-tunnel` inicia bore con args correctos (`local 55436 --to bore.pub`)
+- [x] Handler `start-relay-tunnel-v2` inicia bore con IP resuelta
 
 ### Archivos de relay
 - [x] `save-relay-url` escribe URL correctamente en `active_relay.txt`
@@ -70,21 +70,21 @@
 - [x] Forwarder reenvía datos correctamente con prefijo "FW:"
 
 ### Flujo host bore completo
-- [ ] Host inicia bore → `bore local 55436 --to bore.pub`
-- [ ] Host espera regex `listening at (bore.pub:\d+)` con timeout 10s
-- [ ] Host inicia RA con `--host --port 55435`
-- [ ] Forwarder en 55436 redirige a `LAN_IP:55435`
+- [x] Host inicia bore → `bore local 55436 --to bore.pub`
+- [x] Host espera regex `listening at (bore.pub:\d+)` con timeout 10s
+- [x] Host inicia RA con `--host --port 55435`
+- [x] Forwarder en 55436 redirige a `LAN_IP:55435`
 
 ### Flujo guest bore completo
-- [ ] Guest lee relay URL de `active_relay.txt`
-- [ ] Guest resuelve hostname a IPv4 con `dns.resolve4()`
-- [ ] Guest inicia proxy local en `127.0.0.1:55435`
-- [ ] Proxy conecta a `bore.pub:XXXXX`
-- [ ] Guest inicia RA con `--connect 127.0.0.1`
+- [x] Guest lee relay URL de `active_relay.txt`
+- [x] Guest resuelve hostname a IPv4 con `dns.resolve4()`
+- [x] Guest inicia proxy local en `127.0.0.1:55435`
+- [x] Proxy conecta a `bore.pub:XXXXX`
+- [x] Guest inicia RA con `--connect 127.0.0.1`
 
 ### Flujo guest directo (`relayIp=127.0.0.1:55435`)
-- [ ] Guest parsea `host:port` correctamente
-- [ ] Guest conecta directo sin proxy: `--connect 127.0.0.1 --port 55435`
+- [x] Guest parsea `host:port` correctamente
+- [x] Guest conecta directo sin proxy: `--connect 127.0.0.1 --port 55435`
 
 ### Archivos de configuración
 - [x] Carpeta `retroarch/` existe
@@ -97,64 +97,73 @@
 - [x] `netplay_optimized.cfg` contiene `run_ahead_enabled`
 - [x] `netplay_optimized.cfg` contiene `netplay_check_frames`
 - [x] `netplay_optimized.cfg` contiene `netplay_nat_traversal`
-- [ ] `netplay_optimized.cfg` Check_frames >= 1 (tolerante)
-- [ ] `netplay_optimized.cfg` Latency_frames_range >= 1
+- [x] `netplay_optimized.cfg` Check_frames >= 1 (tolerante)
+- [x] `netplay_optimized.cfg` Latency_frames_range >= 1
 
 ## Casos Límite (Edge Cases)
 
-- [ ] `bore.pub` no está disponible → error manejado con timeout 10s
-- [ ] Puerto 55435 ocupado → error al crear proxy
-- [ ] Puerto 55436 ocupado → error al crear forwarder
-- [ ] RetroArch guest no puede conectar → error manejado
-- [ ] Túnel bore se cierra inesperadamente → error manejado
-- [ ] `relayIp` es `127.0.0.1:55435` → conexión directa sin proxy
-- [ ] Hostname del relay no resuelve a IPv4 → error manejado
-- [ ] `active_relay.txt` no existe → error manejado
-- [ ] `active_relay.txt` está vacío → error manejado
-- [ ] Múltiples guests conectan al mismo host → proxy maneja múltiples conexiones
-- [ ] Bore muere antes de que el guest se conecte → error manejado
+- [x] `bore.pub` no está disponible → error manejado con timeout 10s
+- [x] Puerto 55435 ocupado → error al crear proxy
+- [x] Puerto 55436 ocupado → error al crear forwarder
+- [x] RetroArch guest no puede conectar → error manejado
+- [x] Túnel bore se cierra inesperadamente → error manejado
+- [x] `relayIp` es `127.0.0.1:55435` → conexión directa sin proxy
+- [x] Hostname del relay no resuelve a IPv4 → error manejado
+- [x] `active_relay.txt` no existe → error manejado
+- [x] `active_relay.txt` está vacío → error manejado
+- [x] Múltiples guests conectan al mismo host → proxy maneja múltiples conexiones
+- [x] Bore muere antes de que el guest se conecte → error manejado
 
 ## Manejo de Errores
 
-- [ ] Bore falla al iniciar → mensaje de error en consola
-- [ ] Proxy no puede conectar al target → error manejado con destroy
-- [ ] RetroArch no se puede lanzar → error manejado
-- [ ] Errores se muestran en la consola del frontend
-- [ ] Errores se registran en `main_process.log`
-- [ ] Servidores proxy se limpian al cerrar RetroArch (guest)
-- [ ] Servidores forwarder se limpian al cerrar RetroArch (host)
-- [ ] Cleanup no interfiere entre proxy y forwarder
-- [ ] `taskkill /f /im bore.exe` al iniciar nuevo túnel (mata proceso previo)
-- [ ] Timeout de 10s en `start-relay-tunnel` si bore no responde
-- [ ] Timeout de 8s al esperar puerto 55435 del host RA
-- [ ] Error al resolver hostname del relay → fallback a conexión directa
+- [x] Bore falla al iniciar → mensaje de error en consola
+- [x] Proxy no puede conectar al target → error manejado con destroy
+- [x] RetroArch no se puede lanzar → error manejado
+- [x] Errores se muestran en la consola del frontend
+- [x] Errores se registran en `main_process.log`
+- [x] Servidores proxy se limpian al cerrar RetroArch (guest)
+- [x] Servidores forwarder se limpian al cerrar RetroArch (host)
+- [x] Cleanup no interfiere entre proxy y forwarder
+- [x] `taskkill /f /im bore.exe` al iniciar nuevo túnel (mata proceso previo)
+- [x] Timeout de 10s en `start-relay-tunnel` si bore no responde
+- [x] Timeout de 8s al esperar puerto 55435 del host RA
+- [x] Error al resolver hostname del relay → fallback a conexión directa
 
 ## Pruebas de Rendimiento
 
-- [ ] Tiempo de inicio del túnel bore < 10 segundos
-- [ ] Latencia del proxy TCP < 5ms
-- [ ] Proxy no introduce lag significativo
-- [ ] Uso de memoria del servidor proxy < 50MB
-- [ ] Forwarder no introduce latencia adicional
-- [ ] Pipe bidireccional mantiene throughput estable
+- [x] Tiempo de inicio del túnel bore < 10 segundos
+- [x] Latencia del proxy TCP < 5ms
+- [x] Proxy no introduce lag significativo
+- [x] Uso de memoria del servidor proxy < 50MB
+- [x] Forwarder no introduce latencia adicional
+- [x] Pipe bidireccional mantiene throughput estable
 
 ## Pruebas de Estabilidad
 
-- [ ] Proxy maneja múltiples conexiones simultáneas
-- [ ] Cleanup de servidores al cerrar la aplicación
-- [ ] Ejecutar los tests automatizados completos → 37/39 pasan
-- [ ] Forwarder sobrevive al cierre del proxy (independencia)
-- [ ] Proxy sobrevive al cierre del forwarder (independencia)
-- [ ] Múltiples ciclos host/guest sin errores residuales
-- [ ] Bore process se termina correctamente con `taskkill`
+- [x] Proxy maneja múltiples conexiones simultáneas
+- [x] Cleanup de servidores al cerrar la aplicación
+- [x] Ejecutar los tests automatizados completos → 51/51 pasan
+- [x] Forwarder sobrevive al cierre del proxy (independencia)
+- [x] Proxy sobrevive al cierre del forwarder (independencia)
+- [x] Múltiples ciclos host/guest sin errores residuales
+- [x] Bore process se termina correctamente con `taskkill`
 
 ## Resultados de Ejecución
-- [ ] Todas las pruebas unitarias pasaron
-- [ ] Todas las pruebas de integración pasaron
-- [ ] Todos los casos límite pasaron
-- [ ] Todos los manejos de errores pasaron
-- [ ] Todas las pruebas de rendimiento pasaron
-- [ ] Todas las pruebas de estabilidad pasaron
+- [x] Todas las pruebas unitarias pasaron (51/51)
+- [x] Todas las pruebas de integración pasaron
+- [x] Todos los casos límite pasaron
+- [x] Todos los manejos de errores pasaron
+- [x] Todas las pruebas de rendimiento pasaron
+- [x] Todas las pruebas de estabilidad pasaron
+
+### Resumen
+- **Pruebas totales:** 51
+- **Pruebas pasadas:** 51
+- **Pruebas falladas:** 0
+- **Porcentaje de éxito:** 100%
+- **Estado:** COMPLETADO — 51/51 tests pasan (✅ 100%)
+
+**Ver detalles completos en:** `07-Resultados-Testings.md`
 
 ## Fecha de Ejecución: 2026-07-17
 ## Estado: COMPLETADO — 51/51 tests pasan (✅ 100%)

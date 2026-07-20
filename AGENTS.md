@@ -163,6 +163,8 @@ Mensajes entre modelos/
 5. **Documentación adjunta:** Si una solución requiere documentos extensos, crear una subcarpeta dentro del tema (ej: `documentacion-solucion/`).
 6. **No eliminar mensajes anteriores:** El hilo completo debe conservarse para trazabilidad.
 7. **ESTADO-PARALELO.md:** Mantener actualizado para saber qué modelo trabaja en cada tema.
+8. **Carpetas enumeradas:** Las carpetas dentro de `Mensajes entre modelos/` usan prefijo numérico (`NN-`) para orden cronológico. Ejemplo: `01-Investigacion-FBNeo-GGPO/`, `02-Diseno-Arquitectura/`.
+9. **Subcarpetas por agente (opcional):** Si múltiples agentes trabajan dentro del mismo tema, cada uno crea su propia subcarpeta dentro del tema para no pisar archivos. Ejemplo: `01-Investigacion-FBNeo-GGPO/1-DEEPSEEK-planteo/`, `01-Investigacion-FBNeo-GGPO/2-CLAUDE-respuesta/`. Si no hay riesgo de colisión (un solo archivo por agente), se puede prescindir de subcarpetas y usar el formato estándar de mensajes.
 
 ## 11. Documentación de Nuevos Componentes (DOCUMENTACION)
 Al crear un nuevo componente o pipeline (ej: nueva integración con una API):

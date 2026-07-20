@@ -36,17 +36,17 @@
 - [x] El argumento de `--appendconfig` es la ruta al `netplay_optimized.cfg`
 - [x] `--appendconfig` se agrega ANTES de `--host`/`--connect`
 - [x] Sin archivo cfg, `--appendconfig` NO está presente
-- [ ] `--appendconfig` se agrega en handler `launch-game` (host y guest)
-- [ ] `--appendconfig` se agrega en handler `start-mitm-local` (host y guest)
-- [ ] `--appendconfig` se agrega en handler `tailscale-host`
-- [ ] `--appendconfig` se agrega en handler `tailscale-guest`
+- [x] `--appendconfig` se agrega en handler `launch-game` (host y guest)
+- [x] `--appendconfig` se agrega en handler `start-mitm-local` (host y guest)
+- [x] `--appendconfig` se agrega en handler `tailscale-host`
+- [x] `--appendconfig` se agrega en handler `tailscale-guest`
 
 ## Pruebas de HTTP Health Check (checkNakamaHealth)
 - [x] Servidor HTTP 200 → health=true
 - [x] Servidor HTTP 500 → health=true (cualquier respuesta HTTP cuenta como UP)
 - [x] Puerto sin servidor → health=false
 - [x] Timeout (servidor que acepta pero no responde) → health=false
-- [ ] Health check usa timeout de 1s
+- [x] Health check usa timeout de 1s
 
 ## Pruebas de Configuración de Nakama (getNakamaConfig)
 - [x] Retorna un objeto con `host` y `port`
@@ -54,7 +54,7 @@
 - [x] Sin archivo de config, retorna defaults `127.0.0.1:7350`
 - [x] Archivo corrupto (JSON inválido) → retorna defaults
 - [x] JSON válido con host/port → retorna valores del archivo
-- [ ] JSON sin host/port → retorna objeto parseado (sin validación de estructura)
+- [x] JSON sin host/port → retorna objeto parseado (sin validación de estructura)
 
 ## Pruebas de Red (getLanIp)
 - [x] `getLanIp` retorna un string
@@ -107,9 +107,42 @@
 - [ ] Status text muestra "NAKAMA ONLINE" cuando está listo
 
 ## Resultados de Ejecución
-- [x] 74/74 tests automatizados pasan (sin RetroArch)
-- [ ] Pruebas funcionales con RetroArch pendientes
-- [ ] Pruebas de UI con Electron pendientes
+
+### Tests Automatizados (sin RetroArch/Electron)
+- [x] 74/74 tests automatizados pasan (100%)
+- [x] Pruebas de archivo de configuración (27 tests)
+- [x] Pruebas de --appendconfig (8 tests)
+- [x] Pruebas de HTTP Health Check (5 tests)
+- [x] Pruebas de Configuración de Nakama (6 tests)
+- [x] Pruebas de Red (3 tests)
+- [x] Pruebas de Tailscale (3 tests)
+- [x] Pruebas de Validación IPv4 (12 tests)
+- [x] Pruebas de Constantes del Sistema (6 tests)
+- [x] Pruebas de Puertos Clave (4 tests)
+
+### Pruebas Funcionales (requieren RetroArch)
+- [ ] RetroArch carga `netplay_optimized.cfg` con `--appendconfig`
+- [ ] Las configuraciones anti-lag se aplican correctamente
+- [ ] El guest no se mueve uno de más en la pantalla del host
+- [ ] `netplay_check_frames = "180"` evita el re-procesamiento de inputs
+- [ ] El fix de doble input aplica a todos los flujos (MITM, Bore, Tailscale, Directo)
+- [ ] Run-ahead desactivado no causa inputs duplicados
+
+### Pruebas de UI (requieren Electron)
+- [ ] Health check polling cada 3s en React
+- [ ] `nakamaReady` cambia estado correctamente
+- [ ] Botón INSERT COIN se deshabilita cuando Nakama no está listo
+- [ ] Spinner/Loader se muestra mientras Nakama inicia
+- [ ] IP de relay se guarda automáticamente en JOIN
+- [ ] Status text muestra "NAKAMA ONLINE" cuando está listo
+
+### Resumen
+- **Tests automatizados:** 74/74 pasaron (100%)
+- **Tests funcionales (RetroArch):** 6 pendientes
+- **Tests de UI (Electron):** 6 pendientes
+- **Estado:** COMPLETADO (tests automatizados) — 74/74 tests pasan (✅ 100%)
+
+**Ver detalles completos en:** `07-Resultados-Testings.md`
 
 ## Fecha de Ejecución: 2026-07-17
 ## Estado: COMPLETADO (tests automatizados) — 74/74 tests pasan (✅ 100%)
