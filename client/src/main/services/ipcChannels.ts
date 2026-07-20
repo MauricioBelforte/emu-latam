@@ -1,0 +1,33 @@
+export const IPC_CHANNELS = {
+  LAUNCH_GAME: "launch-game",
+  START_RELAY_TUNNEL: "start-relay-tunnel",
+  START_RELAY_TUNNEL_V2: "start-relay-tunnel-v2",
+  KILL_RETROARCH: "kill-retroarch",
+  START_MITM_LOCAL: "start-mitm-local",
+  STOP_MITM_LOCAL: "stop-mitm-local",
+  SAVE_RELAY_URL: "save-relay-url",
+  GET_RELAY_URL: "get-relay-url",
+  GET_NAKAMA_SERVER: "get-nakama-server",
+  SET_NAKAMA_SERVER: "set-nakama-server",
+  CHECK_NAKAMA_HEALTH: "check-nakama-health",
+  GET_TAILSCALE_IP: "get-tailscale-ip",
+  TAILSCALE_HOST: "tailscale-host",
+  TAILSCALE_GUEST: "tailscale-guest",
+  STOP_TAILSCALE: "stop-tailscale",
+  OPEN_FIREWALL_PORT: "open-firewall-port",
+  CHECK_PEER_CONNECTIVITY: "check-peer-connectivity",
+  READ_NETPLAY_CONFIG: "read-netplay-config",
+  WRITE_NETPLAY_CONFIG: "write-netplay-config",
+  RESTORE_NETPLAY_CONFIG: "restore-netplay-config",
+  GET_STATUS: "get-status",
+  GET_METRICS: "get-metrics",
+  VALIDATE_DEPENDENCIES: "validate-dependencies",
+  ASSERT_PORT_FREE: "assert-port-free",
+  GET_RELAY_CONFIG: "get-relay-config",
+  SET_RELAY_CONFIG: "set-relay-config",
+  CLEAR_RELAY_CONFIG: "clear-relay-config",
+} as const
+
+export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS]
+
+export const IPC_WHITELIST: ReadonlySet<string> = new Set(Object.values(IPC_CHANNELS))

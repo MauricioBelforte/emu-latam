@@ -7,6 +7,12 @@ import fs from "fs";
 import http from "http";
 import net from "net";
 import type { ChildProcess } from "child_process";
+import { registerCleanup, cleanupAll } from "./cleanupManager";
+import { validateBinaries } from "./dependencyValidator";
+import { getMetrics, type MonitoredProcess } from "./resourceMonitor";
+import { logInfo } from "./logger";
+import { assertPortFree } from "./services/portUtils";
+import { relayConfigStore } from "./services/relayConfigStore";
 
 // ========================================
 // CONSTANTES DE AYUDA
@@ -796,6 +802,121 @@ app.whenReady().then(() => {
     }
   });
 
+  // ========================================
+  // SYSTEM MONITORING (Módulo 15)
+  // ========================================
+
+  function getMonitoredProcesses(): MonitoredProcess[] {
+    return [
+      { name: "Nakama", proc: nakamaProcess },
+      { name: "Bore", proc: boreProcess },
+      { name: "MITM Relay", proc: mitmRelayProcess },
+    ];
+  }
+
+  ipcMain.handle("get-status", async () => {
+    const projectRoot = getProjectRoot();
+    const deps = [
+      { name: "Nakama", path: path.join(projectRoot, "backend", "nakama.exe") },
+      { name: "Bore", path: path.join(projectRoot, "backend", "bore.exe") },
+      {
+        name: "RetroArch",
+        path: path.join(projectRoot, "retroarch", "retroarch.exe"),
+      },
+    ];
+    const depsResult = validateBinaries(deps);
+    const metrics = getMetrics(getMonitoredProcesses());
+    return {
+      nakama: nakamaProcess ? "running" : "stopped" as const,
+      bore: boreProcess ? "running" : "stopped" as const,
+      retroarch: "stopped" as const,
+      metrics,
+      dependencies: depsResult,
+    };
+  });
+
+  ipcMain.handle("get-metrics", async () => {
+    return getMetrics(getMonitoredProcesses());
+  });
+
+  ipcMain.handle("validate-dependencies", async () => {
+    const projectRoot = getProjectRoot();
+    return validateBinaries([
+      { name: "Nakama", path: path.join(projectRoot, "backend", "nakama.exe") },
+      { name: "Bore", path: path.join(projectRoot, "backend", "bore.exe") },
+      {
+        name: "RetroArch",
+        path: path.join(projectRoot, "retroarch", "retroarch.exe"),
+      },
+    ]);
+  });
+
+  // Registrar cleanups
+  registerCleanup("nakama", () => {
+    if (nakamaProcess) {
+      nakamaKilledIntentionally = true;
+      nakamaProcess.kill();
+      nakamaProcess = null;
+      logInfo("Monitor", "Nakama detenido");
+    }
+  });
+  registerCleanup("bore", () => {
+    if (boreProcess) {
+      boreProcess.kill();
+      boreProcess = null;
+      logInfo("Monitor", "Bore detenido");
+    }
+  });
+  registerCleanup("mitm-relay", () => {
+    if (mitmRelayProcess) {
+      mitmRelayProcess.kill();
+      mitmRelayProcess = null;
+      logInfo("Monitor", "MITM Relay detenido");
+    }
+  });
+  registerCleanup("proxy-servers", () => {
+    for (const s of proxyServers) {
+      try { s.close(); } catch {}
+    }
+    proxyServers = [];
+  });
+  registerCleanup("forwarder-servers", () => {
+    for (const s of forwarderServers) {
+      try { s.close(); } catch {}
+    }
+    forwarderServers = [];
+  });
+
+  logInfo("Monitor", "Sistema de monitoreo iniciado");
+
+  // ========================================
+  // MODULE 16 — NOTIFICATIONS, UTILITIES, IPC SECURITY
+  // ========================================
+
+  ipcMain.handle("assert-port-free", async (_e, { port }: { port: number }) => {
+    try {
+      await assertPortFree(port);
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  });
+
+  ipcMain.handle("get-relay-config", async () => {
+    return relayConfigStore.read();
+  });
+
+  ipcMain.handle("set-relay-config", async (_e, { url, setBy }: { url: string; setBy: string }) => {
+    relayConfigStore.write(url, setBy as "host" | "manual");
+    return { success: true };
+  });
+
+  ipcMain.handle("clear-relay-config", async () => {
+    relayConfigStore.clear();
+    return { success: true };
+  });
+
+  logInfo("Monitor", "Handlers del módulo 16 registrados");
   launchNakama();
   startNakamaHealthCheck();
   createWindow();
@@ -803,13 +924,11 @@ app.whenReady().then(() => {
 
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 
-app.on("before-quit", (event) => {
+app.on("before-quit", async (event) => {
   console.log("[APP] before-quit iniciado. Razón:", event.reason || "desconocida");
   nakamaKilledIntentionally = true;
   if (nakamaHealthTimer) clearInterval(nakamaHealthTimer);
   if (nakamaRestartTimer) clearTimeout(nakamaRestartTimer);
-  if (nakamaProcess) nakamaProcess.kill();
-  if (boreProcess) { console.log("🛑 Stopping Bore..."); boreProcess.kill(); }
-  if (mitmRelayProcess) { console.log("🛑 Stopping MITM relay..."); mitmRelayProcess.kill(); }
-  console.log("[TAILSCALE] Limpieza en before-quit");
+  await cleanupAll();
+  logInfo("Monitor", "App cerrada correctamente");
 });

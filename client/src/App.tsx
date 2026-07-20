@@ -8,6 +8,9 @@ import { GlobalStyles } from "./styles/GlobalStyles";
 import { AppShell } from "./components/layout/AppShell";
 import { ChallengeModal } from "./components/ui/ChallengeModal";
 import { NetplayConfigModal } from "./components/ui/NetplayConfigModal";
+import { StatusProvider } from "./context/StatusContext";
+import { ErrorBanner } from "./components/ErrorBanner";
+import { ToastHost } from "./components/ToastHost";
 
 const pulse = keyframes`
   0%, 100% { opacity: 1; }
@@ -211,8 +214,16 @@ function App() {
   const [peerReachable, setPeerReachable] = useState<boolean | null>(null);
   const [showOtherMethods, setShowOtherMethods] = useState(false);
   const [showNetplayConfig, setShowNetplayConfig] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const discoveryDoneRef = useRef(false);
+
+  useEffect(() => {
+    const electron = (window as any).electron;
+    if (electron?.onError) {
+      electron.onError((data: any) => setErrorMsg(data.message || "Error desconocido"));
+    }
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated) setJoinMode(null);
@@ -455,7 +466,16 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <GlobalStyles />
-      <AppShell
+      <StatusProvider>
+        {errorMsg && (
+          <ErrorBanner
+            message={errorMsg}
+            type="error"
+            onDismiss={() => setErrorMsg(null)}
+          />
+        )}
+        <ToastHost />
+        <AppShell
         showPlayers={isAuthenticated}
         showBack={isAuthenticated || joinMode === "join"}
         onBack={isAuthenticated ? () => {
@@ -674,6 +694,7 @@ function App() {
       </AppShell>
       <ChallengeModal />
       {showNetplayConfig && <NetplayConfigModal isOpen={showNetplayConfig} onClose={() => setShowNetplayConfig(false)} />}
+      </StatusProvider>
     </ThemeProvider>
   );
 }
