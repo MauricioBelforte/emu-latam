@@ -17,3 +17,4 @@ Permitir que el usuario elija su propio nombre de visualización al primer inici
 - No requiere backend adicional (solo frontend + localStorage)
 - Debe funcionar incluso si Nakama no está disponible (modo local)
 - El modal debe tener validación básica (nombre no vacío, máximo 20 caracteres)
+- **No aplica al HUD interno de FBNeo/GGPO:** El "Player 1"/"Player 2" dentro de la ventana de juego lo renderiza FBNeo internamente (quark:direct) y no puede modificarse desde Emu Latam
