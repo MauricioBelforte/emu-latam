@@ -19,4 +19,6 @@ contextBridge.exposeInMainWorld("electron", {
   onError: (callback: (data: any) => void) => {
     ipcRenderer.on("report-error", (_event, data) => callback(data));
   },
+  ggpoLaunch: (args: any) => ipcRenderer.invoke("ggpo-launch", args),
+  ggpoKill: () => ipcRenderer.invoke("ggpo-kill"),
 });

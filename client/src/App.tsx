@@ -2,6 +2,10 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import styled, { ThemeProvider, keyframes } from "styled-components";
 import { useAuth } from "./context/AuthContext";
 import { useSocial } from "./context/SocialContext";
+import { useGgpo } from "./ggpo/context/GgpoContext";
+import { GgpoToggle } from "./ggpo/components/GgpoToggle";
+import { GgpoHostView } from "./ggpo/components/GgpoHostView";
+import { GgpoGuestView } from "./ggpo/components/GgpoGuestView";
 import { nakamaService } from "./lib/nakama";
 import { theme } from "./styles/theme";
 import { GlobalStyles } from "./styles/GlobalStyles";
@@ -217,6 +221,8 @@ function App() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const discoveryDoneRef = useRef(false);
+  const { engine, status: ggpoStatus, cancelHosting, startHosting, joinRoom } = useGgpo();
+  const [ggpoIp, setGgpoIp] = useState("");
 
   useEffect(() => {
     const electron = (window as any).electron;
@@ -612,11 +618,47 @@ function App() {
 
               <Divider />
 
-              <ToggleBtn $isOpen={showOtherMethods} onClick={() => setShowOtherMethods((p) => !p)}>
-                {showOtherMethods ? "▲ OCULTAR OTROS MÉTODOS" : "▼ OTROS MÉTODOS DE CONEXIÓN"}
-              </ToggleBtn>
+              <GgpoToggle disabled={!!customRelay && customRelay.includes("bore.pub")} disabledReason="GGPO no es compatible con el túnel Bore (TCP)" />
 
-              <Collapsible $open={showOtherMethods}>
+              {engine === "ggpo" ? (
+                <div style={{ width: "100%", marginTop: 12 }}>
+                  {ggpoStatus === "idle" && (
+                    <>
+                      <Section $accent="#f0f">
+                        <SectionHeader $color="#f0f">
+                          <Badge $bg="#f0f">GGPO</Badge> HOSTEAR PARTIDA GGPO
+                        </SectionHeader>
+                        <div style={{ ...inline.flex, marginBottom: 10 }}>
+                          <Input $accent="#f0f" type="text" value={ggpoIp} onChange={(e) => setGgpoIp(e.target.value)} placeholder="Tu IP (LAN o Tailscale)" />
+                        </div>
+                        <Btn onClick={async () => {
+                          if (!ggpoIp) { alert("Ingresá tu IP primero"); return }
+                          await startHosting(ggpoIp.includes("100.") ? "tailscale" : "lan", ggpoIp)
+                        }} $accent="#f0f" $bg="#f0f22">
+                          HOST GGPO
+                        </Btn>
+                        <StatusText $color="#888">Escribí tu IP LAN (ej: 192.168.x.x) o Tailscale (100.x.x.x) y presioná HOST GGPO</StatusText>
+                      </Section>
+                      <GgpoGuestView onJoin={(userId, room) => joinRoom(userId, room)} />
+                    </>
+                  )}
+                  {ggpoStatus === "waiting_guest" && <GgpoHostView />}
+                  {ggpoStatus === "joining" && <StatusText $color="#f0f">Conectando a sala GGPO...</StatusText>}
+                  {ggpoStatus === "connected" && <StatusText $color="#0f0">GGPO conectado — partida en curso</StatusText>}
+                  {ggpoStatus === "error" && (
+                    <Section $accent="#f00">
+                      <StatusText $color="#f00">Error GGPO: usa CANCELAR y volvé a intentar</StatusText>
+                      <Btn onClick={cancelHosting} $accent="#f00" style={{ marginTop: 8 }}>CANCELAR SALA</Btn>
+                    </Section>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <ToggleBtn $isOpen={showOtherMethods} onClick={() => setShowOtherMethods((p) => !p)}>
+                    {showOtherMethods ? "▲ OCULTAR OTROS MÉTODOS" : "▼ OTROS MÉTODOS DE CONEXIÓN"}
+                  </ToggleBtn>
+
+                  <Collapsible $open={showOtherMethods}>
                 {/* ───── MODO TAILSCALE (P2P) — OFICIAL ───── */}
                 <Section $accent="#00f3ff" style={{ borderWidth: 2 }}>
                   <SectionHeader $color="#00f3ff">
@@ -679,6 +721,7 @@ function App() {
                   </Btn>
                 </Section>
               </Collapsible>
+                </div>)}
 
               {statusText && <StatusText $color={theme.colors.accent} style={{ textAlign: "center" }}>{statusText}</StatusText>}
 

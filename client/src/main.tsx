@@ -7,6 +7,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { SocialProvider } from "./context/SocialContext";
 import { ChallengeProvider } from "./context/ChallengeContext";
 import { ToastProvider } from "./context/ToastContext";
+import { GgpoProvider } from "./ggpo/context/GgpoContext";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -14,7 +15,9 @@ createRoot(document.getElementById("root")!).render(
       <SocialProvider>
         <ChallengeProvider>
           <ToastProvider>
-            <App />
+            <GgpoProvider>
+              <App />
+            </GgpoProvider>
           </ToastProvider>
         </ChallengeProvider>
       </SocialProvider>

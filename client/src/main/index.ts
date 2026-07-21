@@ -13,6 +13,7 @@ import { getMetrics, type MonitoredProcess } from "./resourceMonitor";
 import { logInfo } from "./logger";
 import { assertPortFree } from "./services/portUtils";
 import { relayConfigStore } from "./services/relayConfigStore";
+import { spawnFcadefbneo, killGgpo, findFcadefbneo, getGgpoProcess } from "../ggpo/main/ggpoHandler";
 
 // ========================================
 // CONSTANTES DE AYUDA
@@ -811,6 +812,7 @@ app.whenReady().then(() => {
       { name: "Nakama", proc: nakamaProcess },
       { name: "Bore", proc: boreProcess },
       { name: "MITM Relay", proc: mitmRelayProcess },
+      { name: "GGPO", proc: getGgpoProcess() },
     ];
   }
 
@@ -917,6 +919,35 @@ app.whenReady().then(() => {
   });
 
   logInfo("Monitor", "Handlers del módulo 16 registrados");
+
+  // ========================================
+  // GGPO (Módulo 14)
+  // ========================================
+
+  ipcMain.handle("ggpo-launch", async (_e, args: { rom: string; localPort: number; remoteIp: string; remotePort: number; playerNumber: 0 | 1 }) => {
+    const projectRoot = getProjectRoot();
+    const binary = findFcadefbneo(projectRoot);
+    if (!binary) {
+      return { success: false, error: "fcadefbneo.exe no encontrado. Compilalo primero o verificá que esté en /fcadefbneo/" };
+    }
+    try {
+      spawnFcadefbneo(binary, args);
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  });
+
+  ipcMain.handle("ggpo-kill", async () => {
+    killGgpo();
+    return { success: true };
+  });
+
+  registerCleanup("ggpo", () => {
+    killGgpo();
+  });
+
+  logInfo("Monitor", "Handlers GGPO registrados");
   launchNakama();
   startNakamaHealthCheck();
   createWindow();
