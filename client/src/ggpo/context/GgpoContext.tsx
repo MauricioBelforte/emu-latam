@@ -62,7 +62,10 @@ export function GgpoProvider({ children }: { children: React.ReactNode }) {
         guestDetectedRef.current = false
         pollingRef.current = setInterval(async () => {
           try {
-            const guestRooms = await findGuestRoomsForHost(userId, onlineUsersRef.current.map((u: any) => u.id || u.userId).filter(Boolean))
+            console.log("[GGPO] Host polling: buscando guests...")
+            const userIds = onlineUsersRef.current.map((u: any) => u.id || u.userId).filter(Boolean)
+            const guestRooms = await findGuestRoomsForHost(userId, userIds)
+            console.log("[GGPO] Host polling: guests encontrados:", guestRooms.length)
             if (guestRooms.length > 0 && !guestDetectedRef.current) {
               guestDetectedRef.current = true
               const guest = guestRooms[0]
@@ -70,13 +73,14 @@ export function GgpoProvider({ children }: { children: React.ReactNode }) {
               show("Oponente conectado. Iniciando GGPO...", "success")
 
               const electron = (window as any).electron
+              const hostName = localStorage.getItem("emu_display_name")
               await electron.ipcRenderer.invoke("ggpo-launch", {
                 rom: "kof98",
                 localPort: 6003,
                 remoteIp: guest.room.hostIp,
                 remotePort: guest.room.hostPort ?? 6004,
                 playerNumber: 0,
-                playerName: guest.room.guestName || undefined,
+                playerName: hostName || undefined,
               })
 
               if (pollingRef.current) clearInterval(pollingRef.current)
@@ -120,7 +124,7 @@ export function GgpoProvider({ children }: { children: React.ReactNode }) {
           remoteIp: room.hostIp,
           remotePort: room.hostPort,
           playerNumber: 1,
-          playerName: room.hostName || undefined,
+          playerName: savedName || undefined,
         })
         await publishGgpoRoom({
           hostId: userId,
@@ -157,7 +161,10 @@ export function GgpoProvider({ children }: { children: React.ReactNode }) {
     prevActiveRef.current = true
     const poll = async () => {
       const userIds = onlineUsersRef.current.map((u: any) => u.id || u.userId).filter(Boolean)
+      console.log("[GGPO] Discovery: onlineUsers IDs:", userIds, "onlineUsers raw:", onlineUsersRef.current.map(u => ({ id: (u as any).id, userId: (u as any).userId })))
       const rooms = await findActiveGgpoRooms(userIds)
+      console.log("[GGPO] Discovery: salas encontradas:", rooms.length)
+      if (rooms.length > 0) console.log("[GGPO] Discovery: room hostIds:", rooms.map(r => r.room.hostId))
       setDiscoveredRooms(rooms)
     }
     poll()
