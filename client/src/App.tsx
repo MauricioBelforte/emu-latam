@@ -663,6 +663,19 @@ function App() {
                         </Btn>
                         <StatusText $color="#888">IP detectada automáticamente. Si no es correcta, editá el campo.</StatusText>
                       </Section>
+                      <Section $accent="#a0a">
+                        <SectionHeader $color="#a0a">
+                          <Badge $bg="#a0a">DBG</Badge> TEST LOCAL — DOS VENTANAS EN LA MISMA PC
+                        </SectionHeader>
+                        <Btn onClick={async () => {
+                          const electron = (window as any).electron
+                          const r = await electron.ipcRenderer.invoke("ggpo-launch-local")
+                          if (!r.success) alert("Error: " + r.error)
+                        }} $accent="#a0a" $bg="#a0a22">
+                          TEST LOCAL GGPO
+                        </Btn>
+                        <StatusText $color="#888">Abre dos instancias de fcadefbneo en la misma PC</StatusText>
+                      </Section>
                       <GgpoGuestView onJoin={(userId, room) => joinRoom(userId, room)} />
                     </>
                   )}

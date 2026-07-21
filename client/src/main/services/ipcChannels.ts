@@ -29,6 +29,7 @@ export const IPC_CHANNELS = {
   CLEAR_RELAY_CONFIG: "clear-relay-config",
   GGPO_LAUNCH: "ggpo-launch",
   GGPO_KILL: "ggpo-kill",
+  GGPO_LAUNCH_LOCAL: "ggpo-launch-local",
 } as const
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS]

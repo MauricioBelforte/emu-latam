@@ -13,7 +13,7 @@ import { getMetrics, type MonitoredProcess } from "./resourceMonitor";
 import { logInfo } from "./logger";
 import { assertPortFree } from "./services/portUtils";
 import { relayConfigStore } from "./services/relayConfigStore";
-import { spawnFcadefbneo, killGgpo, findFcadefbneo, getGgpoProcess } from "../ggpo/main/ggpoHandler";
+import { spawnFcadefbneo, killGgpo, findFcadefbneo, getGgpoProcess, spawnLocalTest } from "../ggpo/main/ggpoHandler";
 
 // ========================================
 // CONSTANTES DE AYUDA
@@ -945,6 +945,20 @@ app.whenReady().then(() => {
   ipcMain.handle("ggpo-kill", async () => {
     killGgpo();
     return { success: true };
+  });
+
+  ipcMain.handle("ggpo-launch-local", async () => {
+    const projectRoot = getProjectRoot();
+    const binary = findFcadefbneo(projectRoot);
+    if (!binary) {
+      return { success: false, error: "fcadefbneo.exe no encontrado" };
+    }
+    try {
+      spawnLocalTest(binary);
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
   });
 
   registerCleanup("ggpo", () => {
