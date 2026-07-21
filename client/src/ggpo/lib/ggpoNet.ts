@@ -25,30 +25,43 @@ async function getSessionUserId(): Promise<string | null> {
 export async function publishGgpoRoom(room: GgpoRoom): Promise<void> {
   const session = nakamaService.session
   if (!session) throw new Error("No hay sesión Nakama activa")
-  await nakamaService.client.writeStorageObjects(session, [
-    {
-      collection: COLLECTION,
-      key: KEY,
-      value: room,
-      permission_read: 2,
-      permission_write: 1,
-    },
-  ])
+  console.log("[GGPO-STORAGE] Publicando sala:", JSON.stringify(room), "userId:", session.user_id)
+  try {
+    await nakamaService.client.writeStorageObjects(session, [
+      {
+        collection: COLLECTION,
+        key: KEY,
+        value: room,
+        permission_read: 2,
+        permission_write: 1,
+      },
+    ])
+    console.log("[GGPO-STORAGE] Sala publicada OK")
+  } catch (e) {
+    console.error("[GGPO-STORAGE] Error publicando sala:", e)
+    throw e
+  }
 }
 
 export async function fetchGgpoRoom(userId: string): Promise<GgpoRoom | null> {
   const session = nakamaService.session
   if (!session) return null
   try {
+    console.log("[GGPO-STORAGE] Leyendo sala de userId:", userId)
     const result = await nakamaService.client.readStorageObjects(session, {
       object_ids: [{ collection: COLLECTION, key: KEY, user_id: userId }],
     })
+    console.log("[GGPO-STORAGE] Resultado:", JSON.stringify(result))
     if (result.objects && result.objects.length > 0) {
       const obj = result.objects[0]
-      return (typeof obj.value === "string" ? JSON.parse(obj.value) : obj.value) as GgpoRoom
+      const room = (typeof obj.value === "string" ? JSON.parse(obj.value) : obj.value) as GgpoRoom
+      console.log("[GGPO-STORAGE] Sala encontrada:", JSON.stringify(room))
+      return room
     }
+    console.log("[GGPO-STORAGE] No se encontró sala para userId:", userId)
     return null
-  } catch {
+  } catch (e) {
+    console.error("[GGPO-STORAGE] Error leyendo sala:", e)
     return null
   }
 }
