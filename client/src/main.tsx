@@ -13,13 +13,13 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <AuthProvider>
       <SocialProvider>
-        <ChallengeProvider>
-          <ToastProvider>
-            <GgpoProvider>
+        <GgpoProvider>
+          <ChallengeProvider>
+            <ToastProvider>
               <App />
-            </GgpoProvider>
-          </ToastProvider>
-        </ChallengeProvider>
+            </ToastProvider>
+          </ChallengeProvider>
+        </GgpoProvider>
       </SocialProvider>
     </AuthProvider>
   </StrictMode>,

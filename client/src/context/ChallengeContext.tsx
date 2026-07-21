@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { useAuth } from "./AuthContext";
 import { useSocial } from "./SocialContext";
 import { nakamaService } from "../lib/nakama";
+import { useGgpo } from "../ggpo/context/GgpoContext";
 
 export type ChallengeStatus = "idle" | "picking_method" | "sent" | "received" | "accepted" | "rejected" | "timeout";
 
@@ -51,6 +52,7 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [pendingTarget, setPendingTarget] = useState<PendingTarget | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLaunchingRef = useRef(false);
+  const { engine } = useGgpo();
 
   const resetChallenge = useCallback(() => {
     setChallengeStatus("idle");
@@ -182,7 +184,23 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
         try {
           await (window as any).electron.ipcRenderer.invoke("kill-retroarch");
 
-          if (method === "tailscale") {
+          if (engine === "ggpo") {
+            if (method === "bore") {
+              alert("GGPO no es compatible con el túnel Bore. El reto se canceló.");
+              resetChallenge();
+              return;
+            }
+            const electron = (window as any).electron;
+            const ipResult = method === "tailscale"
+              ? await electron.ipcRenderer.invoke("get-tailscale-ip")
+              : await electron.ipcRenderer.invoke("get-lan-ip");
+            const myIp = ipResult.ip;
+            if (!myIp) { alert("No se pudo detectar IP"); resetChallenge(); return; }
+            await electron.ipcRenderer.invoke("ggpo-launch", {
+              rom: "kof98", localPort: 6003, remoteIp: "", remotePort: 6004, playerNumber: 0,
+            });
+            await sendConnectionInfo(content.acceptedBy, { ggpoHostIp: myIp, hostName: username, useGgpo: true });
+          } else if (method === "tailscale") {
             const result = await (window as any).electron.ipcRenderer.invoke("tailscale-host");
             if (!result.success) { alert("Error Tailscale: " + result.error); resetChallenge(); return; }
             await sendConnectionInfo(content.acceptedBy, { tailscaleIp: result.ip, hostName: username });
@@ -216,7 +234,14 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
         const method = currentChallenge?.method || "bore";
 
         try {
-          if (method === "tailscale" && content.tailscaleIp) {
+          if (content.useGgpo) {
+            const hostIp = content.ggpoHostIp;
+            if (!hostIp) { alert("Error: IP del host no recibida para GGPO"); resetChallenge(); return; }
+            const electron = (window as any).electron;
+            await electron.ipcRenderer.invoke("ggpo-launch", {
+              rom: "kof98", localPort: 6004, remoteIp: hostIp, remotePort: 6003, playerNumber: 1,
+            });
+          } else if (method === "tailscale" && content.tailscaleIp) {
             const result = await (window as any).electron.ipcRenderer.invoke("tailscale-guest", { hostIp: content.tailscaleIp });
             if (!result.success) alert("Error Tailscale guest: " + result.error);
           } else if (method === "bore" && content.boreUrl) {
