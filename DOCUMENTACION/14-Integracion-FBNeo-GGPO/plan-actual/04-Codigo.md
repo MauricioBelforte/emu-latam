@@ -1,123 +1,207 @@
-# Código: Integración FBNeo + GGPO
+# Código: Integración FBNeo + GGPO (Estado Actual)
 
 ## Archivos involucrados
 
-### Nuevos
+### Nuevos (carpeta `client/src/ggpo/`)
 
 | Archivo | Propósito |
 |---------|-----------|
-| `client/src/main/ggpo-handler.ts` | Nuevo IPC handler `launch-game-ggpo`, lógica de spawn, polling, limpieza |
-| `client/src/lib/ggpo.ts` | Funciones helper: validación de binario, armado de args, resolución de puertos |
-| `client/src/scripts/compile-fbneo.ps1` | Script PowerShell para compilar fcadefbneo desde el fork |
+| `main/ggpoHandler.ts` | Handler IPC `ggpo-launch`, `ggpo-kill`, `ggpo-launch-local`. Funciones: `buildQuarkArgs()`, `findFcadefbneo()`, `spawnFcadefbneo()`, `spawnLocalTest()`, `killGgpo()` |
+| `lib/ggpoNet.ts` | Helpers Nakama Storage: `publishGgpoRoom()`, `fetchGgpoRoom()`, `deleteGgpoRoom()`, `findActiveGgpoRooms()`, `findGuestRoomsForHost()` |
+| `context/GgpoContext.tsx` | Estado global: `GgpoEngine`, `GgpoStatus`, `startHosting()`, `joinRoom()`, `cancelHosting()`, polling de guest/discovery |
+| `components/GgpoToggle.tsx` | Toggle visual RetroArch / GGPO |
+| `components/GgpoHostView.tsx` | Pantalla de espera del host con IP clickeable |
+| `components/GgpoGuestView.tsx` | Descubrimiento automático de salas GGPO |
+| `index.ts` | Barrel export |
 
 ### Modificados
 
 | Archivo | Cambio |
 |---------|--------|
-| `client/src/main/index.ts` | Registrar nuevo handler IPC `launch-game-ggpo` y `kill-gpgo-process` |
-| `client/src/main/index.ts` | Incluir `ggpoProcess` en la limpieza global (`app.on('before-quit')`) |
-| `client/src/components/ui/MethodPicker.tsx` | Agregar toggle RetroArch / GGPO |
-| `client/src/App.tsx` | Nuevo flujo de UI cuando engine === 'ggpo' (botones "CREAR SALA GGPO" / "UNIRSE A SALA GGPO") |
-| `client/src/lib/nakama.ts` | Nuevos métodos Storage: `publishGgpoRoom()`, `fetchGgpoRoom()`, `updateGgpoRoom()` |
+| `client/src/main/index.ts` (líneas 931-968) | IPC handlers `ggpo-launch`, `ggpo-kill`, `ggpo-launch-local` registrados + `registerCleanup("ggpo", killGgpo)` |
+| `client/src/main/services/ipcChannels.ts` | Whitelist: `GGPO_LAUNCH`, `GGPO_KILL`, `GGPO_LAUNCH_LOCAL`, `GET_LAN_IP`, `GET_TAILSCALE_IP` |
+| `client/src/preload/index.ts` | Expone: `ggpoLaunch`, `ggpoKill`, `ggpoLaunchLocal`, `getLanIp` |
+| `client/src/App.tsx` | Layout unificado: 4 secciones adaptadas por engine, `GgpoToggle`, `GgpoGuestView`, status views |
+| `client/src/context/ChallengeContext.tsx` | Importa `useGgpo()`, nuevo mensaje `CHALLENGE_GUEST_READY_MSG_TYPE`, host espera guest_ready antes de lanzar |
+| `client/src/main.tsx` | Reorden de providers: `GgpoProvider` ahora envuelve a `ChallengeProvider` |
 
 ### No modificados (protegidos)
 
-| Archivo | Motivo |
+| Handler | Motivo |
 |---------|--------|
-| `client/src/main/index.ts` - handler `launch-game` | Flujo estable RetroArch (AGENTS.md §15) |
-| `client/src/main/index.ts` - handler `start-relay-tunnel` | Flujo estable Bore |
-| `client/src/main/index.ts` - handler `save-relay-url` / `get-relay-url` | Flujo estable Relay |
-| `client/src/context/AuthContext.tsx` | No tocar lógica de auth existente |
-| `client/src/context/ChallengeContext.tsx` | No tocar sistema de retos |
+| `launch-game` (index.ts:336) | Flujo estable RetroArch (AGENTS.md §15) |
+| `start-relay-tunnel` / `start-relay-tunnel-v2` | Flujo estable Bore |
+| `tailscale-host` / `tailscale-guest` | Flujo estable Tailscale RetroArch |
+| `save-relay-url` / `get-relay-url` | Flujo estable Relay |
 
 ## Funciones clave
 
-### `ggpo-handler.ts`
+### ggpoHandler.ts
+
 ```typescript
-// Handler IPC principal
-ipcMain.handle('launch-game-ggpo', async (_, request: GgpoLaunchRequest) => {
-  // 1. Validar binario fcadefbneo existe en resources
-  // 2. Resolver IPs según mode (lan | tailscale)
-  // 3. Si es host (playerNumber === 0): publicar en Nakama Storage, iniciar polling
-  // 4. Armar comando quark:direct
-  // 5. Spawn fcadefbneo como child process
-  // 6. Trackear proceso en variable global ggpoProcess
-})
+buildQuarkArgs(args: GgpoLaunchArgs): string[]
+// Retorna: ["quark:direct,{rom},{localPort},{remoteIp},{remotePort},{playerNumber},0", "-w"]
 
-ipcMain.handle('kill-ggpo-process', async () => {
-  // 1. Matar ggpoProcess si existe
-  // 2. Liberar puertos UDP 6003/6004
-  // 3. Limpiar Nakama Storage
-})
+findFcadefbneo(projectRoot: string): string | null
+// Busca en orden:
+//   1. client/resources/fcadefbneo/fcadefbneo.exe
+//   2. projectRoot/fcadefbneo/fcadefbneo.exe
+//   3. projectRoot/resources/fcadefbneo.exe
+//   4. extraResources/fcadefbneo.exe
+
+spawnFcadefbneo(binaryPath, args): ChildProcess
+// spawn con cwd = directorio del binario (necesario para DLLs)
+// Trackea en variable global ggpoProcess
+
+spawnLocalTest(binaryPath, rom = "kof98"): void
+// Lanza dos instancias:
+//   P1 (host):   quark:direct,kof98,6003,127.0.0.1,6004,0,0 -w
+//   P2 (guest):  quark:direct,kof98,6004,127.0.0.1,6003,1,0 -w
+
+killGgpo(): void
+// Mata ggpoProcess y ggpoProcess2
 ```
 
-### `ggpo.ts`
+### ggpoNet.ts
+
 ```typescript
-function buildQuarkArgs(
-  rom: string,
-  localPort: number,
-  remoteIp: string,
-  remotePort: number,
-  playerNumber: 0 | 1
-): string[]
+publishGgpoRoom(room: GgpoRoom): Promise<void>
+// Escribe en Storage propio: collection="emu_latam_ggpo", key="active_room"
+// permission_read=2, permission_write=1
 
-function findFcadefbneo(): string
-// Busca en: projectRoot/fcadefbneo/fcadefbneo.exe
-//          projectRoot/resources/fcadefbneo.exe
+fetchGgpoRoom(userId: string): Promise<GgpoRoom | null>
+// Lee Storage de otro usuario por userId
 
-function resolveGgpoIp(mode: 'lan' | 'tailscale'): string
-// LAN: getLanIp()
-// Tailscale: getTailscaleIp() o 100.x.x.x
+deleteGgpoRoom(): Promise<void>
+// Borra Storage propio
 
-function findAvailableUdpPort(startPort: number): Promise<number>
-// Intentar startPort, startPort+1, startPort+2
+findActiveGgpoRooms(onlineUserIds: string[]): Promise<{ userId, room }[]>
+// Itera usuarios online, busca salas con status="waiting"
+
+findGuestRoomsForHost(hostUserId: string, onlineUserIds: string[]): Promise<{ userId, room }[]>
+// Itera usuarios online (excepto host), busca salas con status="joining" y targetHostId == hostUserId
 ```
 
-### `nakama.ts` (adiciones)
+### GgpoContext.tsx
+
 ```typescript
-async publishGgpoRoom(hostIp: string, port: number, method: string): Promise<void>
-async fetchGgpoRoom(userId: string): Promise<GgpoRoom | null>
-async updateGgpoRoom(guestIp: string, guestPort: number): Promise<void>
-async deleteGgpoRoom(): Promise<void>
+// Estado
+engine: GgpoEngine          // "retroarch" | "ggpo"
+status: GgpoStatus          // "idle" | "hosting" | "waiting_guest" | "joining" | "connected" | "error"
+hostRoom: GgpoRoom | null
+discoveredRooms: { userId, room }[]
+
+startHosting(method, myIp):
+  // Publica sala con status="waiting"
+  // Inicia polling cada 2s: findGuestRoomsForHost() buscando guests
+  // Cuando guest aparece → ggpo-launch como player 0
+
+joinRoom(hostUserId, room):
+  // Lee IP del host desde room
+  // get-lan-ip para IP propia
+  // ggpo-launch como player 1
+  // Publica sala propia con status="joining", targetHostId
+
+cancelHosting:
+  // ggpo-kill, deleteGgpoRoom, limpia polling
 ```
 
-### `MethodPicker.tsx` (modificaciones)
-```tsx
-// Nuevo estado local
-const [engine, setEngine] = useState<'retroarch' | 'ggpo'>('retroarch')
+### ChallengeContext.tsx (adiciones)
 
-// Render condicional del toggle (solo visible si method no es bore)
-{method !== 'bore' && (
-  <EngineToggle engine={engine} onChange={setEngine} />
-)}
+```typescript
+// Nuevo tipo de mensaje
+const CHALLENGE_GUEST_READY_MSG_TYPE = "challenge_guest_ready"
+
+// Host (acepta reto, engine === "ggpo"):
+//   1. Detecta IP (get-tailscale-ip o get-lan-ip según method)
+//   2. Envía ggpoHostIp via sendConnectionInfo
+//   3. NO lanza GGPO todavía
+//   4. Espera CHALLENGE_GUEST_READY_MSG_TYPE
+//   5. Al recibir guest_ready → ggpo-launch como player 0 con guestIp
+
+// Guest (recibe _conn, content.useGgpo):
+//   1. Lee ggpoHostIp del mensaje
+//   2. Detecta IP propia
+//   3. ggpo-launch como player 1 con hostIp
+//   4. Envía CHALLENGE_GUEST_READY_MSG_TYPE con guestIp propia
 ```
 
-## Compilación de fcadefbneo
+## Recursos self-hosted
 
-### Script `compile-fbneo.ps1`
-```powershell
-# 1. git clone https://github.com/fightcadeorg/fightcade-fbneo
-# 2. cd fightcade-fbneo
-# 3. games.bat (genera lista de juegos)
-# 4. Abrir projectfiles/visualstudio-2015/fbneo_vs2015.sln
-# 5. Build: Release, x86, Platform Toolset v140
-# 6. Copiar fcadefbneo.exe + DLLs a projectRoot/fcadefbneo/
+### `client/resources/fcadefbneo/` (gitignored)
+
+```
+fcadefbneo.exe
+freetype6.dll
+gd.dll
+ggponet.dll
+jpeg62.dll
+libgd2.dll
+libiconv2.dll
+libpng13.dll
+lua51.dll
+zlib1.dll
+config/
+fightcade/
+support/
+ui/
+ROMs/          ← kof98.zip (~40 MB) incluido
+avi/
+neocdiso/
+recordings/
+savestates/
+screenshots/
 ```
 
-### DLLs necesarias
-(Dependencias por determinar — ejecutar `dumpbin /dependents fcadefbneo.exe` post-compilación)
+### cwd requirement
+`spawnFcadefbneo` y `spawnLocalTest` setean `cwd` al directorio del binario. Sin esto, el proceso termina con exit code "" (no encuentra DLLs ni config/data).
+
+## Estructura de UI (App.tsx)
+
+```
+GgpoToggle
+├─ engine === "ggpo" && ggpoStatus !== "idle" → status view
+│  ├─ waiting_guest: GgpoHostView
+│  ├─ joining: "Conectando..."
+│  ├─ connected: "GGPO conectado"
+│  └─ error: "Error GGPO" + CANCELAR
+└─ idle → ToggleBtn + Collapsible
+   ├─ TAILSCALE (turquesa): GGPO→IP+Host / RA→Host+Join
+   ├─ LAN (verde): GGPO→IP+Host / RA→Host+Join
+   ├─ BORE (azul): GGPO→deshabilitado / RA→Host+Join
+   └─ DEBUG (violeta): GGPO→TEST LOCAL / RA→MITM
+   + GgpoGuestView (solo GGPO idle, fuera del collapsible)
+```
+
+## IPC channels whitelisted
+
+```
+ggpo-launch           → lanza fcadefbneo con args
+ggpo-kill             → mata procesos GGPO
+ggpo-launch-local     → test local (dos instancias)
+get-lan-ip            → detecta IP LAN
+get-tailscale-ip      → detecta IP Tailscale
+```
 
 ## Logging
 
-### Logs específicos del módulo
 ```
-[GGPO] Launching fcadefbneo: quark:direct,kof98,6003,192.168.1.10,6004,0,0 -w
+[GGPO] Lanzando: <path> quark:direct,kof98,6003,192.168.1.10,6004,0,0 -w
 [GGPO] fcadefbneo PID: 12345
-[GGPO] Waiting for guest... (polling Nakama Storage)
-[GGPO] Guest connected: 192.168.1.20:6004
-[GGPO] Cleaning up - killing PID 12345
+[GGPO] fcadefbneo cerrado (código: 0)
+[GGPO] Matando fcadefbneo...
+[GGPO] === INICIANDO TEST LOCAL GGPO ===
+[GGPO] P1 PID: 12345
+[GGPO] P2 PID: 12346
 ```
 
-## Tests asociados
+## Commits principales
 
-Ver `06-Plan-Testings.md` para el plan completo. Los tests se integrarán en el módulo 09-Testing como suite separada.
+| Hash | Descripción |
+|------|-------------|
+| eb97aea | Módulo 14 creado con handler, net, context, componentes toggle/host/guest |
+| d2cd8b9 | Rediseño unificado: 4 secciones adaptadas por engine |
+| 8a5933a | Eliminado alert molesto de test local |
+| 252786f | Integración toggle GGPO con sistema de retos |
+| af848e8 | Fix flujo retos: host espera guest_ready antes de lanzar |
+| 46e88d0 | Fix flujo manual: joinRoom publica sala propia, findGuestRoomsForHost |

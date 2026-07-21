@@ -280,6 +280,23 @@ Con run_ahead=false + buffer dinámico 1-2, no es necesario check_frames porque 
 - [x] `DOCUMENTACION/README.md` actualizado
 - [x] AGENTS.md §10 actualizado con reglas de chat entre modelos
 - [x] Documentación del flujo de test local
-- [x] Commits: eb97aea, d2cd8b9, 8a5933a
+- [x] Commits: eb97aea, d2cd8b9, 8a5933a, 252786f, af848e8, 46e88d0
+
+### 14.8. Integración con Sistema de Retos
+- [x] `main.tsx` — GgpoProvider ahora envuelve a ChallengeProvider
+- [x] ChallengeContext importa `useGgpo()` para leer `engine`
+- [x] Host con GGPO: detecta IP, envía `ggpoHostIp`, espera `challenge_guest_ready`
+- [x] Guest con GGPO: recibe IP, detecta IP propia, lanza GGPO como player 1
+- [x] Nuevo mensaje: `CHALLENGE_GUEST_READY_MSG_TYPE` con `{ guestIp }`
+- [x] Host recibe guest_ready y lanza GGPO como player 0 con la IP del guest
+- [x] Bore rechazado explícitamente en GGPO con alert
+
+### 14.9. Fix Flujo Manual (GgpoGuestView)
+- [x] `updateGgpoRoom` eliminado (fallaba por permisos Storage)
+- [x] `joinRoom()` ahora publica sala propia con `targetHostId`
+- [x] `findGuestRoomsForHost()` busca guests por `targetHostId`
+- [x] Host polling usa `findGuestRoomsForHost()` en vez de `fetchGgpoRoom()`
+- [x] `onlineUsersRef` para evitar closures stale
+- [x] Verificado funcional con segunda PC por Tailscale
 
 

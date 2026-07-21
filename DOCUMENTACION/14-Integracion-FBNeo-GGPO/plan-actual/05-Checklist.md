@@ -1,70 +1,79 @@
-# Checklist: Integración FBNeo + GGPO
+# Checklist: Integración FBNeo + GGPO (Estado Actual)
 
-## Fase 1: Compilación y validación del binario
-- [ ] Clonar `fightcadeorg/fightcade-fbneo`
-- [ ] Instalar VS2015+ y dependencias (DirectX SDK, Perl, NASM)
-- [ ] Ejecutar `games.bat` para generar lista de juegos
-- [ ] Compilar solución VS2015 en Release x86
-- [ ] Validar `fcadefbneo.exe` generado en `build/`
-- [ ] Identificar DLLs necesarias con `dumpbin /dependents`
-- [ ] Probar `quark:direct` manualmente en LAN (2 PCs) con KOF 98
-- [ ] Documentar proceso de compilación en `04-Codigo.md` (plan-actual)
-- [ ] Agregar binario compilado + DLLs a `client/resources/fcadefbneo/`
-- [ ] Agregar `compile-fbneo.ps1` a `client/src/scripts/`
+## Fase 1: Binario y recursos
+- [x] Copiar `fcadefbneo.exe` desde instalación de Fightcade a `client/resources/fcadefbneo/`
+- [x] Copiar DLLs necesarias (freetype6.dll, gd.dll, ggponet.dll, jpeg62.dll, libgd2.dll, libiconv2.dll, libpng13.dll, lua51.dll, zlib1.dll)
+- [x] Copiar config/, support/, ui/, ROMs/
+- [x] Verificar que `cwd` = directorio del binario permite cargar DLLs
+- [x] Agregar `client/resources/fcadefbneo/` a `.gitignore`
+- [x] Probar `quark:direct` manual local: dos ventanas funcionales
+- [x] Eliminar carpeta vacía `fcadefbneo/` en raíz del proyecto
 
 ## Fase 2: Backend (Main Process)
-- [ ] Crear `client/src/main/ggpo-handler.ts`
-- [ ] Crear `client/src/lib/ggpo.ts` con helpers
-- [ ] Implementar `buildQuarkArgs()`
-- [ ] Implementar `findFcadefbneo()` (búsqueda en resources y project root)
-- [ ] Implementar `resolveGgpoIp()` (LAN y Tailscale)
-- [ ] Implementar `findAvailableUdpPort()` (fallback a puerto+1)
-- [ ] Registrar handler `launch-game-ggpo` en `index.ts`
-- [ ] Registrar handler `kill-ggpo-process` en `index.ts`
-- [ ] Agregar `ggpoProcess` a limpieza global (`app.on('before-quit')`)
-- [ ] Implementar polling a Nakama Storage (host esperando guest)
-- [ ] Implementar actualización dinámica de args cuando guest se conecta
+- [x] Crear `client/src/ggpo/main/ggpoHandler.ts` con `buildQuarkArgs()`, `findFcadefbneo()`, `spawnFcadefbneo()`, `spawnLocalTest()`, `killGgpo()`
+- [x] Registrar handler `ggpo-launch` en `index.ts` (línea 931)
+- [x] Registrar handler `ggpo-kill` en `index.ts` (línea 945)
+- [x] Registrar handler `ggpo-launch-local` en `index.ts` (línea 950)
+- [x] Registrar handler `get-lan-ip` en `index.ts` (línea 646)
+- [x] Registrar handler `get-tailscale-ip` en `index.ts` (línea 642)
+- [x] Whitelist en `ipcChannels.ts`: `GGPO_LAUNCH`, `GGPO_KILL`, `GGPO_LAUNCH_LOCAL`, `GET_LAN_IP`, `GET_TAILSCALE_IP`
+- [x] Preload expone: `ggpoLaunch`, `ggpoKill`, `ggpoLaunchLocal`, `getLanIp`
+- [x] `registerCleanup("ggpo", killGgpo)` en `index.ts`
 
-## Fase 3: Frontend (Renderer)
-- [ ] Agregar `engine` state en `MethodPicker.tsx`
-- [ ] Render condicional del toggle RetroArch / GGPO
-- [ ] Deshabilitar toggle cuando method === 'bore' (con tooltip explicativo)
-- [ ] Agregar botones "CREAR SALA GGPO" y "UNIRSE A SALA GGPO" en App.tsx
-- [ ] Conectar botones al IPC `launch-game-ggpo`
-- [ ] Mostrar estado de espera (ESPERANDO OPONENTE...)
-- [ ] Mostrar error si binario no encontrado
-- [ ] Conectar botón "CERRAR SALA" al IPC `kill-ggpo-process`
+## Fase 3: Nakama Storage
+- [x] Crear `client/src/ggpo/lib/ggpoNet.ts`
+- [x] `publishGgpoRoom()` — publica sala en Storage propio
+- [x] `fetchGgpoRoom()` — lee sala de otro usuario
+- [x] `deleteGgpoRoom()` — borra sala propia
+- [x] `findActiveGgpoRooms()` — descubre salas `status: "waiting"`
+- [x] `findGuestRoomsForHost()` — descubre guests apuntando al host
+- [x] Diseño: cada peer publica su propia sala (no se actualiza sala ajena)
 
-## Fase 4: Nakama Storage
-- [ ] Implementar `publishGgpoRoom()` en `nakama.ts`
-- [ ] Implementar `fetchGgpoRoom()` en `nakama.ts`
-- [ ] Implementar `updateGgpoRoom()` en `nakama.ts`
-- [ ] Implementar `deleteGgpoRoom()` en `nakama.ts`
-- [ ] Key: `emu_latam_ggpo_rooms/active_host`
+## Fase 4: Contexto y Estado
+- [x] Crear `client/src/ggpo/context/GgpoContext.tsx`
+- [x] Tipos: `GgpoEngine`, `GgpoStatus`
+- [x] `startHosting(method, myIp)`: publica sala, polling cada 2s para detectar guest
+- [x] `joinRoom(hostUserId, room)`: lanza GGPO como guest, publica sala propia con targetHostId
+- [x] `cancelHosting()`: ggpo-kill, deleteGgpoRoom, limpia polling
+- [x] Auto-descubrimiento de salas (polling cada 3s, filtrado por onlineUsers)
+- [x] `onlineUsersRef` para evitar closures stale en intervalos
 
-## Fase 5: Testing
-- [ ] Ejecutar plan de testings completo (ver `06-Plan-Testings.md`)
-- [ ] Prueba unitaria: `buildQuarkArgs()` produce string correcto
-- [ ] Prueba unitaria: `findFcadefbneo()` encuentra binario
-- [ ] Prueba unitaria: `resolveGgpoIp()` devuelve IP correcta según modo
-- [ ] Prueba unitaria: `findAvailableUdpPort()` encuentra puerto libre
-- [ ] Prueba de integración: host crea sala, guest se une (LAN)
-- [ ] Prueba de integración: host crea sala, guest se une (Tailscale)
-- [ ] Prueba de integración: toggle deshabilitado en modo Bore
-- [ ] Prueba de integración: Nakama Storage pub/sub funciona
-- [ ] Prueba de error: binario no encontrado → mensaje claro
-- [ ] Prueba de error: puerto ocupado → fallback funciona
-- [ ] Prueba de error: guest timeout → sala se cierra
-- [ ] Prueba de error: Nakama caído → error controlado
-- [ ] Prueba de limpieza: cerrar sala mata fcadefbneo, libera puertos
-- [ ] Prueba de limpieza: app.on('before-quit') mata GGPO si está activo
-- [ ] Prueba de no-regresión: RetroArch host directo sigue funcionando
-- [ ] Prueba de no-regresión: RetroArch host con bore sigue funcionando
-- [ ] Prueba de no-regresión: RetroArch join sigue funcionando
+## Fase 5: UI (Renderer)
+- [x] Crear `GgpoToggle.tsx` — toggle RetroArch / GGPO
+- [x] Crear `GgpoHostView.tsx` — pantalla de espera con IP clickeable
+- [x] Crear `GgpoGuestView.tsx` — descubrimiento automático de salas
+- [x] Layout unificado en `App.tsx`: 4 secciones (Tailscale, LAN, Bore, Debug) adaptadas por engine
+- [x] Bore deshabilitado en modo GGPO con mensaje explicativo
+- [x] TEST LOCAL GGPO en sección Debug (sin alert)
+- [x] Status views: waiting_guest → GgpoHostView, joining/connected/error → textos
 
-## Fase 6: Documentación
-- [ ] Actualizar `plan-actual/` con resultados de implementación
-- [ ] Actualizar `DOCUMENTACION/3-DOCUMENTO-TAREAS-ACTUAL.md`
-- [ ] Actualizar `DOCUMENTACION/README.md` con entrada del módulo 14
-- [ ] Generar log en `Logs/`
-- [ ] Crear `AGENTS.md` §14 si es necesario (nuevos flujos bloqueados)
+## Fase 6: Integración con Retos
+- [x] Reordenar providers en `main.tsx`: GgpoProvider → ChallengeProvider
+- [x] ChallengeContext importa `useGgpo()` para leer `engine`
+- [x] Host: si `engine === "ggpo"`, detecta IP, envía ggpoHostIp, espera guest_ready
+- [x] Host: al recibir `CHALLENGE_GUEST_READY`, lanza ggpo-launch como player 0
+- [x] Guest: al recibir `_conn` con `useGgpo`, detecta IP, lanza ggpo-launch como player 1
+- [x] Guest: envía `CHALLENGE_GUEST_READY_MSG_TYPE` con guestIp
+- [x] Bore rechazado explícitamente en GGPO (alert + cancel)
+
+## Fase 7: Testing
+- [x] Build exitoso (`npm run build`)
+- [x] TEST LOCAL GGPO funcional (dos ventanas fcadefbneo en misma PC)
+- [x] Test retos: Host y guest conectan vía Tailscale (verificado con segunda PC)
+- [x] Test manual: GgpoGuestView descubre salas y guest se une
+- [x] Sin regresiones en flujos RetroArch existentes (directo, bore, tailscale)
+- [ ] Tests automatizados para findGuestRoomsForHost y joinRoom
+- [ ] Timeout explícito si guest no aparece en 30s
+
+## Fase 8: Documentación
+- [x] 7 archivos en `plan-inicial/` (creados al inicio del módulo)
+- [x] 7 archivos en `plan-actual/` (actualizados con estado real)
+- [x] `DOCUMENTACION/README.md` actualizado con entrada del módulo 14
+- [x] `DOCUMENTACION/3-DOCUMENTO-TAREAS-ACTUAL.md` actualizado
+- [x] Logs creados (#44 integración, #45 documentación)
+- [x] AGENTS.md §10 actualizado con reglas de chat entre modelos
+
+## Pendientes
+- [ ] Tests automatizados para findGuestRoomsForHost y joinRoom
+- [ ] Timeout explícito si guest no aparece en 30s en GgpoContext
+- [ ] Soporte para roms seleccionables (actualmente hardcodeado "kof98")
