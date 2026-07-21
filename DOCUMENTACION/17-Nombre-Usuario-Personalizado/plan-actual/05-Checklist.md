@@ -15,8 +15,17 @@
 - [x] localStorage: guardar/leer "emu_display_name"
 - [x] AuthContext: loginGhost usa displayName de localStorage
 - [x] App.tsx: mostrar modal si no hay nombre guardado
+- [x] Mostrar nombre en la UI (header, sidebar, chat, retos)
 
-## Fase 3: Testing
+## Fase 3: Nombre en ventana de pelea GGPO (FBNeo)
+- [x] Agregar hostName/guestName a GgpoRoom
+- [x] Host publica su nombre al crear sala GGPO
+- [x] Guest publica su nombre al unirse a sala GGPO
+- [x] Host lee guestName del room y lo pasa a quark:direct
+- [x] Guest lee hostName del room y lo pasa a quark:direct
+- [x] buildQuarkArgs soporta playerName como 8vo parámetro
+
+## Fase 4: Testing
 - [x] Test: modal aparece en primer inicio
 - [x] Test: nombre persiste al cerrar y volver a abrir app
 - [x] Test: header muestra el nombre elegido
@@ -24,16 +33,5 @@
 - [x] Test: chat muestra el nombre elegido
 - [x] npm run dev sin errores (compilación exitosa)
 
-## Fase 4: Verificación
-- [x] Commit y push (913f17a)
-
-## Mejora futura: Nombre en ventana de pelea GGPO (FBNeo)
-El "Player 1" / "Player 2" dentro de la partida lo renderiza FBNeo internamente
-vía el argumento `playerNumber` (0/1) del protocolo quark:direct. No es una
-etiqueta de Emu Latam y no se puede modificar desde afuera.
-
-Posibles enfoques si se desea implementar:
-1. Overlay de Electron sobre la ventana de FBNeo mostrando los nombres
-   (requiere trackear posición de la ventana de juego)
-2. Modificación del source de FBNeo (no factible, es un binario cerrado)
-3. Usar el sistema de etiquetas de RetroArch si se migra a ese motor
+## Fase 5: Verificación
+- [x] Commit y push (913f17a + 9dc9c72)
