@@ -643,42 +643,8 @@ function App() {
 
               <GgpoToggle disabled={!!customRelay && customRelay.includes("bore.pub")} disabledReason="GGPO no es compatible con el túnel Bore (TCP)" />
 
-              {engine === "ggpo" ? (
+              {engine === "ggpo" && ggpoStatus !== "idle" ? (
                 <div style={{ width: "100%", marginTop: 12 }}>
-                  {ggpoStatus === "idle" && (
-                    <>
-                       <Section $accent="#f0f">
-                        <SectionHeader $color="#f0f">
-                          <Badge $bg="#f0f">GGPO</Badge> HOSTEAR PARTIDA GGPO
-                        </SectionHeader>
-                        <div style={{ ...inline.flex, marginBottom: 10 }}>
-                          <Input $accent="#f0f" type="text" value={ggpoIp} onChange={(e) => setGgpoIp(e.target.value)} placeholder="Tu IP (LAN o Tailscale)" style={{ flex: 1 }} />
-                          {ggpoIp.includes("100.") ? <span style={{ color: "#0af", fontSize: "0.65rem" }}>🦎 TAILSCALE</span> : ggpoIp && <span style={{ color: "#0f0", fontSize: "0.65rem" }}>🌐 LAN</span>}
-                        </div>
-                        <Btn onClick={async () => {
-                          if (!ggpoIp) { alert("Ingresá tu IP primero"); return }
-                          await startHosting(ggpoIp.includes("100.") ? "tailscale" : "lan", ggpoIp)
-                        }} $accent="#f0f" $bg="#f0f22">
-                          HOST GGPO
-                        </Btn>
-                        <StatusText $color="#888">IP detectada automáticamente. Si no es correcta, editá el campo.</StatusText>
-                      </Section>
-                      <Section $accent="#a0a">
-                        <SectionHeader $color="#a0a">
-                          <Badge $bg="#a0a">DBG</Badge> TEST LOCAL — DOS VENTANAS EN LA MISMA PC
-                        </SectionHeader>
-                        <Btn onClick={async () => {
-                          const electron = (window as any).electron
-                          const r = await electron.ipcRenderer.invoke("ggpo-launch-local")
-                          if (!r.success) alert("Error: " + r.error)
-                        }} $accent="#a0a" $bg="#a0a22">
-                          TEST LOCAL GGPO
-                        </Btn>
-                        <StatusText $color="#888">Abre dos instancias de fcadefbneo en la misma PC</StatusText>
-                      </Section>
-                      <GgpoGuestView onJoin={(userId, room) => joinRoom(userId, room)} />
-                    </>
-                  )}
                   {ggpoStatus === "waiting_guest" && <GgpoHostView myIp={ggpoIp} />}
                   {ggpoStatus === "joining" && <StatusText $color="#f0f">Conectando a sala GGPO...</StatusText>}
                   {ggpoStatus === "connected" && <StatusText $color="#0f0">GGPO conectado — partida en curso</StatusText>}
@@ -690,27 +656,45 @@ function App() {
                   )}
                 </div>
               ) : (
-                <div>
-                  <ToggleBtn $isOpen={showOtherMethods} onClick={() => setShowOtherMethods((p) => !p)}>
-                    {showOtherMethods ? "▲ OCULTAR OTROS MÉTODOS" : "▼ OTROS MÉTODOS DE CONEXIÓN"}
-                  </ToggleBtn>
+                <>
+              <ToggleBtn $isOpen={showOtherMethods} onClick={() => setShowOtherMethods((p) => !p)}>
+                {showOtherMethods ? "▲ OCULTAR OTROS MÉTODOS" : "▼ OTROS MÉTODOS DE CONEXIÓN"}
+              </ToggleBtn>
 
-                  <Collapsible $open={showOtherMethods}>
+              <Collapsible $open={showOtherMethods}>
                 {/* ───── MODO TAILSCALE (P2P) — OFICIAL ───── */}
                 <Section $accent="#00f3ff" style={{ borderWidth: 2 }}>
                   <SectionHeader $color="#00f3ff">
                     <Badge $bg="#00f3ff">P2P</Badge> MODO TAILSCALE — CONEXIÓN DIRECTA SIN TÚNEL
                   </SectionHeader>
-                  <Btn onClick={handleTailscaleHost} disabled={loading.tsHost} $loading={loading.tsHost} $accent="#00f3ff" $bg={loading.tsHost ? "#00f3ff22" : "transparent"}>
-                    {loading.tsHost ? "INICIANDO..." : "HOST TAILSCALE"}
-                  </Btn>
-                  <Row style={{ marginTop: 10 }}>
-                    <Btn onClick={handleTailscaleGuest} disabled={loading.tsJoin || !tailscaleHostIp} $loading={loading.tsJoin} $accent="#00f3ff" $bg={loading.tsJoin ? "#00f3ff22" : "transparent"}>
-                      {loading.tsJoin ? "CONECTANDO..." : "JOIN VÍA TAILSCALE"}
-                    </Btn>
-                    <Input $accent="#00f3ff" type="text" value={tailscaleHostIp} onChange={(e) => setTailscaleHostIp(e.target.value)} placeholder="IP Tailscale del host" />
-                  </Row>
-                  {tsStatus && <StatusText $color="#00f3ff">{tsStatus}</StatusText>}
+                  {engine === "ggpo" ? (
+                    <>
+                      <div style={{ ...inline.flex, marginBottom: 8 }}>
+                        <span style={{ color: "#888", fontSize: "0.65rem" }}>Tu IP: <strong style={{ color: "#fff" }}>{ggpoIp || "—"}</strong></span>
+                        {ggpoIp.includes("100.") && <span style={{ color: "#0af", fontSize: "0.6rem" }}>🦎 TAILSCALE</span>}
+                      </div>
+                      <Btn onClick={async () => {
+                        if (!ggpoIp) { alert("No se detectó IP"); return }
+                        await startHosting("tailscale", ggpoIp)
+                      }} $accent="#00f3ff" $bg="#00f3ff22">
+                        HOST GGPO (TAILSCALE)
+                      </Btn>
+                      <div style={{ marginTop: 8, display: "none" }} />
+                    </>
+                  ) : (
+                    <>
+                      <Btn onClick={handleTailscaleHost} disabled={loading.tsHost} $loading={loading.tsHost} $accent="#00f3ff" $bg={loading.tsHost ? "#00f3ff22" : "transparent"}>
+                        {loading.tsHost ? "INICIANDO..." : "HOST TAILSCALE"}
+                      </Btn>
+                      <Row style={{ marginTop: 10 }}>
+                        <Btn onClick={handleTailscaleGuest} disabled={loading.tsJoin || !tailscaleHostIp} $loading={loading.tsJoin} $accent="#00f3ff" $bg={loading.tsJoin ? "#00f3ff22" : "transparent"}>
+                          {loading.tsJoin ? "CONECTANDO..." : "JOIN VÍA TAILSCALE"}
+                        </Btn>
+                        <Input $accent="#00f3ff" type="text" value={tailscaleHostIp} onChange={(e) => setTailscaleHostIp(e.target.value)} placeholder="IP Tailscale del host" />
+                      </Row>
+                      {tsStatus && <StatusText $color="#00f3ff">{tsStatus}</StatusText>}
+                    </>
+                  )}
                 </Section>
 
                 {/* ───── MODO DIRECTO (LAN) ───── */}
@@ -718,14 +702,32 @@ function App() {
                   <SectionHeader $color="#0f0">
                     <Badge $bg="#0f0">LAN</Badge> MODO DIRECTO — SIN RELAY, SOLO RED LOCAL
                   </SectionHeader>
-                  <Btn onClick={handleDirectHost} $accent="#0f0" $bg="#0a2a1a">
-                    INICIAR HOST DIRECTO
-                  </Btn>
-                  <Input $accent="#0f0" type="text" value={directHostIp} onChange={(e) => setDirectHostIp(e.target.value)} placeholder="IP del host (ej: 192.168.1.100)" style={{ marginTop: 10 }} />
-                  <Btn onClick={handleDirectJoin} disabled={loading.directJoin || !directHostIp} $loading={loading.directJoin} $accent="#0f0" $bg={loading.directJoin ? "#0f022" : "transparent"} style={{ marginTop: 10 }}>
-                    {loading.directJoin ? "CONECTANDO..." : "JOIN DIRECTO"}
-                  </Btn>
-                  <StatusText $color="#888">Host → INICIAR HOST | Guest → pegar IP del host y JOIN</StatusText>
+                  {engine === "ggpo" ? (
+                    <>
+                      <div style={{ ...inline.flex, marginBottom: 8 }}>
+                        <span style={{ color: "#888", fontSize: "0.65rem" }}>Tu IP: <strong style={{ color: "#fff" }}>{ggpoIp || "—"}</strong></span>
+                        {ggpoIp && !ggpoIp.includes("100.") && <span style={{ color: "#0f0", fontSize: "0.6rem" }}>🌐 LAN</span>}
+                      </div>
+                      <Btn onClick={async () => {
+                        if (!ggpoIp) { alert("No se detectó IP"); return }
+                        await startHosting("lan", ggpoIp)
+                      }} $accent="#0f0" $bg="#0a2a1a">
+                        HOST GGPO (LAN)
+                      </Btn>
+                      <div style={{ marginTop: 8, display: "none" }} />
+                    </>
+                  ) : (
+                    <>
+                      <Btn onClick={handleDirectHost} $accent="#0f0" $bg="#0a2a1a">
+                        INICIAR HOST DIRECTO
+                      </Btn>
+                      <Input $accent="#0f0" type="text" value={directHostIp} onChange={(e) => setDirectHostIp(e.target.value)} placeholder="IP del host (ej: 192.168.1.100)" style={{ marginTop: 10 }} />
+                      <Btn onClick={handleDirectJoin} disabled={loading.directJoin || !directHostIp} $loading={loading.directJoin} $accent="#0f0" $bg={loading.directJoin ? "#0f022" : "transparent"} style={{ marginTop: 10 }}>
+                        {loading.directJoin ? "CONECTANDO..." : "JOIN DIRECTO"}
+                      </Btn>
+                      <StatusText $color="#888">Host → INICIAR HOST | Guest → pegar IP del host y JOIN</StatusText>
+                    </>
+                  )}
                 </Section>
 
                 {/* ───── MODO BORE (TÚNEL) ───── */}
@@ -733,19 +735,25 @@ function App() {
                   <SectionHeader $color="#0af">
                     <Badge $bg="#0af">BORE</Badge> MODO TÚNEL — JUEGA CON AMIGOS POR INTERNET
                   </SectionHeader>
-                  <Btn onClick={() => handleTestGame(true)} disabled={loading.bore} $loading={loading.bore} $accent="#0af" $bg={loading.bore ? "#0af22" : "transparent"}>
-                    {loading.bore ? "CREANDO TÚNEL..." : "1. HOST GAME"}
-                  </Btn>
-                  <div style={{ ...inline.flex, marginTop: 10 }}>
-                    <Input $accent="#0af" type="text" value={customRelay} onChange={(e) => setCustomRelay(e.target.value)} placeholder="URL del túnel (se copia automática)" />
-                    <Btn onClick={handleSaveRelay} $accent="#555" $bg="#222" style={{ width: "auto", whiteSpace: "nowrap", fontSize: "0.6rem", padding: "10px 14px" }}>
-                      GUARDAR
-                    </Btn>
-                  </div>
-                  <Btn onClick={() => handleTestGame(false)} disabled={!customRelay} $accent="#0af" style={{ marginTop: 10 }}>
-                    2. JOIN GAME
-                  </Btn>
-                  <StatusText $color="#888">Host → 1. HOST GAME | Guest → 2. JOIN GAME</StatusText>
+                  {engine === "ggpo" ? (
+                    <StatusText $color="#fa0">⛔ GGPO no es compatible con el túnel Bore (usa UDP, Bore es TCP). Cambiá a RETROARCH para usar este modo.</StatusText>
+                  ) : (
+                    <>
+                      <Btn onClick={() => handleTestGame(true)} disabled={loading.bore} $loading={loading.bore} $accent="#0af" $bg={loading.bore ? "#0af22" : "transparent"}>
+                        {loading.bore ? "CREANDO TÚNEL..." : "1. HOST GAME"}
+                      </Btn>
+                      <div style={{ ...inline.flex, marginTop: 10 }}>
+                        <Input $accent="#0af" type="text" value={customRelay} onChange={(e) => setCustomRelay(e.target.value)} placeholder="URL del túnel (se copia automática)" />
+                        <Btn onClick={handleSaveRelay} $accent="#555" $bg="#222" style={{ width: "auto", whiteSpace: "nowrap", fontSize: "0.6rem", padding: "10px 14px" }}>
+                          GUARDAR
+                        </Btn>
+                      </div>
+                      <Btn onClick={() => handleTestGame(false)} disabled={!customRelay} $accent="#0af" style={{ marginTop: 10 }}>
+                        2. JOIN GAME
+                      </Btn>
+                      <StatusText $color="#888">Host → 1. HOST GAME | Guest → 2. JOIN GAME</StatusText>
+                    </>
+                  )}
                 </Section>
 
                 {/* ───── MODO DEBUG ───── */}
@@ -753,12 +761,39 @@ function App() {
                   <SectionHeader $color="#a0a">
                     <Badge $bg="#a0a">DBG</Badge> DEBUG — PRUEBAS LOCALES
                   </SectionHeader>
-                  <Btn onClick={handleTestMitmLocal} disabled={loading.mitm} $loading={loading.mitm} $accent="#a0a" $bg={loading.mitm ? "#a0a22" : "transparent"}>
-                    {loading.mitm ? "INICIANDO..." : "MITM LOCAL (HOST+GUEST MISMA PC)"}
-                  </Btn>
+                  {engine === "ggpo" ? (
+                    <>
+                      <Btn onClick={async () => {
+                        try {
+                          console.log("GGPO TEST LOCAL: iniciando...")
+                          const electron = (window as any).electron
+                          const r = await electron.ipcRenderer.invoke("ggpo-launch-local")
+                          console.log("GGPO TEST LOCAL: respuesta", r)
+                          if (!r.success) { alert("Error: " + r.error); return }
+                          alert("GGPO local iniciado. Revisá las ventanas de fcadefbneo.")
+                        } catch (e) {
+                          console.error("GGPO TEST LOCAL: excepción", e)
+                          alert("Error inesperado: " + e)
+                        }
+                      }} $accent="#a0a" $bg="#a0a22">
+                        TEST LOCAL GGPO
+                      </Btn>
+                      <StatusText $color="#888">Abre dos instancias de fcadefbneo en la misma PC</StatusText>
+                    </>
+                  ) : (
+                    <Btn onClick={handleTestMitmLocal} disabled={loading.mitm} $loading={loading.mitm} $accent="#a0a" $bg={loading.mitm ? "#a0a22" : "transparent"}>
+                      {loading.mitm ? "INICIANDO..." : "MITM LOCAL (HOST+GUEST MISMA PC)"}
+                    </Btn>
+                  )}
                 </Section>
               </Collapsible>
-                </div>)}
+
+              {engine === "ggpo" && ggpoStatus === "idle" && (
+                <div style={{ marginTop: 12 }}>
+                  <GgpoGuestView onJoin={(userId, room) => joinRoom(userId, room)} />
+                </div>
+              )}
+                </>)}
 
               {statusText && <StatusText $color={theme.colors.accent} style={{ textAlign: "center" }}>{statusText}</StatusText>}
 
