@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { useAuth } from "../../context/AuthContext"
 import { useSocial } from "../../context/SocialContext"
 import { useToast } from "../../context/ToastContext"
-import { publishGgpoRoom, fetchGgpoRoom, updateGgpoRoom, deleteGgpoRoom, findActiveGgpoRooms } from "../lib/ggpoNet"
+import { publishGgpoRoom, fetchGgpoRoom, deleteGgpoRoom, findActiveGgpoRooms, findGuestRoomsForHost } from "../lib/ggpoNet"
 import type { GgpoRoom } from "../lib/ggpoNet"
 
 export type GgpoEngine = "retroarch" | "ggpo"
@@ -35,6 +35,8 @@ export function GgpoProvider({ children }: { children: React.ReactNode }) {
   const { show } = useToast()
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const guestDetectedRef = useRef(false)
+  const onlineUsersRef = useRef<{ id?: string; userId?: string }[]>([])
+  onlineUsersRef.current = onlineUsers
 
   const dismissError = useCallback(() => setErrorMsg(null), [])
 
@@ -58,19 +60,19 @@ export function GgpoProvider({ children }: { children: React.ReactNode }) {
         guestDetectedRef.current = false
         pollingRef.current = setInterval(async () => {
           try {
-            const updated = await fetchGgpoRoom(userId)
-            if (updated && updated.guestIp && !guestDetectedRef.current) {
+            const guestRooms = await findGuestRoomsForHost(userId, onlineUsersRef.current.map((u: any) => u.id || u.userId).filter(Boolean))
+            if (guestRooms.length > 0 && !guestDetectedRef.current) {
               guestDetectedRef.current = true
+              const guest = guestRooms[0]
               setStatus("connected")
-              setHostRoom(updated)
               show("Oponente conectado. Iniciando GGPO...", "success")
 
               const electron = (window as any).electron
               await electron.ipcRenderer.invoke("ggpo-launch", {
                 rom: "kof98",
                 localPort: 6003,
-                remoteIp: updated.guestIp,
-                remotePort: updated.guestPort ?? 6004,
+                remoteIp: guest.room.hostIp,
+                remotePort: guest.room.hostPort ?? 6004,
                 playerNumber: 0,
               })
 
@@ -105,14 +107,9 @@ export function GgpoProvider({ children }: { children: React.ReactNode }) {
       if (!userId) return
       try {
         setStatus("joining")
-        await updateGgpoRoom({
-          guestId: userId,
-          guestIp: room.hostIp,
-          guestPort: 6004,
-          status: "ready",
-        })
-
         const electron = (window as any).electron
+        const ipResult = await electron.ipcRenderer.invoke("get-lan-ip")
+        const guestIp = ipResult.ip || room.hostIp
         await electron.ipcRenderer.invoke("ggpo-launch", {
           rom: "kof98",
           localPort: 6004,
@@ -120,7 +117,15 @@ export function GgpoProvider({ children }: { children: React.ReactNode }) {
           remotePort: room.hostPort,
           playerNumber: 1,
         })
-
+        await publishGgpoRoom({
+          hostId: userId,
+          hostIp: guestIp,
+          hostPort: 6004,
+          method: room.method,
+          status: "joining",
+          targetHostId: hostUserId,
+          timestamp: Date.now(),
+        })
         setStatus("connected")
         show("GGPO conectado!", "success")
       } catch (e: any) {
@@ -145,14 +150,14 @@ export function GgpoProvider({ children }: { children: React.ReactNode }) {
     }
     prevActiveRef.current = true
     const poll = async () => {
-      const userIds = onlineUsers.map((u: any) => u.id || u.userId).filter(Boolean)
+      const userIds = onlineUsersRef.current.map((u: any) => u.id || u.userId).filter(Boolean)
       const rooms = await findActiveGgpoRooms(userIds)
       setDiscoveredRooms(rooms)
     }
     poll()
     const iv = setInterval(poll, 3000)
     return () => clearInterval(iv)
-  }, [isAuthenticated, engine, onlineUsers])
+  }, [isAuthenticated, engine])
 
   useEffect(() => {
     return () => {

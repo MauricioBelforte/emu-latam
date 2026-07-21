@@ -5,10 +5,11 @@ export interface GgpoRoom {
   hostIp: string
   hostPort: number
   method: "lan" | "tailscale"
-  status: "waiting" | "ready" | "playing"
+  status: "waiting" | "joining" | "playing"
   guestId?: string
   guestIp?: string
   guestPort?: number
+  targetHostId?: string
   timestamp: number
 }
 
@@ -50,14 +51,6 @@ export async function fetchGgpoRoom(userId: string): Promise<GgpoRoom | null> {
   }
 }
 
-export async function updateGgpoRoom(updates: Partial<GgpoRoom>): Promise<void> {
-  const userId = await getSessionUserId()
-  if (!userId) throw new Error("No hay sesión Nakama activa")
-  const current = await fetchGgpoRoom(userId)
-  if (!current) throw new Error("No hay sala GGPO activa para actualizar")
-  await publishGgpoRoom({ ...current, ...updates })
-}
-
 export async function deleteGgpoRoom(): Promise<void> {
   const userId = await getSessionUserId()
   if (!userId) return
@@ -77,6 +70,18 @@ export async function findActiveGgpoRooms(onlineUserIds: string[]): Promise<{ us
   for (const uid of onlineUserIds) {
     const room = await fetchGgpoRoom(uid)
     if (room && room.status === "waiting") {
+      results.push({ userId: uid, room })
+    }
+  }
+  return results
+}
+
+export async function findGuestRoomsForHost(hostUserId: string, onlineUserIds: string[]): Promise<{ userId: string; room: GgpoRoom }[]> {
+  const results: { userId: string; room: GgpoRoom }[] = []
+  for (const uid of onlineUserIds) {
+    if (uid === hostUserId) continue
+    const room = await fetchGgpoRoom(uid)
+    if (room && room.status === "joining" && room.targetHostId === hostUserId) {
       results.push({ userId: uid, room })
     }
   }
