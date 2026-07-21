@@ -469,6 +469,29 @@ function App() {
     if (!isAuthenticated) discoveryDoneRef.current = false;
   }, [isAuthenticated]);
 
+  // Auto-detect IP for GGPO mode
+  useEffect(() => {
+    if (!isAuthenticated || engine !== "ggpo" || ggpoIp) return
+    const detect = async () => {
+      const ts = await (window as any).electron.ipcRenderer.invoke("get-tailscale-ip")
+      if (ts.ip) { setGgpoIp(ts.ip); return }
+      const lan = await (window as any).electron.ipcRenderer.invoke("get-lan-ip")
+      if (lan.ip && lan.ip !== "127.0.0.1") setGgpoIp(lan.ip)
+    }
+    detect()
+  }, [isAuthenticated, engine, ggpoIp])
+
+  // Periodic IP refresh for GGPO host
+  useEffect(() => {
+    if (!isAuthenticated || engine !== "ggpo" || ggpoStatus !== "waiting_guest") return
+    const refresh = async () => {
+      const ts = await (window as any).electron.ipcRenderer.invoke("get-tailscale-ip")
+      if (ts.ip && ts.ip !== ggpoIp) setGgpoIp(ts.ip)
+    }
+    const iv = setInterval(refresh, 30000)
+    return () => clearInterval(iv)
+  }, [isAuthenticated, engine, ggpoStatus, ggpoIp])
+
   return (
     <ThemeProvider theme={theme}>
       <GlobalStyles />
@@ -624,12 +647,13 @@ function App() {
                 <div style={{ width: "100%", marginTop: 12 }}>
                   {ggpoStatus === "idle" && (
                     <>
-                      <Section $accent="#f0f">
+                       <Section $accent="#f0f">
                         <SectionHeader $color="#f0f">
                           <Badge $bg="#f0f">GGPO</Badge> HOSTEAR PARTIDA GGPO
                         </SectionHeader>
                         <div style={{ ...inline.flex, marginBottom: 10 }}>
-                          <Input $accent="#f0f" type="text" value={ggpoIp} onChange={(e) => setGgpoIp(e.target.value)} placeholder="Tu IP (LAN o Tailscale)" />
+                          <Input $accent="#f0f" type="text" value={ggpoIp} onChange={(e) => setGgpoIp(e.target.value)} placeholder="Tu IP (LAN o Tailscale)" style={{ flex: 1 }} />
+                          {ggpoIp.includes("100.") ? <span style={{ color: "#0af", fontSize: "0.65rem" }}>🦎 TAILSCALE</span> : ggpoIp && <span style={{ color: "#0f0", fontSize: "0.65rem" }}>🌐 LAN</span>}
                         </div>
                         <Btn onClick={async () => {
                           if (!ggpoIp) { alert("Ingresá tu IP primero"); return }
@@ -637,12 +661,12 @@ function App() {
                         }} $accent="#f0f" $bg="#f0f22">
                           HOST GGPO
                         </Btn>
-                        <StatusText $color="#888">Escribí tu IP LAN (ej: 192.168.x.x) o Tailscale (100.x.x.x) y presioná HOST GGPO</StatusText>
+                        <StatusText $color="#888">IP detectada automáticamente. Si no es correcta, editá el campo.</StatusText>
                       </Section>
                       <GgpoGuestView onJoin={(userId, room) => joinRoom(userId, room)} />
                     </>
                   )}
-                  {ggpoStatus === "waiting_guest" && <GgpoHostView />}
+                  {ggpoStatus === "waiting_guest" && <GgpoHostView myIp={ggpoIp} />}
                   {ggpoStatus === "joining" && <StatusText $color="#f0f">Conectando a sala GGPO...</StatusText>}
                   {ggpoStatus === "connected" && <StatusText $color="#0f0">GGPO conectado — partida en curso</StatusText>}
                   {ggpoStatus === "error" && (

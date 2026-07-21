@@ -11,6 +11,7 @@ export const IPC_CHANNELS = {
   SET_NAKAMA_SERVER: "set-nakama-server",
   CHECK_NAKAMA_HEALTH: "check-nakama-health",
   GET_TAILSCALE_IP: "get-tailscale-ip",
+  GET_LAN_IP: "get-lan-ip",
   TAILSCALE_HOST: "tailscale-host",
   TAILSCALE_GUEST: "tailscale-guest",
   STOP_TAILSCALE: "stop-tailscale",

@@ -21,4 +21,5 @@ contextBridge.exposeInMainWorld("electron", {
   },
   ggpoLaunch: (args: any) => ipcRenderer.invoke("ggpo-launch", args),
   ggpoKill: () => ipcRenderer.invoke("ggpo-kill"),
+  getLanIp: () => ipcRenderer.invoke("get-lan-ip"),
 });

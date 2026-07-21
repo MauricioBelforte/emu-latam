@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useState } from "react"
 import styled, { keyframes } from "styled-components"
 import { useGgpo } from "../context/GgpoContext"
 
@@ -25,6 +25,21 @@ const Waiting = styled.div`
   color: ${(p) => p.theme.colors.accent};
 `
 
+const IpDisplay = styled.p`
+  color: #fff;
+  font-family: monospace;
+  font-size: 1.3rem;
+  background: #000;
+  padding: 10px 18px;
+  border-radius: 6px;
+  border: 2px solid ${(p) => p.theme.colors.accent};
+  display: inline-block;
+  margin: 4px 0;
+  cursor: pointer;
+  user-select: text;
+  letter-spacing: 1px;
+`
+
 const Info = styled.div`
   font-size: 0.7rem;
   color: ${(p) => p.theme.colors.textDim};
@@ -44,17 +59,35 @@ const CancelBtn = styled.button`
   &:hover { background: ${(p) => p.theme.colors.danger}22; }
 `
 
-export function GgpoHostView() {
+interface Props {
+  myIp: string
+}
+
+export function GgpoHostView({ myIp }: Props) {
   const { hostRoom, cancelHosting } = useGgpo()
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(myIp)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   return (
     <Container>
       <Waiting>ESPERANDO OPONENTE...</Waiting>
       <Info>
-        IP: {hostRoom?.hostIp ?? "—"}<br />
-        Puerto: {hostRoom?.hostPort ?? 6003}
+        Tu IP (click para copiar):
+      </Info>
+      <IpDisplay onClick={handleCopy} title="Click para copiar">
+        {myIp} <span style={{ fontSize: "0.9rem" }}>{copied ? "✅" : "📋"}</span>
+      </IpDisplay>
+      <Info>
+        {copied
+          ? "✅ IP copiada. Pasásela a tu amigo para que se una."
+          : "Compartí esta IP con un amigo para que se una a tu sala GGPO"}
         <br />
-        Compartí tu IP con un amigo para que se una
+        Puerto: {hostRoom?.hostPort ?? 6003}
       </Info>
       <CancelBtn onClick={cancelHosting}>CANCELAR SALA</CancelBtn>
     </Container>

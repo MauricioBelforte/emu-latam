@@ -643,6 +643,10 @@ app.whenReady().then(() => {
     return { ip: getTailscaleIp() || null };
   });
 
+  ipcMain.handle("get-lan-ip", async () => {
+    return { ip: getLanIp() };
+  });
+
   // ─── TAILSCALE (paralelo, no toca flujos blindados) ───
   ipcMain.handle("tailscale-host", async () => {
     console.log("[TAILSCALE] tailscale-host llamado");
