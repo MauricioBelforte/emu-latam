@@ -228,4 +228,58 @@ Con run_ahead=false + buffer dinámico 1-2, no es necesario check_frames porque 
 - [x] **npm run dev:** Compila sin errores
 - [x] **Commits:** 27f1ad0, c431629, 3ae7db9
 
+---
+
+## ✅ Módulo 14 — Integración FBNeo-GGPO (21-Jul-2026)
+
+### 14.1. Investigación y Setup
+- [x] Investigación de `quark:direct` CLI args para FBNeo con GGPO
+- [x] Verificación: `fcadefbneo.exe` soporta `quark:direct` con `cwd` en su directorio
+- [x] Copia de `fcadefbneo/` desde Fightcade a `client/resources/fcadefbneo/` (self-hosted)
+- [x] `.gitignore` para excluir binarios/DLLs/ROMs
+
+### 14.2. Handler IPC (Main Process)
+- [x] `findFcadefbneo()` busca en `client/resources/fcadefbneo/` primero
+- [x] `spawnFcadefbneo()` lanza fcadefbneo con `cwd` correcto
+- [x] `spawnLocalTest()` lanza dos instancias (host+guest) para test local
+- [x] `killGgpo()` mata procesos GGPO
+- [x] `getGgpoProcess()` expone proceso activo
+- [x] Handler `ggpo-launch-local` para test local
+- [x] Handler `get-lan-ip` con auto-detección (Tailscale > LAN)
+- [x] `ipcChannels.ts` whitelist actualizado con 4 canales + get-lan-ip
+- [x] `preload/index.ts` expone `ggpoLaunch`, `ggpoKill`, `ggpoLaunchLocal`, `getLanIp`
+
+### 14.3. Red / Nakama Storage
+- [x] `ggpoNet.ts` con helpers para publicar/descubrir salas GGPO
+- [x] Publicación automática de sala al hacer HOST
+- [x] Descubrimiento automático de salas para guest (GgpoGuestView)
+
+### 14.4. Contexto y Estado
+- [x] `GgpoContext.tsx` con máquina de estados (idle, waiting_guest, joining, connected, error)
+- [x] Polling periódico para detección guest (cada 3s)
+- [x] Auto-refresh IP cada 30s
+
+### 14.5. UI (Renderer)
+- [x] `GgpoToggle.tsx` — toggle engine entre RetroArch y GGPO
+- [x] `GgpoHostView.tsx` — pantalla de espera con IP clickeable
+- [x] `GgpoGuestView.tsx` — descubrimiento automático de salas
+- [x] Rediseño unificado: mismas 4 secciones (Tailscale, LAN, Bore, Debug) adaptadas por engine
+- [x] Bore deshabilitado en GGPO (UDP incompatible con TCP)
+- [x] TEST LOCAL GGPO en sección Debug (sin alert molesto)
+- [x] `GgpoGuestView` fuera del Collapsible, visible solo en idle GGPO
+
+### 14.6. Testing y Verificación
+- [x] Build exitoso (`npm run build`)
+- [x] TEST LOCAL GGPO funcional (dos ventanas fcadefbneo)
+- [x] Sin regresiones en flujos RetroArch existentes
+- [x] Carpeta `fcadefbneo/` vacía en raíz eliminada
+
+### 14.7. Documentación
+- [x] Módulo 14 creado en `DOCUMENTACION/14-Integracion-FBNeo-GGPO/`
+- [x] 7 archivos en plan-inicial y plan-actual
+- [x] `DOCUMENTACION/README.md` actualizado
+- [x] AGENTS.md §10 actualizado con reglas de chat entre modelos
+- [x] Documentación del flujo de test local
+- [x] Commits: eb97aea, d2cd8b9, 8a5933a
+
 
