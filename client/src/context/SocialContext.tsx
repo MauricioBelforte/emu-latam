@@ -53,13 +53,12 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
         setLobbyChannelId(channel.id);
 
         // --- CARGA INICIAL DE USUARIOS ---
-        const presences = Object.values(channel.presences || {}).map(
-          (p: any) => ({
-            userId: p.user_id,
-            username: p.username,
-            isOnline: true,
-          }),
-        );
+        const rawPresences = Object.values(channel.presences || {})
+        const presences = rawPresences.map((p: any) => ({
+          userId: p.userId || p.user_id,
+          username: p.username,
+          isOnline: true,
+        }));
 
         // --- ASEGURARNOS DE QUE NOSOTROS ESTAMOS EN LA LISTA ---
         const list = [...presences];
@@ -107,9 +106,9 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
         let nextUsers = [...prev];
 
         presence.joins?.forEach((join: any) => {
-          if (!nextUsers.find((u) => u.userId === join.user_id)) {
+          if (!nextUsers.find((u) => u.userId === (join.userId || join.user_id))) {
             nextUsers.push({
-              userId: join.user_id,
+              userId: join.userId || join.user_id,
               username: join.username,
               isOnline: true,
             });
@@ -117,9 +116,9 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
         });
 
         presence.leaves?.forEach((leave: any) => {
-          if (leave.user_id !== userId) {
-            // No nos borramos a nosotros mismos
-            nextUsers = nextUsers.filter((u) => u.userId !== leave.user_id);
+          const leaveId = leave.userId || leave.user_id;
+          if (leaveId !== userId) {
+            nextUsers = nextUsers.filter((u) => u.userId !== leaveId);
           }
         });
 
