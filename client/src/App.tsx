@@ -770,7 +770,6 @@ function App() {
                           const r = await electron.ipcRenderer.invoke("ggpo-launch-local")
                           console.log("GGPO TEST LOCAL: respuesta", r)
                           if (!r.success) { alert("Error: " + r.error); return }
-                          alert("GGPO local iniciado. Revisá las ventanas de fcadefbneo.")
                         } catch (e) {
                           console.error("GGPO TEST LOCAL: excepción", e)
                           alert("Error inesperado: " + e)
