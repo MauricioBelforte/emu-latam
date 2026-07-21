@@ -12,10 +12,11 @@ interface AuthContextType {
   isConnected: boolean;
   loginGhost: () => Promise<void>;
   logout: () => void;
+  updateDisplayName: (name: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
-  userId: null, username: null, isAuthenticated: false, isConnected: false, loginGhost: async () => {}, logout: () => {},
+  userId: null, username: null, isAuthenticated: false, isConnected: false, loginGhost: async () => {}, logout: () => {}, updateDisplayName: () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -64,7 +65,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await nakamaService.configure(cfg.host, cfg.port);
       const session = await nakamaService.authenticateDevice();
       setUserId(session.user_id || null);
-      setUsername(session.username || null);
+      const displayName = localStorage.getItem("emu_display_name");
+      setUsername(displayName || session.username || null);
       setIsAuthenticated(true);
       const socket = await nakamaService.connectSocket();
       socket.ondisconnect = () => {
@@ -80,10 +82,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (e) {
       console.warn("Nakama no disponible, usando modo local:", e);
       setUserId(`local-${crypto.randomUUID()}`);
-      setUsername(`Player ${Math.floor(Math.random() * 999) + 1}`);
+      const saved = localStorage.getItem("emu_display_name");
+      setUsername(saved || `Player ${Math.floor(Math.random() * 999) + 1}`);
       setIsAuthenticated(true);
       setIsConnected(false);
     } finally { isConnecting.current = false; }
+  }, []);
+
+  const updateDisplayName = useCallback((name: string) => {
+    localStorage.setItem("emu_display_name", name);
+    setUsername(name);
   }, []);
 
   const logout = useCallback(() => {
@@ -96,7 +104,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [clearReconnect]);
 
   return (
-    <AuthContext.Provider value={{ userId, username, isAuthenticated, isConnected, loginGhost, logout }}>
+    <AuthContext.Provider value={{ userId, username, isAuthenticated, isConnected, loginGhost, logout, updateDisplayName }}>
       {children}
     </AuthContext.Provider>
   );

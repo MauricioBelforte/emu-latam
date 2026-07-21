@@ -12,6 +12,7 @@ import { GlobalStyles } from "./styles/GlobalStyles";
 import { AppShell } from "./components/layout/AppShell";
 import { ChallengeModal } from "./components/ui/ChallengeModal";
 import { NetplayConfigModal } from "./components/ui/NetplayConfigModal";
+import { NamePickerModal } from "./components/ui/NamePickerModal";
 import { StatusProvider } from "./context/StatusContext";
 import { ErrorBanner } from "./components/ErrorBanner";
 import { ToastHost } from "./components/ToastHost";
@@ -201,7 +202,7 @@ const inline = {
 };
 
 function App() {
-  const { loginGhost, logout, isAuthenticated, username, isConnected, userId } = useAuth();
+  const { loginGhost, logout, isAuthenticated, username, isConnected, userId, updateDisplayName } = useAuth();
   const { onlineUsers } = useSocial();
   const [loading, setLoading] = useState({ bore: false, mitm: false, tsHost: false, tsJoin: false, directJoin: false });
   const [directHostIp, setDirectHostIp] = useState("");
@@ -218,6 +219,7 @@ function App() {
   const [peerReachable, setPeerReachable] = useState<boolean | null>(null);
   const [showOtherMethods, setShowOtherMethods] = useState(false);
   const [showNetplayConfig, setShowNetplayConfig] = useState(false);
+  const [showNamePicker, setShowNamePicker] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const discoveryDoneRef = useRef(false);
@@ -230,6 +232,12 @@ function App() {
       electron.onError((data: any) => setErrorMsg(data.message || "Error desconocido"));
     }
   }, []);
+
+  useEffect(() => {
+    if (isAuthenticated && !localStorage.getItem("emu_display_name")) {
+      setShowNamePicker(true);
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) setJoinMode(null);
@@ -808,6 +816,7 @@ function App() {
       </AppShell>
       <ChallengeModal />
       {showNetplayConfig && <NetplayConfigModal isOpen={showNetplayConfig} onClose={() => setShowNetplayConfig(false)} />}
+      {showNamePicker && <NamePickerModal onConfirm={(name) => { updateDisplayName(name); setShowNamePicker(false); }} />}
       </StatusProvider>
     </ThemeProvider>
   );
