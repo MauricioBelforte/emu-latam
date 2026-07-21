@@ -34,6 +34,10 @@ emulator/recorded/
 retroarch/
 !retroarch/netplay_optimized.cfg
 
+# FBNeo/GGPO runtime (binarios + ROMs copiados de Fightcade)
+fcadefbneo/
+client/resources/fcadefbneo/
+
 # Otros
 .DS_Store
 .gemini/

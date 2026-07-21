@@ -23,12 +23,15 @@ export function buildQuarkArgs(args: GgpoLaunchArgs): string[] {
   return [`quark:direct,${rom},${localPort},${remoteIp},${remotePort},${playerNumber},0`, "-w"]
 }
 
+const FIGHTCADE_PATHS: string[] = []
+
 export function findFcadefbneo(projectRoot: string): string | null {
   const candidates = [
+    ...FIGHTCADE_PATHS,
+    path.join(projectRoot, "client", "resources", "fcadefbneo", "fcadefbneo.exe"),
     path.join(projectRoot, "fcadefbneo", "fcadefbneo.exe"),
     path.join(projectRoot, "resources", "fcadefbneo.exe"),
     path.join(projectRoot, "extraResources", "fcadefbneo.exe"),
-    path.join(projectRoot, "retroarch", "fcadefbneo.exe"),
   ]
   for (const c of candidates) {
     if (fs.existsSync(c)) return c
@@ -36,14 +39,23 @@ export function findFcadefbneo(projectRoot: string): string | null {
   return null
 }
 
+function getBinaryDir(binaryPath: string): string {
+  return path.dirname(binaryPath)
+}
+
+function spawnWithCwd(binaryPath: string, args: string[]): ChildProcess {
+  return spawn(binaryPath, args, {
+    cwd: getBinaryDir(binaryPath),
+    windowsHide: false,
+    stdio: "ignore",
+  })
+}
+
 export function spawnFcadefbneo(binaryPath: string, args: GgpoLaunchArgs): ChildProcess {
   const quarkArgs = buildQuarkArgs(args)
   logInfo("GGPO", `Lanzando: ${binaryPath} ${quarkArgs.join(" ")}`)
 
-  const proc = spawn(binaryPath, quarkArgs, {
-    windowsHide: false,
-    stdio: "ignore",
-  })
+  const proc = spawnWithCwd(binaryPath, quarkArgs)
 
   ggpoProcess = proc
 
@@ -84,13 +96,13 @@ export function spawnLocalTest(binaryPath: string, rom = "kof98"): void {
   logInfo("GGPO", "=== INICIANDO TEST LOCAL GGPO ===")
 
   const q1 = buildQuarkArgs(args1)
-  ggpoProcess = spawn(binaryPath, q1, { windowsHide: false, stdio: "ignore" })
+  ggpoProcess = spawnWithCwd(binaryPath, q1)
   ggpoProcess.on("error", (err) => { logError("GGPO", `P1 error: ${err.message}`); ggpoProcess = null })
   ggpoProcess.on("close", (code) => { logInfo("GGPO", `P1 cerrado (código: ${code})`); ggpoProcess = null })
   if (ggpoProcess.pid) logInfo("GGPO", `P1 PID: ${ggpoProcess.pid}`)
 
   const q2 = buildQuarkArgs(args2)
-  ggpoProcess2 = spawn(binaryPath, q2, { windowsHide: false, stdio: "ignore" })
+  ggpoProcess2 = spawnWithCwd(binaryPath, q2)
   ggpoProcess2.on("error", (err) => { logError("GGPO", `P2 error: ${err.message}`); ggpoProcess2 = null })
   ggpoProcess2.on("close", (code) => { logInfo("GGPO", `P2 cerrado (código: ${code})`); ggpoProcess2 = null })
   if (ggpoProcess2.pid) logInfo("GGPO", `P2 PID: ${ggpoProcess2.pid}`)
