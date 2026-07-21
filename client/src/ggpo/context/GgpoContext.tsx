@@ -44,10 +44,12 @@ export function GgpoProvider({ children }: { children: React.ReactNode }) {
     async (method: "lan" | "tailscale", myIp: string) => {
       if (!userId) return
       try {
+        const savedName = localStorage.getItem("emu_display_name")
         const room: GgpoRoom = {
           hostId: userId,
           hostIp: myIp,
           hostPort: 6003,
+          hostName: savedName || undefined,
           method,
           status: "waiting",
           timestamp: Date.now(),
@@ -74,6 +76,7 @@ export function GgpoProvider({ children }: { children: React.ReactNode }) {
                 remoteIp: guest.room.hostIp,
                 remotePort: guest.room.hostPort ?? 6004,
                 playerNumber: 0,
+                playerName: guest.room.guestName || undefined,
               })
 
               if (pollingRef.current) clearInterval(pollingRef.current)
@@ -110,17 +113,20 @@ export function GgpoProvider({ children }: { children: React.ReactNode }) {
         const electron = (window as any).electron
         const ipResult = await electron.ipcRenderer.invoke("get-lan-ip")
         const guestIp = ipResult.ip || room.hostIp
+        const savedName = localStorage.getItem("emu_display_name")
         await electron.ipcRenderer.invoke("ggpo-launch", {
           rom: "kof98",
           localPort: 6004,
           remoteIp: room.hostIp,
           remotePort: room.hostPort,
           playerNumber: 1,
+          playerName: room.hostName || undefined,
         })
         await publishGgpoRoom({
           hostId: userId,
           hostIp: guestIp,
           hostPort: 6004,
+          guestName: savedName || undefined,
           method: room.method,
           status: "joining",
           targetHostId: hostUserId,

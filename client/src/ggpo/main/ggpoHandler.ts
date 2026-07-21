@@ -16,11 +16,14 @@ export interface GgpoLaunchArgs {
   remoteIp: string
   remotePort: number
   playerNumber: 0 | 1
+  playerName?: string
 }
 
 export function buildQuarkArgs(args: GgpoLaunchArgs): string[] {
-  const { rom, localPort, remoteIp, remotePort, playerNumber } = args
-  return [`quark:direct,${rom},${localPort},${remoteIp},${remotePort},${playerNumber},0`, "-w"]
+  const { rom, localPort, remoteIp, remotePort, playerNumber, playerName } = args
+  let quark = `quark:direct,${rom},${localPort},${remoteIp},${remotePort},${playerNumber},0`
+  if (playerName) quark += `,${playerName}`
+  return [quark, "-w"]
 }
 
 const FIGHTCADE_PATHS: string[] = []

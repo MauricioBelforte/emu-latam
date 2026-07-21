@@ -4,11 +4,13 @@ export interface GgpoRoom {
   hostId: string
   hostIp: string
   hostPort: number
+  hostName?: string
   method: "lan" | "tailscale"
   status: "waiting" | "joining" | "playing"
   guestId?: string
   guestIp?: string
   guestPort?: number
+  guestName?: string
   targetHostId?: string
   timestamp: number
 }
