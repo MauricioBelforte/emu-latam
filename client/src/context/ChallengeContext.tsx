@@ -42,6 +42,7 @@ const CHALLENGE_MSG_TYPE = "challenge";
 const CHALLENGE_ACCEPT_MSG_TYPE = "challenge_accept";
 const CHALLENGE_REJECT_MSG_TYPE = "challenge_reject";
 const CHALLENGE_CANCEL_MSG_TYPE = "challenge_cancel";
+const CHALLENGE_GUEST_READY_MSG_TYPE = "challenge_guest_ready";
 const CHALLENGE_TIMEOUT_MS = 30000;
 
 export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -196,9 +197,6 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
               : await electron.ipcRenderer.invoke("get-lan-ip");
             const myIp = ipResult.ip;
             if (!myIp) { alert("No se pudo detectar IP"); resetChallenge(); return; }
-            await electron.ipcRenderer.invoke("ggpo-launch", {
-              rom: "kof98", localPort: 6003, remoteIp: "", remotePort: 6004, playerNumber: 0,
-            });
             await sendConnectionInfo(content.acceptedBy, { ggpoHostIp: myIp, hostName: username, useGgpo: true });
           } else if (method === "tailscale") {
             const result = await (window as any).electron.ipcRenderer.invoke("tailscale-host");
@@ -238,9 +236,16 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
             const hostIp = content.ggpoHostIp;
             if (!hostIp) { alert("Error: IP del host no recibida para GGPO"); resetChallenge(); return; }
             const electron = (window as any).electron;
+            const method = currentChallenge?.method || "lan";
+            const ipResult = method === "tailscale"
+              ? await electron.ipcRenderer.invoke("get-tailscale-ip")
+              : await electron.ipcRenderer.invoke("get-lan-ip");
+            const guestIp = ipResult.ip;
+            if (!guestIp) { alert("Error: no se pudo detectar IP propia"); resetChallenge(); return; }
             await electron.ipcRenderer.invoke("ggpo-launch", {
               rom: "kof98", localPort: 6004, remoteIp: hostIp, remotePort: 6003, playerNumber: 1,
             });
+            await sendToLobby(CHALLENGE_GUEST_READY_MSG_TYPE, { targetId: content.senderId, guestIp });
           } else if (method === "tailscale" && content.tailscaleIp) {
             const result = await (window as any).electron.ipcRenderer.invoke("tailscale-guest", { hostIp: content.tailscaleIp });
             if (!result.success) alert("Error Tailscale guest: " + result.error);
@@ -256,6 +261,22 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
           console.error("Error en flujo CLIENT:", e);
           resetChallenge();
         }
+        return;
+      }
+
+      // 2c. GUEST READY (host receives guest's IP, launches GGPO)
+      if (content._type === CHALLENGE_GUEST_READY_MSG_TYPE && engine === "ggpo") {
+        const guestIp = content.guestIp;
+        if (!guestIp) return;
+        try {
+          const electron = (window as any).electron;
+          await electron.ipcRenderer.invoke("ggpo-launch", {
+            rom: "kof98", localPort: 6003, remoteIp: guestIp, remotePort: 6004, playerNumber: 0,
+          });
+        } catch (e) {
+          console.error("Error lanzando GGPO host:", e);
+        }
+        setTimeout(() => resetChallenge(), 5000);
         return;
       }
 
