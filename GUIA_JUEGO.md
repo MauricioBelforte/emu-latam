@@ -96,6 +96,24 @@ Por copyright, licencias y peso, estos archivos **están excluidos del repositor
 |---------|---------|-------------------|
 | PostgreSQL | 14+ | https://www.postgresql.org/download/windows/ |
 
+### Cómo funciona Nakama (importante)
+
+Nakama es el servidor de sala, chat y matchmaking. **Se ejecuta localmente en la PC del HOST.** No hay servidor central público.
+
+**No necesita registro de usuarios.** La app crea cuentas anónimas automáticamente (`loginGhost()`). El nombre que ves en el chat es local (se guarda en `localStorage`), no es una cuenta de Nakama. Cada vez que alguien abre la app, se conecta como usuario anónimo.
+
+**Flujo típico (dos personas que no se conocen):**
+1. La PC1 (Host) instala PostgreSQL + Nakama, abre Emu Latam y crea sala.
+2. La PC2 (Guest) instala solo Emu Latam + Tailscale, se une a la sala de PC1.
+3. PC2 se conecta al Nakama de PC1 a través de Tailscale (la IP que le pasa PC1).
+4. Ambas PCs ven el chat, los usuarios online y pueden lanzar el juego.
+
+**Limitaciones de este modelo:**
+- **No hay ranking persistente:** Al ser cuentas anónimas locales, no hay historial de wins/losses entre sesiones.
+- **No hay lista de amigos:** Nakama no sabe quién sos entre sesiones (tu cuenta anónima cambia cada vez que reiniciás la app).
+- **No hay servidor público:** Para que dos desconocidos jueguen, uno debe hacer de HOST y tener PostgreSQL + Nakama funcionando. No hay un "servidor central" al que todos se conectan.
+- **El Guest depende del Nakama del Host:** Si el Host cierra la app, el Guest pierde conexión al chat/sala.
+
 ---
 
 ## 4. Instalación (dos métodos)
