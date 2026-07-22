@@ -22,6 +22,7 @@ interface SocialContextType {
   messages: ChatMessage[];
   sendMessage: (text: string) => Promise<void>;
   channelId: string | null;
+  getDisplayName: (userId: string) => string;
 }
 
 export const SocialContext = createContext<SocialContextType>({
@@ -29,6 +30,7 @@ export const SocialContext = createContext<SocialContextType>({
   messages: [],
   sendMessage: async () => {},
   channelId: null,
+  getDisplayName: () => "",
 });
 
 export const useSocial = () => useContext(SocialContext);
@@ -101,6 +103,7 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
         if (myUserId && !list.find((u) => u.userId === myUserId)) {
           list.push({ userId: myUserId, username: displayNameRef.current, isOnline: true });
         }
+        displayNameMap.current.set(myUserId, displayNameRef.current);
         setOnlineUsers(list);
 
         const announce = () => {
@@ -177,6 +180,10 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
     }
   }, [lobbyChannelId]);
 
+  const getDisplayName = useCallback((uid: string) => {
+    return displayNameMap.current.get(uid) || "";
+  }, []);
+
   return (
     <SocialContext.Provider
       value={{
@@ -184,6 +191,7 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
         messages,
         sendMessage,
         channelId: lobbyChannelId,
+        getDisplayName,
       }}
     >
       {children}

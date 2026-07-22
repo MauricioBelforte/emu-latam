@@ -55,7 +55,7 @@ const Input = styled.input`
 `;
 
 export const ChatBox: React.FC = () => {
-  const { messages, sendMessage } = useSocial();
+  const { messages, sendMessage, getDisplayName } = useSocial();
   const { userId, isConnected } = useAuth();
   const [text, setText] = useState("");
   const endOfMessagesRef = useRef<HTMLDivElement>(null);
@@ -82,7 +82,7 @@ export const ChatBox: React.FC = () => {
 
           return (
             <MessageLine key={msg.messageId} $isSelf={isSelf}>
-              <User $isSelf={isSelf}>{msg.username}:</User>
+              <User $isSelf={isSelf}>{getDisplayName(msg.senderId) || msg.username}:</User>
               {content || "Mensaje sin texto"}
             </MessageLine>
           );
