@@ -334,7 +334,7 @@ El toggle de motor está al lado del logo, entre el chat y los botones principal
 Emu Latam tiene un sistema de retos integrado. No es necesario crear/ Unirse a sala manualmente.
 
 ### Flujo
-1. Ambos deben estar conectados (INSERT COIN + ver al otro en el sidebar de usuarios online).
+1. Ambos deben estar conectados a la misma sala (Host: **CREAR SALA**, Guest: **UNIRSE A SALA** + **CONECTAR**). Deben verse el uno al otro en el sidebar de usuarios online.
 2. Click en el nombre del usuario en el sidebar → **ENVIAR RETO**.
 3. El otro recibe una notificación → **ACEPTAR** (tiene tiempo limitado).
 4. Se ejecuta el flujo automático de conexión según el motor seleccionado (RetroArch o GGPO).
@@ -384,10 +384,10 @@ No copiaste la carpeta de Fightcade. Ver sección 3 (GGPO).
 
 ### "No veo la sala del otro en GGPO"
 - Verificar que ambos estén en GGPO mode (toggle en GGPO).
-- Verificar que ambos estén conectados al mismo lobby (INSERT COIN).
+- Verificar que ambos estén conectados a la misma sala (uno con **CREAR SALA**, el otro con **UNIRSE A SALA**).
 - Si usan Nakama local, PC2 debe estar UNIDO A SALA de PC1.
 
-### "Nakama OFFLINE" / "INSERT COIN bloqueado"
+### "Nakama OFFLINE" / No se puede conectar
 - **PC1:** Nakama no pudo iniciar. Falta PostgreSQL o el puerto 7350 está ocupado.
 - **PC2:** No está conectado al Nakama de PC1. Usar UNIRSE A SALA.
 

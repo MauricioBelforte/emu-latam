@@ -28,21 +28,22 @@ tailscale up --shields-up=false
 ## 3. Jugar vía GGPO + Retos
 
 ### PC1 (Host)
-1. Click **INSERT COIN**
-2. Asegurar que el toggle dice **GGPO** (arriba a la derecha)
-3. Click **CREAR SALA**
+1. Abrir Emu Latam
+2. Click **CREAR SALA** (botón verde grande)
+3. Asegurar que el toggle dice **GGPO** (arriba a la derecha)
 4. Copiar la IP que aparece (click encima)
-5. Pasársela a PC2 (WhatsApp, Discord, etc.)
+5. Esperar que Nakama termine de iniciar (unos segundos)
+6. Pasársela a PC2 (WhatsApp, Discord, etc.)
 
 ### PC2 (Guest)
-1. Click **INSERT COIN**
+1. Abrir Emu Latam
 2. Click **UNIRSE A SALA**
 3. Pegar la IP de PC1, click **CONECTAR**
 
 ### PC1 — Enviar reto
-4. En el sidebar (jugadores online), click en el nombre de PC2
-5. Click **ENVIAR RETO**
-6. Esperar. Cuando PC2 acepte, el juego se lanza solo.
+7. En el sidebar (jugadores online), click en el nombre de PC2
+8. Click **ENVIAR RETO**
+9. Esperar. Cuando PC2 acepte, el juego se lanza solo.
 
 ### PC2 — Aceptar reto
 4. Aparece una ventana con el reto de PC1
@@ -56,13 +57,12 @@ tailscale up --shields-up=false
 ```
 PC1 (HOST)                        PC2 (GUEST)
 ─────────                         ──────────
-1. INSERT COIN                    1. INSERT COIN
+1. CREAR SALA                     
 2. Toggle → GGPO                  
-3. CREAR SALA                     
-4. Copiar IP ──(WhatsApp)──→     2. UNIRSE A SALA → pegar IP → CONECTAR
-5. Sidebar → click PC2 → RETO   
-                                  3. ACEPTAR RETO
-6. ¡A JUGAR! ←────────────────  4. ¡A JUGAR!
+3. Copiar IP ──(WhatsApp)──→     1. UNIRSE A SALA → pegar IP → CONECTAR
+4. Sidebar → click PC2 → RETO   
+                                  2. ACEPTAR RETO
+5. ¡A JUGAR! ←────────────────  3. ¡A JUGAR!
 ```
 
 ---
