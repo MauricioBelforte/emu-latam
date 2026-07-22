@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "./AuthContext";
 import { nakamaService } from "../lib/nakama";
@@ -33,6 +33,8 @@ export const SocialContext = createContext<SocialContextType>({
 
 export const useSocial = () => useContext(SocialContext);
 
+const USER_PRESENCE_TYPE = "emu_user_online";
+
 export const SocialProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
@@ -40,11 +42,38 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
   const [onlineUsers, setOnlineUsers] = useState<UserPresence[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [lobbyChannelId, setLobbyChannelId] = useState<string | null>(null);
+  const presenceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const processPresence = useCallback((p: any) => ({
+    userId: p.userId || p.user_id,
+    username: p.username,
+    isOnline: true,
+  }), []);
 
   useEffect(() => {
     if (!isConnected || !userId || !nakamaService.socket) return;
 
     const socket = nakamaService.socket;
+
+    // Setear handler ANTES de joinChat
+    socket.onchannelpresence = (presence) => {
+      setOnlineUsers((prev) => {
+        let nextUsers = [...prev];
+        presence.joins?.forEach((join: any) => {
+          const uid = join.userId || join.user_id;
+          if (uid && !nextUsers.find((u) => u.userId === uid)) {
+            nextUsers.push(processPresence(join));
+          }
+        });
+        presence.leaves?.forEach((leave: any) => {
+          const leaveId = leave.userId || leave.user_id;
+          if (leaveId && leaveId !== userId) {
+            nextUsers = nextUsers.filter((u) => u.userId !== leaveId);
+          }
+        });
+        return nextUsers;
+      });
+    };
 
     const initSocial = async () => {
       try {
@@ -52,21 +81,26 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
         const channel = await socket.joinChat("Lobby", 1, true, false);
         setLobbyChannelId(channel.id);
 
-        // --- CARGA INICIAL DE USUARIOS ---
-        const rawPresences = Object.values(channel.presences || {})
-        const presences = rawPresences.map((p: any) => ({
-          userId: p.userId || p.user_id,
-          username: p.username,
-          isOnline: true,
-        }));
+        // Carga inicial de presencias
+        const rawPresences = channel.presences || [];
+        const presences = Array.isArray(rawPresences)
+          ? rawPresences.map(processPresence)
+          : Object.values(rawPresences).map(processPresence);
 
-        // --- ASEGURARNOS DE QUE NOSOTROS ESTAMOS EN LA LISTA ---
         const list = [...presences];
         if (userId && username && !list.find((u) => u.userId === userId)) {
           list.push({ userId, username, isOnline: true });
         }
-
+        console.log("[SOCIAL] Presencias iniciales:", list.length, "usuarios");
         setOnlineUsers(list);
+
+        // Anunciar presencia al lobby (para que otros nos vean aunque presence events fallen)
+        await socket.writeChatMessage(channel.id, {
+          _type: USER_PRESENCE_TYPE,
+          senderId: userId,
+          username,
+          timestamp: Date.now(),
+        }).catch(() => {});
       } catch (e) {
         console.error("Error al inicializar SocialContext:", e);
       }
@@ -74,7 +108,7 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
 
     initSocial();
 
-    // ESCUCHA DE MENSAJES
+    // ESCUCHA DE MENSAJES (incluye presencia vía lobby messages)
     const handleNakamaMessage = (event: Event) => {
       const message = (event as CustomEvent).detail;
       try {
@@ -82,63 +116,62 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
           typeof message.content === "string"
             ? JSON.parse(message.content)
             : message.content;
-        if (content._type) return;
+        if (!content._type) {
+          // Mensaje de chat normal
+          const chatMsg: ChatMessage = {
+            messageId: message.message_id,
+            senderId: message.sender_id,
+            username: message.username,
+            content: content.text || "",
+            timestamp: message.create_time
+              ? new Date(message.create_time).getTime()
+              : Date.now(),
+          };
+          setMessages((prev) => [...prev, chatMsg]);
+          return;
+        }
 
-        const chatMsg: ChatMessage = {
-          messageId: message.message_id,
-          senderId: message.sender_id,
-          username: message.username,
-          content: content.text || "",
-          timestamp: message.create_time
-            ? new Date(message.create_time).getTime()
-            : Date.now(),
-        };
-
-        setMessages((prev) => [...prev, chatMsg]);
-      } catch (e) {}
+        // Mensaje de presencia vía lobby
+        if (content._type === USER_PRESENCE_TYPE) {
+          const sender = message.sender_id || content.senderId;
+          if (sender === userId) return;
+          setOnlineUsers((prev) => {
+            if (prev.find((u) => u.userId === sender)) return prev;
+            return [...prev, { userId: sender, username: content.username, isOnline: true }];
+          });
+        }
+      } catch {}
     };
 
     window.addEventListener("nakama_message", handleNakamaMessage);
 
-    // GESTIÓN DE PRESENCIAS EN VIVO
-    socket.onchannelpresence = (presence) => {
-      setOnlineUsers((prev) => {
-        let nextUsers = [...prev];
-
-        presence.joins?.forEach((join: any) => {
-          if (!nextUsers.find((u) => u.userId === (join.userId || join.user_id))) {
-            nextUsers.push({
-              userId: join.userId || join.user_id,
-              username: join.username,
-              isOnline: true,
-            });
-          }
-        });
-
-        presence.leaves?.forEach((leave: any) => {
-          const leaveId = leave.userId || leave.user_id;
-          if (leaveId !== userId) {
-            nextUsers = nextUsers.filter((u) => u.userId !== leaveId);
-          }
-        });
-
-        return nextUsers;
-      });
-    };
+    // Re-anunciar presencia periódicamente
+    presenceTimerRef.current = setInterval(() => {
+      const ch = lobbyChannelId;
+      if (!ch || !socket) return;
+      socket.writeChatMessage(ch, {
+        _type: USER_PRESENCE_TYPE,
+        senderId: userId,
+        username,
+        timestamp: Date.now(),
+      }).catch(() => {});
+    }, 10000);
 
     return () => {
       window.removeEventListener("nakama_message", handleNakamaMessage);
+      if (presenceTimerRef.current) clearInterval(presenceTimerRef.current);
+      setOnlineUsers([]);
     };
-  }, [isConnected, userId, username]);
+  }, [isConnected, userId, username, processPresence]);
 
-  const sendMessage = async (text: string) => {
+  const sendMessage = useCallback(async (text: string) => {
     if (!lobbyChannelId || !nakamaService.socket) return;
     try {
       await nakamaService.socket.writeChatMessage(lobbyChannelId, { text });
     } catch (e) {
       console.error("Error enviando mensaje:", e);
     }
-  };
+  }, [lobbyChannelId]);
 
   return (
     <SocialContext.Provider
