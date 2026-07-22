@@ -42,7 +42,6 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
   const [onlineUsers, setOnlineUsers] = useState<UserPresence[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [lobbyChannelId, setLobbyChannelId] = useState<string | null>(null);
-  const presenceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const processPresence = useCallback((p: any) => ({
     userId: p.userId || p.user_id,
@@ -54,8 +53,10 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
     if (!isConnected || !userId || !nakamaService.socket) return;
 
     const socket = nakamaService.socket;
+    const myUserId = userId;
+    const myUsername = username;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
 
-    // Setear handler ANTES de joinChat
     socket.onchannelpresence = (presence) => {
       setOnlineUsers((prev) => {
         let nextUsers = [...prev];
@@ -67,7 +68,7 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
         });
         presence.leaves?.forEach((leave: any) => {
           const leaveId = leave.userId || leave.user_id;
-          if (leaveId && leaveId !== userId) {
+          if (leaveId && leaveId !== myUserId) {
             nextUsers = nextUsers.filter((u) => u.userId !== leaveId);
           }
         });
@@ -77,9 +78,9 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
 
     const initSocial = async () => {
       try {
-        console.log("🎮 Uniéndose al Lobby Global...");
         const channel = await socket.joinChat("Lobby", 1, true, false);
-        setLobbyChannelId(channel.id);
+        const chId = channel.id;
+        setLobbyChannelId(chId);
 
         // Carga inicial de presencias
         const rawPresences = channel.presences || [];
@@ -88,19 +89,24 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
           : Object.values(rawPresences).map(processPresence);
 
         const list = [...presences];
-        if (userId && username && !list.find((u) => u.userId === userId)) {
-          list.push({ userId, username, isOnline: true });
+        if (myUserId && myUsername && !list.find((u) => u.userId === myUserId)) {
+          list.push({ userId: myUserId, username: myUsername, isOnline: true });
         }
-        console.log("[SOCIAL] Presencias iniciales:", list.length, "usuarios");
         setOnlineUsers(list);
 
-        // Anunciar presencia al lobby (para que otros nos vean aunque presence events fallen)
-        await socket.writeChatMessage(channel.id, {
-          _type: USER_PRESENCE_TYPE,
-          senderId: userId,
-          username,
-          timestamp: Date.now(),
-        }).catch(() => {});
+        // Anunciar presencia al lobby
+        const announce = () => {
+          socket.writeChatMessage(chId, {
+            _type: USER_PRESENCE_TYPE,
+            senderId: myUserId,
+            username: myUsername,
+            timestamp: Date.now(),
+          }).catch(() => {});
+        };
+        announce();
+
+        // Re-anunciar cada 5s
+        intervalId = setInterval(announce, 5000);
       } catch (e) {
         console.error("Error al inicializar SocialContext:", e);
       }
@@ -108,7 +114,6 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
 
     initSocial();
 
-    // ESCUCHA DE MENSAJES (incluye presencia vía lobby messages)
     const handleNakamaMessage = (event: Event) => {
       const message = (event as CustomEvent).detail;
       try {
@@ -117,7 +122,6 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
             ? JSON.parse(message.content)
             : message.content;
         if (!content._type) {
-          // Mensaje de chat normal
           const chatMsg: ChatMessage = {
             messageId: message.message_id,
             senderId: message.sender_id,
@@ -131,13 +135,12 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
           return;
         }
 
-        // Mensaje de presencia vía lobby
         if (content._type === USER_PRESENCE_TYPE) {
           const sender = message.sender_id || content.senderId;
-          if (sender === userId) return;
+          if (sender === myUserId) return;
           setOnlineUsers((prev) => {
             if (prev.find((u) => u.userId === sender)) return prev;
-            return [...prev, { userId: sender, username: content.username, isOnline: true }];
+            return [...prev, { userId: sender, username: content.username || message.username, isOnline: true }];
           });
         }
       } catch {}
@@ -145,22 +148,9 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
 
     window.addEventListener("nakama_message", handleNakamaMessage);
 
-    // Re-anunciar presencia periódicamente
-    presenceTimerRef.current = setInterval(() => {
-      const ch = lobbyChannelId;
-      if (!ch || !socket) return;
-      socket.writeChatMessage(ch, {
-        _type: USER_PRESENCE_TYPE,
-        senderId: userId,
-        username,
-        timestamp: Date.now(),
-      }).catch(() => {});
-    }, 10000);
-
     return () => {
       window.removeEventListener("nakama_message", handleNakamaMessage);
-      if (presenceTimerRef.current) clearInterval(presenceTimerRef.current);
-      setOnlineUsers([]);
+      if (intervalId) clearInterval(intervalId);
     };
   }, [isConnected, userId, username, processPresence]);
 
