@@ -299,4 +299,15 @@ Con run_ahead=false + buffer dinámico 1-2, no es necesario check_frames porque 
 - [x] `onlineUsersRef` para evitar closures stale
 - [x] Verificado funcional con segunda PC por Tailscale
 
+### 14.10. Fix Descubrimiento de Salas — Lobby Messages
+- [x] **Diagnóstico:** `readStorageObjects()` con `user_id` no devuelve salas de otros usuarios
+- [x] **Solución:** Reemplazar Nakama Storage por lobby messages (chat) para descubrimiento
+- [x] Mensaje `ggpo_room_open` — host anuncia sala al lobby al hacer HOST
+- [x] Mensaje `ggpo_room_close` — host elimina sala al cancelar
+- [x] Mensaje `ggpo_guest_join` — guest notifica al host al unirse
+- [x] `GgpoContext.tsx` reescrito: mensajes vía `window.addEventListener("nakama_message", ...)`
+- [x] Eliminado polling a Storage (reemplazado por listener de eventos en tiempo real)
+- [x] `ggpoNet.ts` limpiado: Storage helpers preservados pero no usados en flujo principal
+- [x] Build pasa sin errores
+
 

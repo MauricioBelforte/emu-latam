@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { useAuth } from "../../context/AuthContext"
 import { useSocial } from "../../context/SocialContext"
 import { useToast } from "../../context/ToastContext"
-import { publishGgpoRoom, fetchGgpoRoom, deleteGgpoRoom, findActiveGgpoRooms, findGuestRoomsForHost } from "../lib/ggpoNet"
+import { nakamaService } from "../../lib/nakama"
 import type { GgpoRoom } from "../lib/ggpoNet"
 
 export type GgpoEngine = "retroarch" | "ggpo"
@@ -24,29 +24,52 @@ interface GgpoContextType {
 
 const GgpoContext = createContext<GgpoContextType>(null!)
 
+const GGPO_ROOM_OPEN = "ggpo_room_open"
+const GGPO_ROOM_CLOSE = "ggpo_room_close"
+const GGPO_GUEST_JOIN = "ggpo_guest_join"
+const ROOM_STALE_MS = 15000
+
 export function GgpoProvider({ children }: { children: React.ReactNode }) {
   const [engine, setEngine] = useState<GgpoEngine>("retroarch")
   const [status, setStatus] = useState<GgpoStatus>("idle")
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [hostRoom, setHostRoom] = useState<GgpoRoom | null>(null)
   const [discoveredRooms, setDiscoveredRooms] = useState<{ userId: string; room: GgpoRoom }[]>([])
-  const { isAuthenticated, userId } = useAuth()
-  const { onlineUsers } = useSocial()
+  const { isAuthenticated, userId, username } = useAuth()
+  const { channelId } = useSocial()
   const { show } = useToast()
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const guestDetectedRef = useRef(false)
-  const onlineUsersRef = useRef<{ id?: string; userId?: string }[]>([])
-  onlineUsersRef.current = onlineUsers
+  const statusRef = useRef(status)
+  statusRef.current = status
+  const userIdRef = useRef(userId)
+  userIdRef.current = userId
+  const channelIdRef = useRef(channelId)
+  channelIdRef.current = channelId
+  const usernameRef = useRef(username)
+  usernameRef.current = username
 
   const dismissError = useCallback(() => setErrorMsg(null), [])
 
+  const sendLobby = useCallback(async (type: string, payload: Record<string, unknown>) => {
+    const ch = channelIdRef.current
+    if (!nakamaService.socket || !ch) return
+    try {
+      await nakamaService.socket.writeChatMessage(ch, {
+        _type: type,
+        senderId: userIdRef.current,
+        ...payload,
+      })
+    } catch {}
+  }, [])
+
   const startHosting = useCallback(
     async (method: "lan" | "tailscale", myIp: string) => {
-      if (!userId) return
+      const uid = userIdRef.current
+      if (!uid) { setErrorMsg("No autenticado"); setStatus("error"); return }
+      if (!channelIdRef.current) { setErrorMsg("Debes estar en el Lobby para crear sala GGPO"); setStatus("error"); return }
       try {
         const savedName = localStorage.getItem("emu_display_name")
         const room: GgpoRoom = {
-          hostId: userId,
+          hostId: uid,
           hostIp: myIp,
           hostPort: 6003,
           hostName: savedName || undefined,
@@ -54,64 +77,37 @@ export function GgpoProvider({ children }: { children: React.ReactNode }) {
           status: "waiting",
           timestamp: Date.now(),
         }
-        await publishGgpoRoom(room)
         setHostRoom(room)
         setStatus("waiting_guest")
+        await sendLobby(GGPO_ROOM_OPEN, {
+          hostIp: myIp,
+          hostPort: 6003,
+          hostName: savedName || undefined,
+          method,
+          timestamp: room.timestamp,
+        })
         show("SALA GGPO CREADA — esperando oponente...", "info")
-
-        guestDetectedRef.current = false
-        pollingRef.current = setInterval(async () => {
-          try {
-            console.log("[GGPO] Host polling: buscando guests...")
-            const userIds = onlineUsersRef.current.map((u: any) => u.id || u.userId).filter(Boolean)
-            const guestRooms = await findGuestRoomsForHost(userId, userIds)
-            console.log("[GGPO] Host polling: guests encontrados:", guestRooms.length)
-            if (guestRooms.length > 0 && !guestDetectedRef.current) {
-              guestDetectedRef.current = true
-              const guest = guestRooms[0]
-              setStatus("connected")
-              show("Oponente conectado. Iniciando GGPO...", "success")
-
-              const electron = (window as any).electron
-              const hostName = localStorage.getItem("emu_display_name")
-              await electron.ipcRenderer.invoke("ggpo-launch", {
-                rom: "kof98",
-                localPort: 6003,
-                remoteIp: guest.room.hostIp,
-                remotePort: guest.room.hostPort ?? 6004,
-                playerNumber: 0,
-                playerName: hostName || undefined,
-              })
-
-              if (pollingRef.current) clearInterval(pollingRef.current)
-            }
-          } catch {
-            // Polling error, will retry
-          }
-        }, 2000)
       } catch (e: any) {
         setErrorMsg(e.message || "Error al crear sala GGPO")
         setStatus("error")
       }
     },
-    [userId, show],
+    [sendLobby, show],
   )
 
   const cancelHosting = useCallback(async () => {
-    if (pollingRef.current) clearInterval(pollingRef.current)
     const electron = (window as any).electron
-    await electron.ipcRenderer.invoke("ggpo-kill")
-    try { await deleteGgpoRoom() } catch {
-      // Ignore deletion errors
-    }
+    await electron.ipcRenderer.invoke("ggpo-kill").catch(() => {})
+    await sendLobby(GGPO_ROOM_CLOSE, {})
     setHostRoom(null)
     setStatus("idle")
     show("Sala GGPO cancelada", "warning")
-  }, [show])
+  }, [sendLobby, show])
 
   const joinRoom = useCallback(
     async (hostUserId: string, room: GgpoRoom) => {
-      if (!userId) return
+      const uid = userIdRef.current
+      if (!uid) return
       try {
         setStatus("joining")
         const electron = (window as any).electron
@@ -126,15 +122,10 @@ export function GgpoProvider({ children }: { children: React.ReactNode }) {
           playerNumber: 1,
           playerName: savedName || undefined,
         })
-        await publishGgpoRoom({
-          hostId: userId,
-          hostIp: guestIp,
-          hostPort: 6004,
-          guestName: savedName || undefined,
-          method: room.method,
-          status: "joining",
+        await sendLobby(GGPO_GUEST_JOIN, {
           targetHostId: hostUserId,
-          timestamp: Date.now(),
+          guestIp,
+          guestPort: 6004,
         })
         setStatus("connected")
         show("GGPO conectado!", "success")
@@ -143,40 +134,104 @@ export function GgpoProvider({ children }: { children: React.ReactNode }) {
         setStatus("error")
       }
     },
-    [userId, show],
+    [sendLobby, show],
   )
 
-  const prevActiveRef = useRef(false)
-
+  // Message listener: room discovery + host detects guest join
   useEffect(() => {
-    const isActive = isAuthenticated && engine === "ggpo"
-    if (!isActive) {
-      if (prevActiveRef.current) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setDiscoveredRooms([])
-      }
-      prevActiveRef.current = false
-      return
+    if (!isAuthenticated) return
+
+    const handler = (event: Event) => {
+      const message = (event as CustomEvent).detail
+      try {
+        const content =
+          typeof message.content === "string"
+            ? JSON.parse(message.content)
+            : message.content
+        if (!content._type) return
+        const sender = message.sender_id || content.senderId
+        if (sender === userIdRef.current) return
+
+        if (content._type === GGPO_ROOM_OPEN) {
+          const room: GgpoRoom = {
+            hostId: sender,
+            hostIp: content.hostIp,
+            hostPort: content.hostPort || 6003,
+            hostName: content.hostName || undefined,
+            method: content.method || "lan",
+            status: "waiting",
+            timestamp: content.timestamp || Date.now(),
+          }
+          if (Date.now() - room.timestamp > ROOM_STALE_MS) return
+          setDiscoveredRooms(prev => {
+            if (prev.find(r => r.userId === sender)) return prev
+            return [...prev, { userId: sender, room }]
+          })
+        }
+
+        if (content._type === GGPO_ROOM_CLOSE) {
+          setDiscoveredRooms(prev => prev.filter(r => r.userId !== sender))
+        }
+
+        if (content._type === GGPO_GUEST_JOIN && statusRef.current === "waiting_guest") {
+          if (content.targetHostId === userIdRef.current) {
+            setStatus("connected")
+            show("Oponente conectado. Iniciando GGPO...", "success")
+            const electron = (window as any).electron
+            const hostName = localStorage.getItem("emu_display_name")
+            electron.ipcRenderer.invoke("ggpo-launch", {
+              rom: "kof98",
+              localPort: 6003,
+              remoteIp: content.guestIp,
+              remotePort: content.guestPort || 6004,
+              playerNumber: 0,
+              playerName: hostName || undefined,
+            }).catch((e: any) => {
+              console.error("Error lanzando GGPO host:", e)
+              setStatus("error")
+            })
+          }
+        }
+      } catch {}
     }
-    prevActiveRef.current = true
-    const poll = async () => {
-      const userIds = onlineUsersRef.current.map((u: any) => u.id || u.userId).filter(Boolean)
-      console.log("[GGPO] Discovery: onlineUsers IDs:", userIds, "onlineUsers raw:", onlineUsersRef.current.map(u => ({ id: (u as any).id, userId: (u as any).userId })))
-      const rooms = await findActiveGgpoRooms(userIds)
-      console.log("[GGPO] Discovery: salas encontradas:", rooms.length)
-      if (rooms.length > 0) console.log("[GGPO] Discovery: room hostIds:", rooms.map(r => r.room.hostId))
-      setDiscoveredRooms(rooms)
-    }
-    poll()
-    const iv = setInterval(poll, 3000)
+
+    window.addEventListener("nakama_message", handler)
+    return () => window.removeEventListener("nakama_message", handler)
+  }, [isAuthenticated, show])
+
+  // Stale room cleanup
+  useEffect(() => {
+    if (!isAuthenticated || engine !== "ggpo") return
+    const iv = setInterval(() => {
+      setDiscoveredRooms(prev =>
+        prev.filter(r => Date.now() - r.room.timestamp < ROOM_STALE_MS)
+      )
+    }, 5000)
     return () => clearInterval(iv)
   }, [isAuthenticated, engine])
 
+  // Re-envío periódico de sala mientras espera guest
+  const hostRoomRef = useRef<GgpoRoom | null>(null)
+  hostRoomRef.current = hostRoom
   useEffect(() => {
-    return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current)
-    }
-  }, [])
+    if (status !== "waiting_guest" || !hostRoomRef.current) return
+    const iv = setInterval(() => {
+      const r = hostRoomRef.current
+      if (!r) return
+      sendLobby(GGPO_ROOM_OPEN, {
+        hostIp: r.hostIp,
+        hostPort: r.hostPort,
+        hostName: r.hostName,
+        method: r.method,
+        timestamp: Date.now(),
+      })
+    }, 5000)
+    return () => clearInterval(iv)
+  }, [status, sendLobby])
+
+  useEffect(() => {
+    if (engine !== "ggpo") setDiscoveredRooms([])
+  }, [engine])
 
   return (
     <GgpoContext.Provider
