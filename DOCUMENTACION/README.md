@@ -25,4 +25,4 @@
 | 14-Integracion-FBNeo-GGPO | Integración de FBNeo standalone con GGPO (quark:direct) como motor alternativo de netplay | 🔄 Plan inicial | 2026-07-20 | 100 tests planificados (ver 06-Plan-Testings.md) | fightcade-fbneo, VS2015+, quark:direct |
 | 15-Sistema-Monitoreo-Diagnostico | Sistema de monitoreo: cleanup manager, dependency validator, resource monitor, logger estructurado, StatusContext, ErrorBanner | ✅ Completado | 2026-07-20 | Build passes | electron, React Context, IPC |
 | 16-Notificaciones-Utilidades-IPC | Toast notifications, IPC channels enum + whitelist, port utils, relayConfigStore | 🔄 Plan inicial | 2026-07-20 | — | React, net, userData |
-| 17-Nombre-Usuario-Personalizado | Modal de nombre al primer inicio, persiste en localStorage, reemplaza "Player X" | 🔄 Plan inicial | 2026-07-21 | — | localStorage, AuthContext |
+| 17-Nombre-Usuario-Personalizado | Modal de nombre al primer inicio + presencia en sidebar | ✅ Completado | 2026-07-21 | Cross-PC | localStorage, AuthContext, SocialContext, Nakama lobby messages |

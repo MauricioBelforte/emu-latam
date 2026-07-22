@@ -25,13 +25,26 @@
 - [x] Guest lee hostName del room y lo pasa a quark:direct
 - [x] buildQuarkArgs soporta playerName como 8vo parámetro
 
-## Fase 4: Testing
+## Fase 4: Visibilidad del displayName en la sidebar (online players)
+- [x] Crear constante USER_PRESENCE_TYPE = "emu_user_online"
+- [x] Crear displayNameMap (Map<userId, displayName> via useRef) en SocialContext
+- [x] Función announce() que envía writeChatMessage cada 5 segundos con _type, senderId, displayName, timestamp
+- [x] Manejar mensajes entrantes con _type "emu_user_online": actualizar displayNameMap y onlineUsers
+- [x] Presencias iniciales de channel.presences consultan displayNameMap
+- [x] onchannelpresence (joins) consultan displayNameMap para usar displayName
+- [x] displayNameRef para evitar closure stale en el intervalo
+- [x] Auto-incluir al usuario actual en onlineUsers con su displayName
+
+## Fase 5: Testing
 - [x] Test: modal aparece en primer inicio
 - [x] Test: nombre persiste al cerrar y volver a abrir app
 - [x] Test: header muestra el nombre elegido
 - [x] Test: sidebar muestra el nombre elegido
 - [x] Test: chat muestra el nombre elegido
+- [x] Test: presencia announce envía mensaje cada 5 segundos
+- [x] Test: displayNameMap se actualiza al recibir mensaje de presencia
+- [x] Test: cross-PC: nombres personalizados aparecen en sidebar de otros jugadores
 - [x] npm run dev sin errores (compilación exitosa)
 
-## Fase 5: Verificación
+## Fase 6: Verificación
 - [x] Commit y push (913f17a + 9dc9c72)

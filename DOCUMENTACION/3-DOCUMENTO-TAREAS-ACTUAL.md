@@ -95,6 +95,7 @@ El objetivo de esta fase es hacer que la experiencia del usuario sea "un solo cl
 - [x] **Firewall automático:** Al crear sala se intenta abrir puerto 7350 para Tailscale via `netsh advfirewall`.
 - [x] **Health check automático:** Cada 15s se verifica conectividad al peer remoto, con advertencia ⚠ si no responde.
 - [x] **Auto-refresh IP Tailscale:** Cada 30s se actualiza la IP mostrada si Tailscale la reasignó.
+- [x] **Mostrar nombre personalizado de otros usuarios en sidebar:** Implementado en Módulo 17.
 - [ ] **Sistema de Notificaciones:** Toast en renderer al recibir reto.
 - [ ] **Progreso visual:** Spinners durante conexiones.
 - [ ] **Prevención de clicks:** Deshabilitar botones hasta servicios listos.

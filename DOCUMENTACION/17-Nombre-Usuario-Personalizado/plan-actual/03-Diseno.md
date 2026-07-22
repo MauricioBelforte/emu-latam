@@ -27,6 +27,36 @@ App.tsx
 - Si hay displayName → sobreescribe username
 - El userId interno (UUID) no cambia
 
+### SocialContext
+- Contiene la lógica de anuncio de presencia y sincronización de displayName
+- Mantiene un `displayNameMap` (Map<string, string> via useRef) que asocia `userId → displayName`
+- El map se consulta en tres puntos:
+  1. **Presencias iniciales** de `channel.presences` → usar displayName si está en el map
+  2. **Eventos onchannelpresence** (joins/leaves) → usar displayName si está disponible
+  3. **Mensajes entrantes** de tipo `emu_user_online` → actualizar el map + onlineUsers
+
+## Flujo de anuncio de presencia
+
+```
+SocialProvider (al conectarse al lobby)
+  │
+  ├── 1. socket.joinChat("Lobby", 1, true, false)
+  │      └── Obtiene presencias iniciales → onlineUsers (con displayNameMap)
+  │
+  ├── 2. announce() cada 5 segundos:
+  │      socket.writeChatMessage(channelId, {
+  │        _type: "emu_user_online",
+  │        senderId: myUserId,
+  │        displayName: displayNameRef.current,
+  │        timestamp: Date.now()
+  │      })
+  │
+  └── 3. handleNakamaMessage (escucha "nakama_message"):
+         └── content._type === "emu_user_online"
+              ├── displayNameMap.current.set(senderId, displayName)
+              └── Actualiza onlineUsers (update si existe, add si no)
+```
+
 ## Persistencia
 - Clave: `emu_display_name`
 - Medio: `localStorage`
