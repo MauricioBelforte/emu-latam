@@ -31,9 +31,11 @@ App.tsx
 - Contiene la lógica de anuncio de presencia y sincronización de displayName
 - Mantiene un `displayNameMap` (Map<string, string> via useRef) que asocia `userId → displayName`
 - El map se consulta en tres puntos:
-  1. **Presencias iniciales** de `channel.presences` → usar displayName si está en el map
-  2. **Eventos onchannelpresence** (joins/leaves) → usar displayName si está disponible
-  3. **Mensajes entrantes** de tipo `emu_user_online` → actualizar el map + onlineUsers
+   1. **Presencias iniciales** de `channel.presences` → usar displayName si está en el map
+   2. **Eventos onchannelpresence** (joins/leaves) → usar displayName si está disponible
+   3. **Mensajes entrantes** de tipo `emu_user_online` → actualizar el map + onlineUsers
+- Expone `getDisplayName(userId)` pública para que ChatBox resuelva nombres en tiempo de render
+- Incluye el propio `userId → displayName` en el map durante `initSocial` para que los mensajes propios muestren el nombre correcto
 
 ## Flujo de anuncio de presencia
 
@@ -56,6 +58,22 @@ SocialProvider (al conectarse al lobby)
               ├── displayNameMap.current.set(senderId, displayName)
               └── Actualiza onlineUsers (update si existe, add si no)
 ```
+
+## Flujo de chat con nombre en tiempo real
+
+```
+ChatBox.tsx
+  │
+  ├── getDisplayName(msg.senderId)  ← Resuelve en cada render
+  │     └── displayNameMap.current.get(userId) || msg.username (fallback)
+  │
+  └── Re-render automático:
+        └── displayNameMap cambia → updatePresence → setOnlineUsers
+              → SocialContextProvider re-renderiza → ChatBox re-renderiza
+              → getDisplayName() lee el valor actualizado del map
+```
+
+El nombre se resuelve en tiempo de render, no al crear el mensaje. Esto asegura que aunque la presencia llegue después del mensaje de chat, el nombre se corrige automáticamente en el próximo re-render.
 
 ## Persistencia
 - Clave: `emu_display_name`

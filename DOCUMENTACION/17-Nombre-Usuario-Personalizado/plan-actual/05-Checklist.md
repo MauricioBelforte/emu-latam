@@ -46,5 +46,15 @@
 - [x] Test: cross-PC: nombres personalizados aparecen en sidebar de otros jugadores
 - [x] npm run dev sin errores (compilación exitosa)
 
-## Fase 6: Verificación
-- [x] Commit y push (913f17a + 9dc9c72)
+## Fase 6: Corrección chat — render-time resolution
+- [x] Diagnóstico: ChatMessage.username se guarda al crearse y nunca se actualiza
+- [x] Problema: mensajes propios se ven como "Player NNN" (falta propio userId en displayNameMap)
+- [x] Problema: mensajes de otros usuarios tardan en actualizarse (timing presencia vs chat)
+- [x] Solución: SocialContext expone `getDisplayName(userId)` que lee el map en tiempo real
+- [x] Solución: displayNameMap incluye propio userId durante initSocial
+- [x] ChatBox usa `getDisplayName(msg.senderId) || msg.username` en vez de `msg.username`
+- [x] Build exitoso (npm run build sin errores)
+- [x] Commit y push (dbffd1c)
+
+## Fase 7: Verificación
+- [x] Commit y push (913f17a + 9dc9c72 + dbffd1c)

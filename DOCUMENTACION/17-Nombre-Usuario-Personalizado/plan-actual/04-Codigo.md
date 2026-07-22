@@ -160,6 +160,39 @@ socket.onchannelpresence = (presence) => {
 };
 ```
 
+### ChatBox.tsx — Resolución de nombre en tiempo de render
+El nombre de usuario del chat se resuelve en cada render usando `getDisplayName(msg.senderId)` 
+en lugar de usar `msg.username` fijo (que se guarda al recibir el mensaje):
+
+```tsx
+const { messages, sendMessage, getDisplayName } = useSocial();
+// ...
+<User $isSelf={isSelf}>{getDisplayName(msg.senderId) || msg.username}:</User>
+```
+
+### SocialContext.tsx — Exposición de getDisplayName + auto-inclusión
+
+Se agregó `getDisplayName` al tipo `SocialContextType` y al provider:
+
+```typescript
+interface SocialContextType {
+  // ...existing fields...
+  getDisplayName: (userId: string) => string;
+}
+
+// Implementación:
+const getDisplayName = useCallback((uid: string) => {
+  return displayNameMap.current.get(uid) || "";
+}, []);
+```
+
+Se incluye el propio `userId` en `displayNameMap` durante `initSocial` para que los mensajes propios muestren el nombre personalizado:
+
+```typescript
+// Dentro de initSocial, después de procesar presencias:
+displayNameMap.current.set(myUserId, displayNameRef.current);
+```
+
 ### sidebar (Sidebar.tsx) — Sin cambios necesarios
 ```tsx
 // Ya usa useSocial() → onlineUsers → user.username
