@@ -131,7 +131,7 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
           const chatMsg: ChatMessage = {
             messageId: message.message_id,
             senderId: message.sender_id,
-            username: message.username,
+            username: displayNameMap.current.get(message.sender_id) || message.username,
             content: content.text || "",
             timestamp: message.create_time
               ? new Date(message.create_time).getTime()
