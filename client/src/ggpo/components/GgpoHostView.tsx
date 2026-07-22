@@ -64,13 +64,25 @@ interface Props {
 }
 
 export function GgpoHostView({ myIp }: Props) {
-  const { hostRoom, cancelHosting } = useGgpo()
+  const { hostRoom, cancelHosting, status, guestName } = useGgpo()
   const [copied, setCopied] = useState(false)
 
   const handleCopy = () => {
     navigator.clipboard.writeText(myIp)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  if (status === "connected" && guestName) {
+    return (
+      <Container>
+        <Waiting style={{ color: "#0f0", animation: "none" }}>¡OPONENTE CONECTADO!</Waiting>
+        <Info>
+          <span style={{ fontSize: "1rem", color: "#fff" }}>{guestName}</span> se unió a tu sala
+        </Info>
+        <Info>GGPO iniciado — cerrá esta ventana si no ves el juego</Info>
+      </Container>
+    )
   }
 
   return (

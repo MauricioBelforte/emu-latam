@@ -16,6 +16,7 @@ interface GgpoContextType {
   errorMsg: string | null
   hostRoom: GgpoRoom | null
   discoveredRooms: { userId: string; room: GgpoRoom }[]
+  guestName: string | null
   startHosting: (method: "lan" | "tailscale", myIp: string) => Promise<void>
   cancelHosting: () => Promise<void>
   joinRoom: (hostUserId: string, room: GgpoRoom) => Promise<void>
@@ -35,6 +36,7 @@ export function GgpoProvider({ children }: { children: React.ReactNode }) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [hostRoom, setHostRoom] = useState<GgpoRoom | null>(null)
   const [discoveredRooms, setDiscoveredRooms] = useState<{ userId: string; room: GgpoRoom }[]>([])
+  const [guestName, setGuestName] = useState<string | null>(null)
   const { isAuthenticated, userId, username } = useAuth()
   const { channelId } = useSocial()
   const { show } = useToast()
@@ -99,6 +101,7 @@ export function GgpoProvider({ children }: { children: React.ReactNode }) {
     const electron = (window as any).electron
     await electron.ipcRenderer.invoke("ggpo-kill").catch(() => {})
     await sendLobby(GGPO_ROOM_CLOSE, {})
+    setGuestName(null)
     setHostRoom(null)
     setStatus("idle")
     show("Sala GGPO cancelada", "warning")
@@ -126,6 +129,7 @@ export function GgpoProvider({ children }: { children: React.ReactNode }) {
           targetHostId: hostUserId,
           guestIp,
           guestPort: 6004,
+          guestName: savedName || undefined,
         })
         setStatus("connected")
         show("GGPO conectado!", "success")
@@ -175,6 +179,7 @@ export function GgpoProvider({ children }: { children: React.ReactNode }) {
 
         if (content._type === GGPO_GUEST_JOIN && statusRef.current === "waiting_guest") {
           if (content.targetHostId === userIdRef.current) {
+            setGuestName(content.guestName || null)
             setStatus("connected")
             show("Oponente conectado. Iniciando GGPO...", "success")
             const electron = (window as any).electron
@@ -242,6 +247,7 @@ export function GgpoProvider({ children }: { children: React.ReactNode }) {
         errorMsg,
         hostRoom,
         discoveredRooms,
+        guestName,
         startHosting,
         cancelHosting,
         joinRoom,

@@ -61,7 +61,7 @@ export function GgpoGuestView({ onJoin }: Props) {
       {discoveredRooms.map(({ userId, room }) => (
         <RoomCard key={userId}>
           <RoomInfo>
-            Sala GGPO <span>• {room.method.toUpperCase()}</span>
+            {room.hostName || "Sala GGPO"} <span>• {room.method.toUpperCase()}</span>
             <br />
             <span>IP: {room.hostIp}:{room.hostPort}</span>
           </RoomInfo>
