@@ -31,7 +31,7 @@ const GGPO_GUEST_JOIN = "ggpo_guest_join"
 const ROOM_STALE_MS = 15000
 
 export function GgpoProvider({ children }: { children: React.ReactNode }) {
-  const [engine, setEngine] = useState<GgpoEngine>("retroarch")
+  const [engine, setEngine] = useState<GgpoEngine>("ggpo")
   const [status, setStatus] = useState<GgpoStatus>("idle")
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [hostRoom, setHostRoom] = useState<GgpoRoom | null>(null)

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import styled, { keyframes } from "styled-components";
+import { useAuth } from "../../context/AuthContext";
 
 const fadeIn = keyframes`
   from { opacity: 0; }
@@ -248,6 +249,19 @@ const InfoText = styled.p`
   text-align: center;
   margin: 16px 0 0 0;
   line-height: 1.4;
+`
+
+const NameInput = styled.input`
+  background: #111;
+  border: 1px solid ${(p) => p.theme.colors.primary};
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-family: ${(p) => p.theme.fonts.main};
+  font-size: 0.85rem;
+  width: 100%;
+  outline: none;
+  &:focus { border-color: ${(p) => p.theme.colors.secondary}; }
 `;
 
 const CHECK_FRAMES_OPTIONS = [0, 30, 60, 120, 180, 300, 600];
@@ -268,6 +282,8 @@ interface NetplayConfigModalProps {
 }
 
 export const NetplayConfigModal: React.FC<NetplayConfigModalProps> = ({ isOpen, onClose }) => {
+  const { updateDisplayName } = useAuth();
+  const [displayName, setDisplayName] = useState("");
   const [config, setConfig] = useState<NetplayConfig | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -275,6 +291,7 @@ export const NetplayConfigModal: React.FC<NetplayConfigModalProps> = ({ isOpen, 
 
   useEffect(() => {
     if (!isOpen) return;
+    setDisplayName(localStorage.getItem("emu_display_name") || "");
     loadConfig();
     setStatusMsg(null);
   }, [isOpen]);
@@ -297,12 +314,14 @@ export const NetplayConfigModal: React.FC<NetplayConfigModalProps> = ({ isOpen, 
   };
 
   const handleSave = async () => {
-    if (!config) return;
     setSaving(true);
     setStatusMsg(null);
     try {
-      for (const key of Object.keys(config) as (keyof NetplayConfig)[]) {
-        await (window as any).electron.ipcRenderer.invoke("write-netplay-config", { key, value: config[key] });
+      if (displayName.trim()) updateDisplayName(displayName.trim());
+      if (config) {
+        for (const key of Object.keys(config) as (keyof NetplayConfig)[]) {
+          await (window as any).electron.ipcRenderer.invoke("write-netplay-config", { key, value: config[key] });
+        }
       }
       setStatusMsg({ text: "✅ GUARDADO" });
     } catch (e: any) {
@@ -332,7 +351,19 @@ export const NetplayConfigModal: React.FC<NetplayConfigModalProps> = ({ isOpen, 
     <Overlay onClick={onClose}>
       <ModalBox onClick={(e) => e.stopPropagation()}>
         <CloseButton onClick={onClose}>&times;</CloseButton>
-        <Title>⚙ CONFIGURACIÓN NETPLAY</Title>
+        <Title>⚙ CONFIGURACIÓN</Title>
+
+        <FieldGroup>
+          <LabelRow>
+            <TooltipLabel data-tip="Nombre que ven los demás jugadores en la barra lateral y dentro del emulador GGPO.">TU NOMBRE</TooltipLabel>
+          </LabelRow>
+          <NameInput
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder="Ingresá tu nombre..."
+            maxLength={20}
+          />
+        </FieldGroup>
 
         {loading && <StatusMsg>CARGANDO...</StatusMsg>}
 
