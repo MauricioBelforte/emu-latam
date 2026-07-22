@@ -38,24 +38,23 @@ const USER_PRESENCE_TYPE = "emu_user_online";
 export const SocialProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const { userId, username, isConnected } = useAuth();
+  const { userId, username: authUsername, isConnected } = useAuth();
   const [onlineUsers, setOnlineUsers] = useState<UserPresence[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [lobbyChannelId, setLobbyChannelId] = useState<string | null>(null);
+  const displayNameMap = useRef<Map<string, string>>(new Map());
 
-  const processPresence = useCallback((p: any) => ({
-    userId: p.userId || p.user_id,
-    username: p.username,
-    isOnline: true,
-  }), []);
+  const myDisplayName = localStorage.getItem("emu_display_name") || authUsername || "Player";
+  const displayNameRef = useRef(myDisplayName);
+  displayNameRef.current = myDisplayName;
 
   useEffect(() => {
     if (!isConnected || !userId || !nakamaService.socket) return;
 
     const socket = nakamaService.socket;
     const myUserId = userId;
-    const myUsername = username;
     let intervalId: ReturnType<typeof setInterval> | null = null;
+    let chId: string | null = null;
 
     socket.onchannelpresence = (presence) => {
       setOnlineUsers((prev) => {
@@ -63,7 +62,11 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
         presence.joins?.forEach((join: any) => {
           const uid = join.userId || join.user_id;
           if (uid && !nextUsers.find((u) => u.userId === uid)) {
-            nextUsers.push(processPresence(join));
+            nextUsers.push({
+              userId: uid,
+              username: displayNameMap.current.get(uid) || join.username,
+              isOnline: true,
+            });
           }
         });
         presence.leaves?.forEach((leave: any) => {
@@ -79,37 +82,39 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
     const initSocial = async () => {
       try {
         const channel = await socket.joinChat("Lobby", 1, true, false);
-        const chId = channel.id;
+        chId = channel.id;
         setLobbyChannelId(chId);
 
-        // Carga inicial de presencias
         const rawPresences = channel.presences || [];
         const presences = Array.isArray(rawPresences)
-          ? rawPresences.map(processPresence)
-          : Object.values(rawPresences).map(processPresence);
+          ? rawPresences
+          : Object.values(rawPresences);
 
-        const list = [...presences];
-        if (myUserId && myUsername && !list.find((u) => u.userId === myUserId)) {
-          list.push({ userId: myUserId, username: myUsername, isOnline: true });
+        const list: UserPresence[] = presences.map((p: any) => {
+          const uid = p.userId || p.user_id;
+          return {
+            userId: uid,
+            username: displayNameMap.current.get(uid) || p.username,
+            isOnline: true,
+          };
+        });
+        if (myUserId && !list.find((u) => u.userId === myUserId)) {
+          list.push({ userId: myUserId, username: displayNameRef.current, isOnline: true });
         }
         setOnlineUsers(list);
 
-        // Anunciar presencia al lobby
         const announce = () => {
-          const displayName = localStorage.getItem("emu_display_name") || myUsername
-          socket.writeChatMessage(chId, {
+          socket.writeChatMessage(chId!, {
             _type: USER_PRESENCE_TYPE,
             senderId: myUserId,
-            displayName,
+            displayName: displayNameRef.current,
             timestamp: Date.now(),
           }).catch(() => {});
         };
         announce();
-
-        // Re-anunciar cada 5s
         intervalId = setInterval(announce, 5000);
       } catch (e) {
-        console.error("Error al inicializar SocialContext:", e);
+        console.error("[SOCIAL] Error init:", e);
       }
     };
 
@@ -140,6 +145,7 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
           const sender = message.sender_id || content.senderId;
           if (sender === myUserId) return;
           const disp = content.displayName || content.username || message.username;
+          displayNameMap.current.set(sender, disp);
           setOnlineUsers((prev) => {
             const exist = prev.find((u) => u.userId === sender);
             if (exist) {
@@ -160,7 +166,7 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
       window.removeEventListener("nakama_message", handleNakamaMessage);
       if (intervalId) clearInterval(intervalId);
     };
-  }, [isConnected, userId, username, processPresence]);
+  }, [isConnected, userId]);
 
   const sendMessage = useCallback(async (text: string) => {
     if (!lobbyChannelId || !nakamaService.socket) return;
