@@ -96,10 +96,11 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
 
         // Anunciar presencia al lobby
         const announce = () => {
+          const displayName = localStorage.getItem("emu_display_name") || myUsername
           socket.writeChatMessage(chId, {
             _type: USER_PRESENCE_TYPE,
             senderId: myUserId,
-            username: myUsername,
+            displayName,
             timestamp: Date.now(),
           }).catch(() => {});
         };
@@ -138,9 +139,16 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({
         if (content._type === USER_PRESENCE_TYPE) {
           const sender = message.sender_id || content.senderId;
           if (sender === myUserId) return;
+          const disp = content.displayName || content.username || message.username;
           setOnlineUsers((prev) => {
-            if (prev.find((u) => u.userId === sender)) return prev;
-            return [...prev, { userId: sender, username: content.username || message.username, isOnline: true }];
+            const exist = prev.find((u) => u.userId === sender);
+            if (exist) {
+              if (exist.username !== disp) {
+                return prev.map((u) => u.userId === sender ? { ...u, username: disp } : u);
+              }
+              return prev;
+            }
+            return [...prev, { userId: sender, username: disp, isOnline: true }];
           });
         }
       } catch {}
