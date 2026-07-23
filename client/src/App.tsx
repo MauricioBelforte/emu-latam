@@ -225,10 +225,12 @@ function App() {
   const discoveryDoneRef = useRef(false);
   const { engine, status: ggpoStatus, cancelHosting, startHosting, joinRoom } = useGgpo();
   const [ggpoIp, setGgpoIp] = useState("");
-  const [p2pHostCandidate, setP2pHostCandidate] = useState("");
-  const [p2pGuestCandidate, setP2pGuestCandidate] = useState("");
   const [p2pStatus, setP2pStatus] = useState("");
+  const [p2pAutoCandidate, setP2pAutoCandidate] = useState<any | null>(null);
+  const [p2pHostCandidate, setP2pHostCandidate] = useState<any | null>(null);
+  const [p2pGuestReady, setP2pGuestReady] = useState(false);
   const [loadingP2p, setLoadingP2p] = useState({ host: false, guest: false });
+  const p2pDiscoveryRef = useRef(false);
 
   useEffect(() => {
     const electron = (window as any).electron;
@@ -389,8 +391,14 @@ function App() {
     try {
       const result = await (window as any).electron.ipcRenderer.invoke("p2p-host");
       if (result.success) {
-        setP2pHostCandidate(JSON.stringify(result.candidate, null, 2));
-        setP2pStatus(`Host P2P listo. NAT: ${result.nat?.natType} | IP: ${result.candidate?.publicIp}:${result.candidate?.publicPort}`);
+        setP2pHostCandidate(result.candidate);
+        await nakamaService.publishP2pCandidate(result.candidate);
+        setP2pStatus(`Host P2P listo. Iniciando RetroArch...`);
+        const gameResult = await (window as any).electron.ipcRenderer.invoke("launch-game", {
+          useRelay: false, isHost: true,
+        });
+        if (!gameResult?.success) setP2pStatus("Error al lanzar RetroArch: " + (gameResult?.error || "desconocido"));
+        else setP2pStatus("✅ Host P2P activo — Esperando guest...");
       } else {
         setP2pStatus(`Error: ${result.error}`);
       }
@@ -402,17 +410,32 @@ function App() {
   };
 
   const handleP2pGuest = async () => {
+    const hostCand = p2pAutoCandidate || p2pHostCandidate;
+    if (!hostCand) { setP2pStatus("No se detectó host. Asegurate que haya un host activo."); return; }
+
     setLoadingP2p(p => ({ ...p, guest: true }));
-    setP2pStatus("Iniciando guest P2P...");
+    setP2pStatus("Conectando al host P2P...");
     try {
-      const hostCand = p2pHostCandidate ? (() => {
-        try { return JSON.parse(p2pHostCandidate); } catch { return null; }
-      })() : undefined;
       const result = await (window as any).electron.ipcRenderer.invoke("p2p-guest", { hostCandidate: hostCand });
       if (result.success) {
-        setP2pGuestCandidate(JSON.stringify(result.candidate, null, 2));
-        const mode = result.hostConnected ? " (host conectado)" : " (esperando relay)";
-        setP2pStatus(`Guest P2P listo. NAT: ${result.nat?.natType}${mode}`);
+        setP2pStatus("P2P conectado. Iniciando RetroArch...");
+        // Publicar guest candidate para que el host lo detecte
+        const hostUserId = hostCand.userId;
+        if (nakamaService.session?.user_id && hostUserId) {
+          const cand = result.candidate || {};
+          await nakamaService.client.writeStorageObjects(nakamaService.session, [{
+            collection: "emu_p2p",
+            key: "guest_candidate",
+            value: { candidate: cand, hostUserId, guestUserId: nakamaService.session.user_id, timestamp: Date.now() },
+            permission_read: 2,
+            permission_write: 1,
+          }]);
+        }
+        const gameResult = await (window as any).electron.ipcRenderer.invoke("launch-game", {
+          useRelay: false, isHost: false, directConnectIp: "127.0.0.1",
+        });
+        if (!gameResult?.success) setP2pStatus("Error al lanzar RetroArch: " + (gameResult?.error || "desconocido"));
+        else setP2pStatus("✅ Conectado! RetroArch iniciado.");
       } else {
         setP2pStatus(`Error: ${result.error}`);
       }
@@ -425,8 +448,11 @@ function App() {
 
   const handleP2pDisconnect = async () => {
     await (window as any).electron.ipcRenderer.invoke("p2p-disconnect");
-    setP2pHostCandidate("");
-    setP2pGuestCandidate("");
+    await nakamaService.deleteP2pCandidates();
+    setP2pHostCandidate(null);
+    setP2pAutoCandidate(null);
+    setP2pGuestReady(false);
+    p2pDiscoveryRef.current = false;
     setP2pStatus("Desconectado");
   };
 
@@ -523,9 +549,46 @@ function App() {
     discover();
   }, [isAuthenticated, isHostingSala, onlineUsers, userId]);
 
+  // Auto-descubrimiento P2P: guest detecta candidate del host via Nakama
+  useEffect(() => {
+    if (!isAuthenticated || isHostingSala || !onlineUsers.length || p2pDiscoveryRef.current) return;
+    const discover = async () => {
+      for (const user of onlineUsers) {
+        if (user.userId === userId) continue;
+        const cand = await nakamaService.fetchP2pCandidate(user.userId);
+        if (cand && cand.publicIp) {
+          p2pDiscoveryRef.current = true;
+          cand.userId = user.userId;
+          setP2pAutoCandidate(cand);
+          setP2pStatus("Host P2P detectado! Presioná JOIN P2P para conectarte.");
+          break;
+        }
+      }
+    };
+    discover();
+  }, [isAuthenticated, isHostingSala, onlineUsers, userId]);
+
+  // Host: polling de guest candidate via Nakama Storage
+  useEffect(() => {
+    if (!isAuthenticated || !isHostingSala || !p2pHostCandidate || !userId) return;
+    const poll = setInterval(async () => {
+      try {
+        const objs = await nakamaService.listAllP2pObjects();
+        const guestObj = objs.find(o => o.key === "guest_candidate" && o.hostUserId === userId);
+        if (guestObj && guestObj.candidate) {
+          clearInterval(poll);
+          setP2pStatus("Guest conectado! Registrando...");
+          await (window as any).electron.ipcRenderer.invoke("p2p-host-register-guest", { guestCandidate: guestObj.candidate });
+          setP2pStatus("✅ Guest conectado via P2P");
+        }
+      } catch {}
+    }, 2000);
+    return () => clearInterval(poll);
+  }, [isAuthenticated, isHostingSala, p2pHostCandidate, userId]);
+
   // Reset discovery flag cuando se desconecta
   useEffect(() => {
-    if (!isAuthenticated) discoveryDoneRef.current = false;
+    if (!isAuthenticated) { discoveryDoneRef.current = false; p2pDiscoveryRef.current = false; }
   }, [isAuthenticated]);
 
   // Auto-detect IP for GGPO mode
@@ -815,43 +878,25 @@ function App() {
                   )}
                 </Section>
 
-                {/* ───── MODO P2P TEST (Módulo 18) ───── */}
+                {/* ───── MODO P2P PROPIO (Módulo 18) ───── */}
                 <Section $accent="#f0f">
                   <SectionHeader $color="#f0f">
-                    <Badge $bg="#f0f">P2P</Badge> MODO P2P PROPIO — SIN SERVIDOR EXTERNO
+                    <Badge $bg="#f0f">P2P</Badge> MODO P2P PROPIO — HOLE PUNCHING + RELAY SIN TÚNEL
                   </SectionHeader>
                   {engine === "ggpo" ? (
                     <StatusText $color="#fa0">⛔ P2P propio usa UDP, no compatible con GGPO (TCP). Cambiá a RETROARCH.</StatusText>
                   ) : (
                     <>
-                      <Btn onClick={handleP2pHost} disabled={loadingP2p.host} $loading={loadingP2p.host} $accent="#f0f" $bg={loadingP2p.host ? "#f0f22" : "transparent"}>
-                        {loadingP2p.host ? "INICIANDO..." : "1. HOST P2P (TEST)"}
+                      <Btn onClick={handleP2pHost} disabled={loadingP2p.host || loadingP2p.guest} $loading={loadingP2p.host} $accent="#f0f" $bg={loadingP2p.host ? "#f0f22" : "transparent"}>
+                        {loadingP2p.host ? "INICIANDO..." : "HOST P2P"}
                       </Btn>
-                      {p2pHostCandidate && (
-                        <div style={{ marginTop: 8 }}>
-                          <StatusText $color="#0f0" style={{ fontSize: "0.6rem", marginBottom: 4 }}>
-                            Host candidate generado. En otra PC, pegalo abajo y presioná JOIN.
-                          </StatusText>
-                          <Input $accent="#f0f" type="text" value={p2pGuestCandidate ? "" : p2pHostCandidate} readOnly
-                            style={{ fontSize: "0.55rem", padding: "6px" }}
-                          />
-                        </div>
-                      )}
-                      <Input $accent="#f0f" type="text" value={p2pGuestCandidate || p2pHostCandidate}
-                        onChange={(e) => setP2pHostCandidate(e.target.value)}
-                        placeholder="JSON candidate del host (auto o pegar manual)"
-                        style={{ marginTop: 10, fontSize: "0.55rem", padding: "6px" }}
-                      />
-                      <Btn onClick={handleP2pGuest} disabled={loadingP2p.guest || !p2pHostCandidate} $loading={loadingP2p.guest} $accent="#f0f" $bg={loadingP2p.guest ? "#f0f22" : "transparent"} style={{ marginTop: 10 }}>
-                        {loadingP2p.guest ? "CONECTANDO..." : "2. JOIN P2P (TEST)"}
+                      <Btn onClick={handleP2pGuest} disabled={loadingP2p.guest} $loading={loadingP2p.guest} $accent="#f0f" $bg={loadingP2p.guest ? "#f0f22" : "transparent"} style={{ marginTop: 10 }}>
+                        {loadingP2p.guest ? "CONECTANDO..." : "JOIN P2P"}
                       </Btn>
-                      {p2pStatus && <StatusText $color="#f0f">{p2pStatus}</StatusText>}
+                      {p2pStatus && <StatusText $color="#f0f" style={{ marginTop: 6 }}>{p2pStatus}</StatusText>}
                       <Btn onClick={handleP2pDisconnect} $accent="#555" $bg="#222" style={{ marginTop: 8, fontSize: "0.55rem", padding: "6px" }}>
                         DESCONECTAR P2P
                       </Btn>
-                      <StatusText $color="#888" style={{ marginTop: 4, fontSize: "0.5rem" }}>
-                        Misma PC: 1. HOST → 2. JOIN (automático). Otra PC: copiar candidate y pegarlo.
-                      </StatusText>
                     </>
                   )}
                 </Section>

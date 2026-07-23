@@ -1,10 +1,7 @@
-import path from "path";
-import fs from "fs";
+import dgram from "dgram";
 import { P2PManager } from "../../../p2p-module/src/index";
-
-const P2P_DIR = path.resolve(__dirname, "../../../../relay-server");
-const P2P_HOST_FILE = path.join(P2P_DIR, "p2p_host_candidate.json");
-const P2P_GUEST_FILE = path.join(P2P_DIR, "p2p_guest_candidate.json");
+import { RETROARCH_PORT, PacketType } from "../../../p2p-module/src/protocol/types";
+import { encodePacket, decodePacket } from "../../../p2p-module/src/protocol/packet";
 
 interface StoredManager {
   manager: P2PManager;
@@ -12,27 +9,7 @@ interface StoredManager {
 }
 
 let hostManager: StoredManager | null = null;
-
-function ensureDir(): void {
-  if (!fs.existsSync(P2P_DIR)) fs.mkdirSync(P2P_DIR, { recursive: true });
-}
-
-function saveJson(filePath: string, data: any): void {
-  ensureDir();
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
-}
-
-function readJson(filePath: string): any | null {
-  try {
-    if (!fs.existsSync(filePath)) return null;
-    return JSON.parse(fs.readFileSync(filePath, "utf8"));
-  } catch { return null; }
-}
-
-function deleteFile(filePath: string): void {
-  try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch {}
-}
-
+let guestForwarder: dgram.Socket | null = null;
 let tokenCounter = 100;
 
 export async function handleP2PHost(): Promise<any> {
@@ -55,7 +32,6 @@ export async function handleP2PHost(): Promise<any> {
   const candidate = await manager.sendCandidate();
 
   hostManager = { manager, token };
-  saveJson(P2P_HOST_FILE, candidate);
 
   return {
     success: true,
@@ -66,10 +42,9 @@ export async function handleP2PHost(): Promise<any> {
   };
 }
 
-export async function handleP2PGuest(hostCandidateFromFront?: any): Promise<any> {
-  const hostCand = hostCandidateFromFront ?? readJson(P2P_HOST_FILE);
-  if (!hostCand) {
-    return { success: false, error: "No host candidate. Run HOST P2P first or paste candidate data." };
+export async function handleP2PGuest(hostCandidate: any): Promise<any> {
+  if (!hostCandidate) {
+    return { success: false, error: "No host candidate provided." };
   }
 
   const token = tokenCounter++;
@@ -86,21 +61,37 @@ export async function handleP2PGuest(hostCandidateFromFront?: any): Promise<any>
     },
   });
 
-  await manager.startJoin(hostCand);
+  await manager.startJoin(hostCandidate);
   const guestCandidate = await manager.sendCandidate();
 
-  saveJson(P2P_GUEST_FILE, guestCandidate);
+  // Crear forwarder local: escucha en 55435, reenvía via P2P
+  const transport = manager.getTransport();
+  guestForwarder = dgram.createSocket("udp4");
 
+  guestForwarder.on("message", (gameData) => {
+    const pkt = encodePacket(PacketType.RELAY_DATA, token, gameData);
+    const remote = manager.getRemoteInfo();
+    if (remote) {
+      transport.send(pkt, remote.port, remote.address);
+    }
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    guestForwarder!.bind(RETROARCH_PORT, "127.0.0.1", () => resolve());
+    guestForwarder!.on("error", reject);
+  });
+
+  // Forward RELAY_DATA del host → RetroArch local
+  transport.onRawMessage((data) => {
+    const pkt = decodePacket(data);
+    if (pkt && pkt.type === PacketType.RELAY_DATA && guestForwarder) {
+      guestForwarder.send(pkt.payload, RETROARCH_PORT, "127.0.0.1");
+    }
+  });
+
+  // Same-machine: bridge guest → host
   if (hostManager && guestCandidate) {
     await hostManager.manager.onGuestJoin(guestCandidate, token);
-    return {
-      success: true,
-      token,
-      status: manager.status,
-      nat: manager.getNatInfo(),
-      candidate: guestCandidate,
-      hostConnected: true,
-    };
   }
 
   return {
@@ -109,20 +100,30 @@ export async function handleP2PGuest(hostCandidateFromFront?: any): Promise<any>
     status: manager.status,
     nat: manager.getNatInfo(),
     candidate: guestCandidate,
-    hostConnected: false,
+    hostConnected: !!hostManager,
   };
 }
 
+export async function handleP2PHostRegisterGuest(guestCandidate: any): Promise<any> {
+  if (!hostManager) {
+    return { success: false, error: "No active host manager." };
+  }
+  if (!guestCandidate) {
+    return { success: false, error: "No guest candidate provided." };
+  }
+  const token = tokenCounter++;
+  await hostManager.manager.onGuestJoin(guestCandidate, token);
+  return { success: true, token, status: hostManager.manager.status };
+}
+
 export function handleP2PDisconnect(): any {
+  if (guestForwarder) {
+    try { guestForwarder.close(); } catch {}
+    guestForwarder = null;
+  }
   if (hostManager) {
     try { hostManager.manager.disconnect(); } catch {}
     hostManager = null;
   }
-  deleteFile(P2P_HOST_FILE);
-  deleteFile(P2P_GUEST_FILE);
   return { success: true };
-}
-
-export function handleP2PReadHostCandidate(): any {
-  return readJson(P2P_HOST_FILE);
 }

@@ -14,7 +14,7 @@ import { logInfo } from "./logger";
 import { assertPortFree } from "./services/portUtils";
 import { relayConfigStore } from "./services/relayConfigStore";
 import { spawnFcadefbneo, killGgpo, findFcadefbneo, getGgpoProcess, spawnLocalTest } from "../ggpo/main/ggpoHandler";
-import { handleP2PHost, handleP2PGuest, handleP2PDisconnect, handleP2PReadHostCandidate } from "./p2pBridge";
+import { handleP2PHost, handleP2PGuest, handleP2PHostRegisterGuest, handleP2PDisconnect } from "./p2pBridge";
 
 // ========================================
 // CONSTANTES DE AYUDA
@@ -980,12 +980,12 @@ app.whenReady().then(() => {
     return handleP2PGuest(args?.hostCandidate);
   });
 
-  ipcMain.handle("p2p-disconnect", async () => {
-    return handleP2PDisconnect();
+  ipcMain.handle("p2p-host-register-guest", async (_e, args) => {
+    return handleP2PHostRegisterGuest(args?.guestCandidate);
   });
 
-  ipcMain.handle("p2p-candidate-file", async () => {
-    return handleP2PReadHostCandidate();
+  ipcMain.handle("p2p-disconnect", async () => {
+    return handleP2PDisconnect();
   });
 
   logInfo("Monitor", "Handlers P2P registrados");

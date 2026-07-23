@@ -119,6 +119,89 @@ class NakamaService {
     }
   }
 
+  async publishP2pCandidate(candidate: any): Promise<boolean> {
+    if (!this.session) return false;
+    try {
+      await this.client.writeStorageObjects(this.session, [
+        {
+          collection: "emu_p2p",
+          key: "host_candidate",
+          value: { ...candidate, userId: this.session.user_id, username: this.session.username, timestamp: Date.now() },
+          permission_read: 2,
+          permission_write: 1,
+        },
+      ]);
+      return true;
+    } catch { return false; }
+  }
+
+  async fetchP2pCandidate(targetUserId: string): Promise<any | null> {
+    if (!this.session) return null;
+    try {
+      const result = await this.client.readStorageObjects(this.session, {
+        object_ids: [{ collection: "emu_p2p", key: "host_candidate", user_id: targetUserId }],
+      });
+      if (result.objects && result.objects.length > 0) {
+        const obj = result.objects[0];
+        return typeof obj.value === "string" ? JSON.parse(obj.value) : obj.value;
+      }
+      return null;
+    } catch { return null; }
+  }
+
+  async publishP2pGuestCandidate(candidate: any, hostUserId: string): Promise<boolean> {
+    if (!this.session) return false;
+    try {
+      await this.client.writeStorageObjects(this.session, [
+        {
+          collection: "emu_p2p",
+          key: `guest_candidate_${hostUserId}`,
+          value: { ...candidate, userId: this.session.user_id, username: this.session.username, timestamp: Date.now() },
+          permission_read: 2,
+          permission_write: 1,
+        },
+      ]);
+      return true;
+    } catch { return false; }
+  }
+
+  async fetchP2pGuestCandidate(guestUserId: string): Promise<any | null> {
+    if (!this.session) return null;
+    try {
+      const result = await this.client.readStorageObjects(this.session, {
+        object_ids: [{ collection: "emu_p2p", key: `guest_candidate_${this.session.user_id}`, user_id: guestUserId }],
+      });
+      if (result.objects && result.objects.length > 0) {
+        const obj = result.objects[0];
+        return typeof obj.value === "string" ? JSON.parse(obj.value) : obj.value;
+      }
+      return null;
+    } catch { return null; }
+  }
+
+  async listAllP2pObjects(): Promise<any[]> {
+    if (!this.session) return [];
+    try {
+      const result = await this.client.listStorageObjects(this.session, "emu_p2p");
+      return (result.objects || []).map(obj => {
+        const val = typeof obj.value === "string" ? JSON.parse(obj.value) : obj.value;
+        return { ...val, userId: obj.user_id, key: obj.key };
+      });
+    } catch { return []; }
+  }
+
+  async deleteP2pCandidates(): Promise<boolean> {
+    if (!this.session) return false;
+    try {
+      await this.client.deleteStorageObjects(this.session, {
+        object_ids: [
+          { collection: "emu_p2p", key: "host_candidate" },
+        ],
+      });
+      return true;
+    } catch { return false; }
+  }
+
   disconnect(): void {
     if (this.socket) {
       try { this.socket.disconnect(); } catch {}
