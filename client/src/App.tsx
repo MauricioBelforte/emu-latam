@@ -410,8 +410,32 @@ function App() {
   };
 
   const handleP2pGuest = async () => {
-    const hostCand = p2pAutoCandidate || p2pHostCandidate;
-    if (!hostCand) { setP2pStatus("No se detectó host. Asegurate que haya un host activo."); return; }
+    let hostCand = p2pAutoCandidate || p2pHostCandidate;
+
+    // Si no hay candidate auto-detectado, buscar activamente en Nakama
+    if (!hostCand && isAuthenticated && onlineUsers.length > 0) {
+      for (let i = 0; i < 10; i++) {
+        for (const user of onlineUsers) {
+          if (user.userId === userId) continue;
+          const cand = await nakamaService.fetchP2pCandidate(user.userId);
+          if (cand && cand.publicIp) {
+            cand.userId = user.userId;
+            hostCand = cand;
+            p2pDiscoveryRef.current = true;
+            setP2pAutoCandidate(cand);
+            break;
+          }
+        }
+        if (hostCand) break;
+        setP2pStatus(`Buscando host P2P en Nakama... (${i + 1}/10)`);
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+
+    if (!hostCand) {
+      setP2pStatus("No se encontró host P2P. Apretá HOST P2P en la otra PC primero.");
+      return;
+    }
 
     setLoadingP2p(p => ({ ...p, guest: true }));
     setP2pStatus("Conectando al host P2P...");
