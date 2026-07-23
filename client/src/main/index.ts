@@ -335,7 +335,7 @@ function stopAllForwarders(): void {
 
 app.whenReady().then(() => {
   ipcMain.handle("launch-game", async (_event, args) => {
-    const { isHost, useRelay, relayIp, relayUrl } = args;
+    const { isHost, useRelay, relayIp, relayUrl, connectPort } = args;
     const projectRoot = getProjectRoot();
     const retroArchDir = path.join(projectRoot, "retroarch");
     const retroArchPath = path.join(retroArchDir, "retroarch.exe");
@@ -385,7 +385,7 @@ app.whenReady().then(() => {
       }
     } else {
       if (isHost) spawnArgs.push("--host", "--port", "55435");
-      else spawnArgs.push("--connect", args.directConnectIp || "127.0.0.1", "--port", "55435");
+      else spawnArgs.push("--connect", args.directConnectIp || "127.0.0.1", "--port", String(connectPort || 55435));
     }
     try {
       console.log("🚀 SPAWNING:", retroArchPath, spawnArgs.join(" "));

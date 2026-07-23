@@ -12,6 +12,32 @@ let hostManager: StoredManager | null = null;
 let guestForwarder: dgram.Socket | null = null;
 let tokenCounter = 100;
 
+function startForwarder(token: number, manager: P2PManager): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const transport = manager.getTransport();
+    const sock = dgram.createSocket("udp4");
+
+    sock.on("message", (gameData) => {
+      const pkt = encodePacket(PacketType.RELAY_DATA, token, gameData);
+      const remote = manager.getRemoteInfo();
+      if (remote) transport.send(pkt, remote.port, remote.address);
+    });
+
+    transport.onRawMessage((data) => {
+      const pkt = decodePacket(data);
+      if (pkt && pkt.type === PacketType.RELAY_DATA && sock) {
+        sock.send(pkt.payload, RETROARCH_PORT, "127.0.0.1");
+      }
+    });
+
+    sock.bind(0, "127.0.0.1", () => {
+      guestForwarder = sock;
+      resolve(sock.address().port);
+    });
+    sock.on("error", reject);
+  });
+}
+
 export async function handleP2PHost(): Promise<any> {
   const token = tokenCounter++;
 
@@ -64,34 +90,14 @@ export async function handleP2PGuest(hostCandidate: any): Promise<any> {
   await manager.startJoin(hostCandidate);
   const guestCandidate = await manager.sendCandidate();
 
-  // Crear forwarder local: escucha en 55435, reenvía via P2P
-  const transport = manager.getTransport();
-  guestForwarder = dgram.createSocket("udp4");
+  let forwarderPort: number | null = null;
 
-  guestForwarder.on("message", (gameData) => {
-    const pkt = encodePacket(PacketType.RELAY_DATA, token, gameData);
-    const remote = manager.getRemoteInfo();
-    if (remote) {
-      transport.send(pkt, remote.port, remote.address);
-    }
-  });
-
-  await new Promise<void>((resolve, reject) => {
-    guestForwarder!.bind(RETROARCH_PORT, "127.0.0.1", () => resolve());
-    guestForwarder!.on("error", reject);
-  });
-
-  // Forward RELAY_DATA del host → RetroArch local
-  transport.onRawMessage((data) => {
-    const pkt = decodePacket(data);
-    if (pkt && pkt.type === PacketType.RELAY_DATA && guestForwarder) {
-      guestForwarder.send(pkt.payload, RETROARCH_PORT, "127.0.0.1");
-    }
-  });
-
-  // Same-machine: bridge guest → host
+  // Same-machine: bridge host + skip forwarder (RA habla directo)
   if (hostManager && guestCandidate) {
     await hostManager.manager.onGuestJoin(guestCandidate, token);
+  } else {
+    // Cross-machine: crear forwarder en puerto aleatorio
+    forwarderPort = await startForwarder(token, manager);
   }
 
   return {
@@ -101,6 +107,7 @@ export async function handleP2PGuest(hostCandidate: any): Promise<any> {
     nat: manager.getNatInfo(),
     candidate: guestCandidate,
     hostConnected: !!hostManager,
+    forwarderPort,
   };
 }
 

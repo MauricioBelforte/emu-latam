@@ -433,6 +433,7 @@ function App() {
         }
         const gameResult = await (window as any).electron.ipcRenderer.invoke("launch-game", {
           useRelay: false, isHost: false, directConnectIp: "127.0.0.1",
+          connectPort: result.forwarderPort || 55435,
         });
         if (!gameResult?.success) setP2pStatus("Error al lanzar RetroArch: " + (gameResult?.error || "desconocido"));
         else setP2pStatus("✅ Conectado! RetroArch iniciado.");
