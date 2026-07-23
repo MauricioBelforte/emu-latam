@@ -26,3 +26,4 @@
 | 15-Sistema-Monitoreo-Diagnostico | Sistema de monitoreo: cleanup manager, dependency validator, resource monitor, logger estructurado, StatusContext, ErrorBanner | ✅ Completado | 2026-07-20 | Build passes | electron, React Context, IPC |
 | 16-Notificaciones-Utilidades-IPC | Toast notifications, IPC channels enum + whitelist, port utils, relayConfigStore | 🔄 Plan inicial | 2026-07-20 | — | React, net, userData |
 | 17-Nombre-Usuario-Personalizado | Modal de nombre al primer inicio + presencia en sidebar | ✅ Completado | 2026-07-21 | Cross-PC | localStorage, AuthContext, SocialContext, Nakama lobby messages |
+| 18-P2P-Propio | Sistema P2P propio (reemplazo de Tailscale/Bore) con NAT hole punching + relay en host | 🔄 Plan actual (v1.1) | 2026-07-23 | 27 tests planificados (ver 06-Plan-Testings.md) | dgram, stun, tweetnacl (opcional), Nakama |

@@ -225,6 +225,10 @@ function App() {
   const discoveryDoneRef = useRef(false);
   const { engine, status: ggpoStatus, cancelHosting, startHosting, joinRoom } = useGgpo();
   const [ggpoIp, setGgpoIp] = useState("");
+  const [p2pHostCandidate, setP2pHostCandidate] = useState("");
+  const [p2pGuestCandidate, setP2pGuestCandidate] = useState("");
+  const [p2pStatus, setP2pStatus] = useState("");
+  const [loadingP2p, setLoadingP2p] = useState({ host: false, guest: false });
 
   useEffect(() => {
     const electron = (window as any).electron;
@@ -377,6 +381,53 @@ function App() {
     }
     setLoading(p => ({ ...p, mitm: false }));
     setStatusText("");
+  };
+
+  const handleP2pHost = async () => {
+    setLoadingP2p(p => ({ ...p, host: true }));
+    setP2pStatus("Iniciando host P2P...");
+    try {
+      const result = await (window as any).electron.ipcRenderer.invoke("p2p-host");
+      if (result.success) {
+        setP2pHostCandidate(JSON.stringify(result.candidate, null, 2));
+        setP2pStatus(`Host P2P listo. NAT: ${result.nat?.natType} | IP: ${result.candidate?.publicIp}:${result.candidate?.publicPort}`);
+      } else {
+        setP2pStatus(`Error: ${result.error}`);
+      }
+    } catch (e) {
+      console.error("P2P host error:", e);
+      setP2pStatus("Error al iniciar host P2P");
+    }
+    setLoadingP2p(p => ({ ...p, host: false }));
+  };
+
+  const handleP2pGuest = async () => {
+    setLoadingP2p(p => ({ ...p, guest: true }));
+    setP2pStatus("Iniciando guest P2P...");
+    try {
+      const hostCand = p2pHostCandidate ? (() => {
+        try { return JSON.parse(p2pHostCandidate); } catch { return null; }
+      })() : undefined;
+      const result = await (window as any).electron.ipcRenderer.invoke("p2p-guest", { hostCandidate: hostCand });
+      if (result.success) {
+        setP2pGuestCandidate(JSON.stringify(result.candidate, null, 2));
+        const mode = result.hostConnected ? " (host conectado)" : " (esperando relay)";
+        setP2pStatus(`Guest P2P listo. NAT: ${result.nat?.natType}${mode}`);
+      } else {
+        setP2pStatus(`Error: ${result.error}`);
+      }
+    } catch (e) {
+      console.error("P2P guest error:", e);
+      setP2pStatus("Error al conectar guest P2P");
+    }
+    setLoadingP2p(p => ({ ...p, guest: false }));
+  };
+
+  const handleP2pDisconnect = async () => {
+    await (window as any).electron.ipcRenderer.invoke("p2p-disconnect");
+    setP2pHostCandidate("");
+    setP2pGuestCandidate("");
+    setP2pStatus("Desconectado");
   };
 
   const handleTailscaleHost = async () => {
@@ -760,6 +811,47 @@ function App() {
                         2. JOIN GAME
                       </Btn>
                       <StatusText $color="#888">Host → 1. HOST GAME | Guest → 2. JOIN GAME</StatusText>
+                    </>
+                  )}
+                </Section>
+
+                {/* ───── MODO P2P TEST (Módulo 18) ───── */}
+                <Section $accent="#f0f">
+                  <SectionHeader $color="#f0f">
+                    <Badge $bg="#f0f">P2P</Badge> MODO P2P PROPIO — SIN SERVIDOR EXTERNO
+                  </SectionHeader>
+                  {engine === "ggpo" ? (
+                    <StatusText $color="#fa0">⛔ P2P propio usa UDP, no compatible con GGPO (TCP). Cambiá a RETROARCH.</StatusText>
+                  ) : (
+                    <>
+                      <Btn onClick={handleP2pHost} disabled={loadingP2p.host} $loading={loadingP2p.host} $accent="#f0f" $bg={loadingP2p.host ? "#f0f22" : "transparent"}>
+                        {loadingP2p.host ? "INICIANDO..." : "1. HOST P2P (TEST)"}
+                      </Btn>
+                      {p2pHostCandidate && (
+                        <div style={{ marginTop: 8 }}>
+                          <StatusText $color="#0f0" style={{ fontSize: "0.6rem", marginBottom: 4 }}>
+                            Host candidate generado. En otra PC, pegalo abajo y presioná JOIN.
+                          </StatusText>
+                          <Input $accent="#f0f" type="text" value={p2pGuestCandidate ? "" : p2pHostCandidate} readOnly
+                            style={{ fontSize: "0.55rem", padding: "6px" }}
+                          />
+                        </div>
+                      )}
+                      <Input $accent="#f0f" type="text" value={p2pGuestCandidate || p2pHostCandidate}
+                        onChange={(e) => setP2pHostCandidate(e.target.value)}
+                        placeholder="JSON candidate del host (auto o pegar manual)"
+                        style={{ marginTop: 10, fontSize: "0.55rem", padding: "6px" }}
+                      />
+                      <Btn onClick={handleP2pGuest} disabled={loadingP2p.guest || !p2pHostCandidate} $loading={loadingP2p.guest} $accent="#f0f" $bg={loadingP2p.guest ? "#f0f22" : "transparent"} style={{ marginTop: 10 }}>
+                        {loadingP2p.guest ? "CONECTANDO..." : "2. JOIN P2P (TEST)"}
+                      </Btn>
+                      {p2pStatus && <StatusText $color="#f0f">{p2pStatus}</StatusText>}
+                      <Btn onClick={handleP2pDisconnect} $accent="#555" $bg="#222" style={{ marginTop: 8, fontSize: "0.55rem", padding: "6px" }}>
+                        DESCONECTAR P2P
+                      </Btn>
+                      <StatusText $color="#888" style={{ marginTop: 4, fontSize: "0.5rem" }}>
+                        Misma PC: 1. HOST → 2. JOIN (automático). Otra PC: copiar candidate y pegarlo.
+                      </StatusText>
                     </>
                   )}
                 </Section>

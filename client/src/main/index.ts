@@ -14,6 +14,7 @@ import { logInfo } from "./logger";
 import { assertPortFree } from "./services/portUtils";
 import { relayConfigStore } from "./services/relayConfigStore";
 import { spawnFcadefbneo, killGgpo, findFcadefbneo, getGgpoProcess, spawnLocalTest } from "../ggpo/main/ggpoHandler";
+import { handleP2PHost, handleP2PGuest, handleP2PDisconnect, handleP2PReadHostCandidate } from "./p2pBridge";
 
 // ========================================
 // CONSTANTES DE AYUDA
@@ -966,6 +967,29 @@ app.whenReady().then(() => {
   });
 
   logInfo("Monitor", "Handlers GGPO registrados");
+
+  // ========================================
+  // P2P Test (Módulo 18)
+  // ========================================
+
+  ipcMain.handle("p2p-host", async () => {
+    return handleP2PHost();
+  });
+
+  ipcMain.handle("p2p-guest", async (_e, args) => {
+    return handleP2PGuest(args?.hostCandidate);
+  });
+
+  ipcMain.handle("p2p-disconnect", async () => {
+    return handleP2PDisconnect();
+  });
+
+  ipcMain.handle("p2p-candidate-file", async () => {
+    return handleP2PReadHostCandidate();
+  });
+
+  logInfo("Monitor", "Handlers P2P registrados");
+
   launchNakama();
   startNakamaHealthCheck();
   createWindow();
