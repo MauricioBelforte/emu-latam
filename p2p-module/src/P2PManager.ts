@@ -101,12 +101,12 @@ export class P2PManager {
       await this.startHost();
     }
 
-    // LAN check
-    if (NatDetector.isSameSubnet(
-      guestCandidate.privateIps[0] || guestCandidate.publicIp,
-      this.localCandidate!.privateIps[0] || this.localCandidate!.publicIp,
-    )) {
-      this.remoteAddr = guestCandidate.privateIps[0] || guestCandidate.publicIp;
+    // LAN check (todas las IPs, no solo [0])
+    const hostIps = this.localCandidate!.privateIps.length ? this.localCandidate!.privateIps : [this.localCandidate!.publicIp];
+    const guestIps = guestCandidate.privateIps.length ? guestCandidate.privateIps : [guestCandidate.publicIp];
+    const lanIp = guestIps.find(gp => hostIps.some(hp => NatDetector.isSameSubnet(hp, gp)));
+    if (lanIp) {
+      this.remoteAddr = lanIp;
       this.remotePort = RETROARCH_PORT;
       this.sm.transition('lan_match');
       this.opts.callbacks.onConnected(guestCandidate.peerId, 'lan');
@@ -152,12 +152,12 @@ export class P2PManager {
     this.remoteCandidate = hostCandidate;
     this.sessionToken = this.opts.sessionToken;
 
-    // LAN check
-    if (NatDetector.isSameSubnet(
-      hostCandidate.privateIps[0] || hostCandidate.publicIp,
-      this.localCandidate.privateIps[0] || this.localCandidate.publicIp,
-    )) {
-      this.remoteAddr = hostCandidate.privateIps[0] || hostCandidate.publicIp;
+    // LAN check (todas las IPs, no solo [0])
+    const hostIps = hostCandidate.privateIps.length ? hostCandidate.privateIps : [hostCandidate.publicIp];
+    const guestIps = this.localCandidate.privateIps.length ? this.localCandidate.privateIps : [this.localCandidate.publicIp];
+    const lanIp = hostIps.find(hp => guestIps.some(gp => NatDetector.isSameSubnet(hp, gp)));
+    if (lanIp) {
+      this.remoteAddr = lanIp;
       this.remotePort = RETROARCH_PORT;
       this.sm.transition('lan_match');
       this.opts.callbacks.onConnected('host', 'lan');

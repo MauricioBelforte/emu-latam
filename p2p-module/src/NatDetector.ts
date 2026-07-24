@@ -28,6 +28,15 @@ export class NatDetector {
     return a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
   }
 
+  static anySameSubnet(ips1: string[], ips2: string[]): boolean {
+    for (const ip1 of ips1) {
+      for (const ip2 of ips2) {
+        if (NatDetector.isSameSubnet(ip1, ip2)) return true;
+      }
+    }
+    return false;
+  }
+
   static async detect(transport: UDPTransport): Promise<NatResult> {
     const [r1, r2] = await Promise.all([
       transport.stunBindingRequest(STUN_SERVERS[0]),
