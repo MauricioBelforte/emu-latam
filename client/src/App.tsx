@@ -860,21 +860,11 @@ function App() {
                     {isP2pSala ? "🏠 SALA P2P CREADA" : "🏠 SALA CREADA"}
                   </p>
                   {isP2pSala ? (
-                    <>
-                      <p style={{ color: "#888", fontSize: "0.65rem", marginBottom: 8 }}>Jugadores conectados:</p>
-                      {onlineUsers.filter(u => u.userId !== userId).length === 0 ? (
-                        <StatusText $color="#888" style={{ fontSize: "0.6rem" }}>Esperando jugadores...</StatusText>
-                      ) : (
-                        onlineUsers.filter(u => u.userId !== userId).map(p => (
-                          <div key={p.userId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", margin: "4px 0", background: "#ffffff08", borderRadius: 4 }}>
-                            <span style={{ color: "#fff", fontFamily: "monospace", fontSize: "0.7rem" }}>{p.username}</span>
-                            <Btn onClick={() => initiateChallenge(p.userId, p.username)} $accent="#f0f" $bg="transparent" style={{ padding: "4px 10px", fontSize: "0.5rem" }}>
-                              RETAR
-                            </Btn>
-                          </div>
-                        ))
-                      )}
-                    </>
+                    <StatusText $color="#888" style={{ fontSize: "0.6rem" }}>
+                      {onlineUsers.filter(u => u.userId !== userId).length > 0
+                        ? `Jugadores: ${onlineUsers.filter(u => u.userId !== userId).map(u => u.username).join(", ")}`
+                        : "Esperando jugadores..."}
+                    </StatusText>
                   ) : (
                     <>
                       <p style={{ color: "#fff", fontFamily: "monospace", fontSize: "1.5rem", background: "#000", padding: "12px 20px", borderRadius: 6, border: "2px solid #0af", display: "inline-block", marginBottom: 8, cursor: "pointer", userSelect: "text", letterSpacing: 2 }} onClick={handleCopyIp} title="Click para copiar">
@@ -905,21 +895,11 @@ function App() {
                     </StatusText>
                   )}
                   {isP2pSala && (
-                    <>
-                      <p style={{ color: "#888", fontSize: "0.65rem", margin: "8px 0" }}>Jugadores conectados:</p>
-                      {onlineUsers.filter(u => u.userId !== userId).length === 0 ? (
-                        <StatusText $color="#888" style={{ fontSize: "0.6rem" }}>Esperando jugadores...</StatusText>
-                      ) : (
-                        onlineUsers.filter(u => u.userId !== userId).map(p => (
-                          <div key={p.userId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", margin: "4px 0", background: "#ffffff08", borderRadius: 4 }}>
-                            <span style={{ color: "#fff", fontFamily: "monospace", fontSize: "0.7rem" }}>{p.username}</span>
-                            <Btn onClick={() => initiateChallenge(p.userId, p.username)} $accent="#f0f" $bg="transparent" style={{ padding: "4px 10px", fontSize: "0.5rem" }}>
-                              RETAR
-                            </Btn>
-                          </div>
-                        ))
-                      )}
-                    </>
+                    <StatusText $color="#888" style={{ fontSize: "0.6rem", margin: "8px 0" }}>
+                      {onlineUsers.filter(u => u.userId !== userId).length > 0
+                        ? `Jugadores: ${onlineUsers.filter(u => u.userId !== userId).map(u => u.username).join(", ")}`
+                        : "Esperando jugadores..."}
+                    </StatusText>
                   )}
                   {tsStatus && <StatusText $color="#00f3ff" style={{ fontSize: "0.6rem", marginTop: 4 }}>{tsStatus}</StatusText>}
                 </Section>
