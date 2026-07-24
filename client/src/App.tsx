@@ -231,7 +231,6 @@ function App() {
   const [p2pGuestReady, setP2pGuestReady] = useState(false);
   const [loadingP2p, setLoadingP2p] = useState({ host: false, guest: false });
   const p2pDiscoveryRef = useRef(false);
-  const [salaMethod, setSalaMethod] = useState<'choose' | 'p2p' | 'tailscale'>('choose');
 
   useEffect(() => {
     const electron = (window as any).electron;
@@ -684,11 +683,7 @@ function App() {
           setNakamaReady(false);
           setStatusText("");
           setPeerReachable(null);
-          setSalaMethod('choose');
-        } : () => {
-          setJoinMode(null);
-          setSalaMethod('choose');
-        }}
+        } : () => setJoinMode(null)}
         showNetplayConfig={showNetplayConfig}
         onToggleNetplayConfig={() => setShowNetplayConfig((o) => !o)}
       >
@@ -788,45 +783,25 @@ function App() {
                   <p style={{ color: "#0af", fontFamily: theme.fonts.arcade, fontSize: "1rem", marginBottom: 8, textShadow: "0 0 20px #0af" }}>
                     🏠 SALA CREADA
                   </p>
-
-                  {salaMethod === 'choose' && (
-                    <>
-                      <p style={{ color: "#888", fontSize: "0.65rem", marginBottom: 12 }}>Elegí cómo conectar:</p>
-                      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
-                        <Btn onClick={() => { setSalaMethod('p2p'); handleP2pHost(); }} disabled={loadingP2p.host} $loading={loadingP2p.host} $accent="#f0f" $bg={loadingP2p.host ? "#f0f22" : "transparent"} style={{ flex: 1, minWidth: 140, padding: "14px 10px" }}>
-                          <span style={{ fontSize: "1rem" }}>▶ VÍA P2P</span>
-                          <span style={{ display: "block", fontSize: "0.5rem", opacity: 0.7, marginTop: 4 }}>Automático — sin configuración</span>
-                        </Btn>
-                        <Btn onClick={() => { setSalaMethod('tailscale'); handleTailscaleHost(); }} disabled={loading.tsHost} $loading={loading.tsHost} $accent="#00f3ff" $bg={loading.tsHost ? "#00f3ff22" : "transparent"} style={{ flex: 1, minWidth: 140, padding: "14px 10px" }}>
-                          <span style={{ fontSize: "1rem" }}>▶ VÍA TAILSCALE</span>
-                          <span style={{ display: "block", fontSize: "0.5rem", opacity: 0.7, marginTop: 4 }}>IP manual — compartí la IP</span>
-                        </Btn>
-                      </div>
-                    </>
-                  )}
-
-                  {salaMethod === 'p2p' && (
-                    <>
-                      {p2pStatus && <StatusText $color="#f0f" style={{ fontSize: "0.65rem" }}>{p2pStatus}</StatusText>}
-                    </>
-                  )}
-
-                  {salaMethod === 'tailscale' && (
-                    <>
-                      <p style={{ color: "#fff", fontFamily: "monospace", fontSize: "1.5rem", background: "#000", padding: "12px 20px", borderRadius: 6, border: "2px solid #0af", display: "inline-block", marginBottom: 8, cursor: "pointer", userSelect: "text", letterSpacing: 2 }} onClick={handleCopyIp} title="Click para copiar">
-                        {myTailscaleIp} <span style={{ fontSize: "0.9rem" }}>{copiedIp ? "✅" : "📋"}</span>
-                      </p>
-                      <StatusText $color="#0af" style={{ fontSize: "0.7rem" }}>
-                        {copiedIp
-                          ? "✅ IP copiada. Pasásela a tu amigo."
-                          : "Hacé click en la IP para copiarla."}
-                      </StatusText>
-                      {tsStatus && <StatusText $color="#00f3ff" style={{ fontSize: "0.6rem", marginTop: 4 }}>{tsStatus}</StatusText>}
-                      <Btn onClick={() => setSalaMethod('choose')} $accent="#555" $bg="transparent" style={{ marginTop: 8, fontSize: "0.5rem", padding: "6px" }}>
-                        CAMBIAR MÉTODO
-                      </Btn>
-                    </>
-                  )}
+                  <p style={{ color: "#fff", fontFamily: "monospace", fontSize: "1.5rem", background: "#000", padding: "12px 20px", borderRadius: 6, border: "2px solid #0af", display: "inline-block", marginBottom: 8, cursor: "pointer", userSelect: "text", letterSpacing: 2 }} onClick={handleCopyIp} title="Click para copiar">
+                    {myTailscaleIp} <span style={{ fontSize: "0.9rem" }}>{copiedIp ? "✅" : "📋"}</span>
+                  </p>
+                  <StatusText $color="#0af" style={{ fontSize: "0.7rem" }}>
+                    {copiedIp
+                      ? "✅ IP copiada. Pasásela a tu amigo para que la pegue en UNIRSE A SALA → CONECTAR."
+                      : "Hacé click en la IP para copiarla. Tu amigo debe poner esta IP en UNIRSE A SALA."}
+                  </StatusText>
+                  <Divider style={{ margin: "10px 0" }} />
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+                    <Btn onClick={handleP2pHost} disabled={loadingP2p.host} $loading={loadingP2p.host} $accent="#f0f" $bg={loadingP2p.host ? "#f0f22" : "transparent"} style={{ flex: 1, minWidth: 100 }}>
+                      {loadingP2p.host ? "..." : "▶ VÍA P2P"}
+                    </Btn>
+                    <Btn onClick={handleTailscaleHost} disabled={loading.tsHost} $loading={loading.tsHost} $accent="#00f3ff" $bg={loading.tsHost ? "#00f3ff22" : "transparent"} style={{ flex: 1, minWidth: 100 }}>
+                      {loading.tsHost ? "..." : "▶ VÍA TAILSCALE"}
+                    </Btn>
+                  </div>
+                  {(p2pStatus && p2pStatus !== "✅ Guest conectado via P2P") && <StatusText $color="#f0f" style={{ fontSize: "0.6rem", marginTop: 4 }}>{p2pStatus}</StatusText>}
+                  {tsStatus && <StatusText $color="#00f3ff" style={{ fontSize: "0.6rem" }}>{tsStatus}</StatusText>}
                 </Section>
               )}
 
@@ -840,51 +815,23 @@ function App() {
                   </StatusText>
                   {peerReachable === false && (
                     <StatusText $color="#fa0" style={{ fontSize: "0.55rem", marginTop: 4 }}>
-                      ⚠ El servidor Nakama del host parece no estar accesible desde aquí.
+                      ⚠ El servidor Nakama del host parece no estar accesible desde aquí. Si no podés conectar, verificá la IP o probá modo BORE.
                     </StatusText>
                   )}
-
-                  {salaMethod === 'choose' && (
-                    <>
-                      <p style={{ color: "#888", fontSize: "0.65rem", margin: "10px 0" }}>Elegí cómo conectarte al host:</p>
-                      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
-                        <Btn onClick={() => { setSalaMethod('p2p'); handleP2pGuest(); }} disabled={loadingP2p.guest} $loading={loadingP2p.guest} $accent="#f0f" $bg={loadingP2p.guest ? "#f0f22" : "transparent"} style={{ flex: 1, minWidth: 140, padding: "14px 10px" }}>
-                          <span style={{ fontSize: "1rem" }}>▶ VÍA P2P</span>
-                          <span style={{ display: "block", fontSize: "0.5rem", opacity: 0.7, marginTop: 4 }}>Automático — busca al host</span>
-                        </Btn>
-                        <Btn onClick={() => setSalaMethod('tailscale')} disabled={loading.tsJoin} $accent="#00f3ff" $bg={!loading.tsJoin ? "transparent" : "#00f3ff22"} style={{ flex: 1, minWidth: 140, padding: "14px 10px" }}>
-                          <span style={{ fontSize: "1rem" }}>▶ VÍA TAILSCALE</span>
-                          <span style={{ display: "block", fontSize: "0.5rem", opacity: 0.7, marginTop: 4 }}>IP manual — pegá la IP del host</span>
-                        </Btn>
-                      </div>
-                    </>
-                  )}
-
-                  {salaMethod === 'p2p' && (
-                    <>
-                      {p2pStatus && <StatusText $color="#f0f" style={{ fontSize: "0.65rem" }}>{p2pStatus}</StatusText>}
-                      {(p2pStatus?.includes("Error") || p2pStatus?.includes("Timeout")) && (
-                        <Btn onClick={() => setSalaMethod('choose')} $accent="#555" $bg="transparent" style={{ marginTop: 8, fontSize: "0.5rem", padding: "6px" }}>
-                          VOLVER
-                        </Btn>
-                      )}
-                    </>
-                  )}
-
-                  {salaMethod === 'tailscale' && (
-                    <>
-                      <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 10 }}>
-                        <Input $accent="#00f3ff" type="text" value={tailscaleHostIp} onChange={(e) => setTailscaleHostIp(e.target.value)} placeholder="IP Tailscale del host" style={{ flex: 1, fontSize: "0.65rem", padding: "8px" }} />
-                        <Btn onClick={handleTailscaleGuest} disabled={loading.tsJoin || !tailscaleHostIp} $loading={loading.tsJoin} $accent="#00f3ff" $bg={loading.tsJoin ? "#00f3ff22" : "transparent"} style={{ whiteSpace: "nowrap" }}>
-                          {loading.tsJoin ? "..." : "▶ CONECTAR"}
-                        </Btn>
-                      </div>
-                      {tsStatus && <StatusText $color="#00f3ff" style={{ fontSize: "0.6rem", marginTop: 4 }}>{tsStatus}</StatusText>}
-                      <Btn onClick={() => setSalaMethod('choose')} $accent="#555" $bg="transparent" style={{ marginTop: 8, fontSize: "0.5rem", padding: "6px" }}>
-                        CAMBIAR MÉTODO
-                      </Btn>
-                    </>
-                  )}
+                  <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", justifyContent: "center" }}>
+                    <Btn onClick={handleP2pGuest} disabled={loadingP2p.guest} $loading={loadingP2p.guest} $accent="#f0f" $bg={loadingP2p.guest ? "#f0f22" : "transparent"} style={{ flex: 1, minWidth: 100 }}>
+                      {loadingP2p.guest ? "..." : "▶ VÍA P2P"}
+                    </Btn>
+                    <Btn onClick={handleTailscaleGuest} disabled={loading.tsJoin || !tailscaleHostIp} $loading={loading.tsJoin} $accent="#00f3ff" $bg={loading.tsJoin ? "#00f3ff22" : "transparent"} style={{ flex: 1, minWidth: 100 }}>
+                      {loading.tsJoin ? "..." : "▶ VÍA TAILSCALE"}
+                    </Btn>
+                  </div>
+                  <div style={{ marginTop: 8, display: "flex", gap: 6, alignItems: "center" }}>
+                    <span style={{ color: "#888", fontSize: "0.6rem" }}>IP host:</span>
+                    <Input $accent="#00f3ff" type="text" value={tailscaleHostIp} onChange={(e) => setTailscaleHostIp(e.target.value)} placeholder="IP Tailscale" style={{ flex: 1, fontSize: "0.6rem", padding: "6px" }} />
+                  </div>
+                  {(p2pStatus && p2pStatus !== "✅ Guest conectado via P2P") && <StatusText $color="#f0f" style={{ fontSize: "0.6rem", marginTop: 4 }}>{p2pStatus}</StatusText>}
+                  {tsStatus && <StatusText $color="#00f3ff" style={{ fontSize: "0.6rem" }}>{tsStatus}</StatusText>}
                 </Section>
               )}
 
