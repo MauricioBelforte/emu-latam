@@ -312,4 +312,22 @@ Con run_ahead=false + buffer dinámico 1-2, no es necesario check_frames porque 
 - [x] `ggpoNet.ts` limpiado: Storage helpers preservados pero no usados en flujo principal
 - [x] Build pasa sin errores
 
+---
+
+## ✅ Módulo P2P Propio — Conexión LAN entre PCs (24-Jul-2026)
+
+- [x] Módulo independiente `p2p-module/` con 29 tests, 0 dependencias runtime
+- [x] IPCs registrados: `p2p-host`, `p2p-guest`, `p2p-host-register-guest`, `p2p-disconnect`
+- [x] Bridge Electron `p2pBridge.ts`: host/guest/forwarder management
+- [x] Botones "HOST P2P" y "JOIN P2P" en App.tsx bajo OTROS MÉTODOS
+- [x] Auto-descubrimiento host candidate via Nakama Storage
+- [x] Guest publica candidate, host confirma via `connection_confirmed`
+- [x] Detección LAN: `anySameSubnet()` + priorizar IP real sobre Tailscale
+- [x] Modo LAN: salta forwarder, conecta directo a `hostLanIp:55435`
+- [x] Forwarder con fallback EADDRINUSE a puerto aleatorio + `--port`
+- [x] PUNCH handler en P2PManager para que `doHolePunch` funcione
+- [x] **Verificado funcional en misma LAN (24-Jul-2026)**
+- [ ] Pendiente: probar entre PCs en distintas redes (WAN)
+- [ ] Pendiente: integrar con sistema de Retos (desafío)
+
 

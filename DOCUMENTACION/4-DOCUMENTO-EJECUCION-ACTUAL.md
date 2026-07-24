@@ -131,17 +131,16 @@
 - **Solución:** Auto-restart en crash + health check cada 30s con máx 5 reintentos.
 - **Código:** `client/src/main/index.ts` — `launchNakama()` + `startNakamaHealthCheck()`
 
-### ❌ P2P Propio — Conexión entre PCs no funciona (24-Jul-2026)
-- **Síntoma 1 (Host=PC1, Guest=PC2):** PC2 timeout esperando confirmación del host.
-- **Síntoma 2 (Host=PC2, Guest=PC1):** PC1 abre RetroArch pero muestra "error al iniciar juego en red".
-- **Causas identificadas y corregidas:**
+### ✅ P2P Propio — Conexión entre PCs funciona (24-Jul-2026)
+- **Estado actual:** Funcional en misma LAN. Guest conecta directo al host RetroArch vía IP LAN, sin P2P ni forwarder.
+- **Bugs encontrados y corregidos durante el desarrollo:**
   1. `doHolePunch` siempre fallaba porque nadie respondía PUNCH → PUNCH_ACK. Fix: `handlePacket` en `P2PManager.ts` ahora responde automáticamente.
   2. Forwarder intentaba bind a 55435 siempre; si ocupado → error fatal. Fix: fallback a puerto aleatorio + `--port` a RetroArch.
   3. Guest lanzaba RetroArch antes de que el host registrara el relay. Fix: espera `connection_confirmed` de Nakama.
   4. `manager.status === "lan_connected"` nunca se cumplía porque el estado real es `"lan_check"`. Fix: comparar con `"lan_check"`.
   5. `privateIps[0]` podía ser IP de Tailscale (100.x.x.x) en vez de LAN real. Fix: `anySameSubnet()` + priorizar IP que NO sea 100.x.x.x.
   6. Forwarder en modo LAN enviaba RELAY_DATA que RetroArch no entiende. Fix: en modo LAN, saltar forwarder y conectar directo.
-- **Pendiente de probar:** commit `d2e7986` con todas las correcciones.
+- **Flujo en misma LAN:** Host publica candidate en Nakama → Guest detecta LAN en `startJoin` → salta forwarder → conecta directo a `hostLanIp:55435` → sin Nakama confirmation ni P2P.
 
 ### ⚠️ Tiriteo en check_frames > 0 en AMBAS PCs (18-Jul-2026)
 - **Síntoma:** Con `check_frames > 0`, los inputs direccionales se
