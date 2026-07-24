@@ -158,6 +158,15 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
         const guestResult = await (window as any).electron.ipcRenderer.invoke("p2p-guest", { hostCandidate: currentChallenge.hostCandidate });
         if (!guestResult.success) { alert("Error conectando P2P: " + (guestResult.error || "desconocido")); return; }
 
+        // GGPO mode: enviar ACCEPT con guestIp, esperar connection_info del host
+        if (engine === "ggpo") {
+          const ipResult = await (window as any).electron.ipcRenderer.invoke("get-lan-ip");
+          const guestOwnIp = ipResult.ip || "";
+          await sendToLobby(CHALLENGE_ACCEPT_MSG_TYPE, { targetId: challengerId, acceptedBy: userId, acceptedByName: username, guestIp: guestOwnIp });
+          setTimeout(() => resetChallenge(), 5000);
+          return;
+        }
+
         // LAN mode: esperar a que el host levante RA antes de conectar
         if (guestResult.isLan) {
           await sendToLobby(CHALLENGE_ACCEPT_MSG_TYPE, { targetId: challengerId, acceptedBy: userId, acceptedByName: username });
@@ -227,8 +236,23 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
         const method = currentChallenge?.method || "bore";
         console.log(`Reto aceptado! Mtodo: ${method}`);
 
-        // P2P method: host must ALWAYS launch RA (LAN direct or WAN relay)
+        // P2P method
         if (method === "p2p") {
+          // GGPO mode: host envía su IP via connection_info, espera guest_ready para lanzar GGPO
+          if (engine === "ggpo") {
+            try {
+              const ipResult = await (window as any).electron.ipcRenderer.invoke("get-lan-ip");
+              const myIp = ipResult.ip;
+              if (!myIp) { alert("No se pudo detectar IP"); resetChallenge(); return; }
+              await sendConnectionInfo(content.acceptedBy, { ggpoHostIp: myIp, hostName: username, useGgpo: true });
+            } catch (e) {
+              console.error("Error en P2P GGPO host:", e); resetChallenge();
+            }
+            setTimeout(() => resetChallenge(), 5000);
+            return;
+          }
+
+          // RetroArch mode: lanzar RA como host (LAN direct or WAN relay)
           const guestCandidate = content.guestCandidate;
           const acceptedBy = content.acceptedBy;
           try {

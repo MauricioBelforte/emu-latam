@@ -495,6 +495,74 @@ export function registerP2PHandlers(ipcMain: IpcMain, ctx: AppContext) {
 
 ---
 
-## 9. Integración con Sistema Existente
+## 9. Integración GGPO + P2P (ChallengeContext.tsx)
 
-Tal como el plan-inicial: `SignalingChannel` recibe la sesión Nakama ya abierta, no abre conexión nueva. React llama via `window.electron.invoke('p2p:host-start')`.
+### 9.1 acceptChallenge (Guest side, P2P+GGPO)
+
+```typescript
+// Dentro de acceptChallenge(), después de p2p-guest:
+if (method === "p2p" && currentChallenge.hostCandidate) {
+  const guestResult = await p2p-guest(hostCandidate);
+
+  if (engine === "ggpo") {
+    const ipResult = await electron.ipcRenderer.invoke("get-lan-ip");
+    const guestOwnIp = ipResult.ip;
+    await sendToLobby(CHALLENGE_ACCEPT_MSG_TYPE, {
+      targetId: challengerId,
+      acceptedBy: userId,
+      acceptedByName: username,
+      guestIp: guestOwnIp,
+    });
+    // No lanza GGPO aún — espera connection_info del host
+    setTimeout(() => resetChallenge(), 5000);
+    return;
+  }
+
+  // --- resto del flujo RetroArch P2P existente ---
+  if (guestResult.isLan) { ... }
+  else { ... }
+}
+```
+
+### 9.2 ACCEPT handler (Host side, P2P+GGPO)
+
+```typescript
+// Dentro del handler CHALLENGE_ACCEPT_MSG_TYPE, al inicio del bloque method==="p2p":
+if (content._type === CHALLENGE_ACCEPT_MSG_TYPE) {
+  if (method === "p2p") {
+
+    if (engine === "ggpo") {
+      // Host detecta su IP y la envía al guest via connection_info
+      const ipResult = await electron.ipcRenderer.invoke("get-lan-ip");
+      const myIp = ipResult.ip;
+      if (!myIp) { alert("No se pudo detectar IP"); resetChallenge(); return; }
+      await sendConnectionInfo(content.acceptedBy, {
+        ggpoHostIp: myIp,
+        hostName: username,
+        useGgpo: true,
+      });
+      // El guest lanzará GGPO y enviará guest_ready
+      // El handler existente de guest_ready lanza GGPO en host
+      return;
+    }
+
+    // --- resto del flujo RetroArch P2P existente ---
+    await (window as any).electron.ipcRenderer.invoke("launch-game", ...);
+    ...
+  }
+}
+```
+
+### 9.3 Flujo Completo (sin modificar lo existente)
+
+Los handlers existentes que **ya funcionan** y no se tocan:
+- `CHALLENGE_ACCEPT_MSG_TYPE + "_conn"` (líneas 295-329): guest recibe connection_info con ggpoHostIp → `ggpo-launch` → envía guest_ready
+- `CHALLENGE_GUEST_READY_MSG_TYPE` (líneas 332-345): host recibe guestIp → `ggpo-launch` como P0
+
+Solo se agregan 2 bifurcaciones `engine === "ggpo"` en el flujo P2P, sin modificar la lógica RetroArch existente.
+
+---
+
+## 10. Integración con Sistema Existente
+
+Tal como el plan-inicial: `SignalingChannel` recibe la sesión Nakama ya abierta, no abre conexión nueva. React llama via `window.electron.invoke('p2p:host-start')`. Para GGPO, la integración se hace exclusivamente en `ChallengeContext.tsx`.

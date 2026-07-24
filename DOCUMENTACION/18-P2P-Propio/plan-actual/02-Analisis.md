@@ -108,3 +108,52 @@ Solo `stun` es obligatoria. `tweetnacl` es opcional para Fase 3 (cifrado).
 | Firewall bloquea UDP | Paquetes descartados | Excepción de firewall en instalación |
 | Guest malicioso en relay | Security | Validación de sessionToken + solo reenvía a peers registrados vía Nakama |
 | IP pública cambia | Desconexión | Keepalive detecta pérdida, se puede re-señalizar |
+
+---
+
+## 6. Integración GGPO + P2P
+
+### 6.1 Motivación
+
+Actualmente GGPO (fcadefbneo) usa Nakama lobby messages (`ggpo_room_open` / `ggpo_guest_join`) para intercambiar IPs de conexión. El sistema P2P propio ofrece un mecanismo superior:
+- **LAN**: descubrimiento automático por broadcast UDP (sin Nakama)
+- **WAN**: intercambio de candidatos via Nakama Storage (sin lobby messages)
+- Unificar ambos en un solo sistema reduce duplicación y complejidad
+
+### 6.2 Flujo Integrado
+
+```
+Host                                Guest
+|-- RETAR → elige P2P              |
+|-- p2p-host (broadcast + Nakama)  |
+|-- send challenge with candidate  |
+|                                   |-- recibe challenge
+|                                   |-- acceptChallenge → p2p-guest(candidate)
+|                                   |   ├─ LAN: detecta hostLanIp
+|                                   |   └─ WAN: obtiene candidato host
+|                                   |-- send ACCEPT + guestIp
+|<- recibe ACCEPT                  |
+|-- send connection_info(ggpoHostIp)|
+|                                   |<- recibe connection_info
+|                                   |-- ggpo-launch(P1, remote=hostIp)
+|                                   |-- send guest_ready + guestIp
+|<- recibe guest_ready             |
+|-- ggpo-launch(P0, remote=guestIp)|
+```
+
+### 6.3 Diferencias con el flujo RetroArch
+
+| Aspecto | RetroArch + P2P | GGPO + P2P |
+|:---|:---|:---|
+| Transporte | proxy/forwarder (loopback 55435) | Directo UDP (puerto 6003/6004) |
+| Lanzamiento | launch-game (proxy + RA) | ggpo-launch (fcadefbneo directo) |
+| Candidate exchange | Necesario para forwarder | Solo IP del peer |
+| Loopback | Sí, proxy 127.0.0.1:55435 | No |
+| P2P manager lifecycle | Se mantiene activo durante partida | Solo para descubrimiento |
+
+### 6.4 Decisiones Técnicas
+
+1. **P2P solo para descubrimiento**: En GGPO, el P2PManager se usa únicamente para intercambiar candidatos y detectar IP LAN. Una vez que ambas partes tienen la IP del otro, lanzan GGPO directamente. El P2PManager no participa en el tráfico de juego.
+2. **No reusar connection_confirmed**: El GGPO usa `connection_info` (mensaje lobby existente) en lugar del mecanismo `connection_confirmed` de Nakama Storage. Esto evita tocar `nakama.ts`.
+3. **LAN vs WAN**: En LAN, el guest detecta `hostLanIp` via `p2p-guest` y puede lanzar GGPO inmediatamente. En WAN, espera `connection_info` del host. Por ahora el foco es LAN; WAN requiere que el host tenga IP pública o relay UDP.
+4. **No modificar flujos existentes**: El handler `launch-game` y el flujo P2P+RetroArch no se tocan. Solo se agregan ramas `engine === "ggpo"` en los puntos de decisión.

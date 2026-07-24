@@ -224,7 +224,48 @@ Cualquier estado → FAILED (error) → IDLE
 
 ---
 
-## 9. Estrategia de Puertos
+## 9. Diagrama de Flujo GGPO + P2P
+
+### 9.1 Host Crea Sala (GGPO Engine)
+
+```
+Host (Challenger)                    Nakama              Guest (Challengee)
+|-- selectMethod("p2p")             |                   |
+|-- p2p-host → obtiene candidate    |                   |
+|   (broadcast UDP activo)          |                   |
+|-- send challenge(hostCandidate) ->|                   |
+|                                   |-- recibe challenge |
+|                                   |-- acceptChallenge |
+|                                   |-- p2p-guest(hostCandidate)|
+|                                   |   ├─ LAN? → hostLanIp |
+|                                   |   └─ WAN? → candidate  |
+|                                   |-- get-lan-ip (propia) |
+|                                   |-- send ACCEPT(guestIp) ->|
+|<- recibe ACCEPT + guestIp        |                   |
+|-- get-lan-ip (host)              |                   |
+|-- send connection_info(ggpoHostIp) ->                |
+|                                   |<- recibe conn_info |
+|                                   |-- ggpo-launch(P1, hostIp:6003) |
+|                                   |-- send guest_ready(guestIp) ->|
+|<- recibe guest_ready             |                   |
+|-- ggpo-launch(P0, guestIp:6004)  |                   |
+|                                                                  |
+|=== AMBOS LANZAN GGPO ============|                   |
+```
+
+### 9.2 Flujo WAN (Futuro)
+
+```
+Mismo que 9.1 pero:
+- p2p-guest NO detecta LAN → falla a WAN
+- Host envía IP pública (detectada via STUN) en connection_info
+- Guest se conecta a IP pública del host
+- Requiere: puerto 6003 abierto en router host, o relay UDP
+```
+
+---
+
+## 10. Estrategia de Puertos
 
 | Servicio | Puerto | Método |
 |:---|:---|:---|
@@ -232,3 +273,5 @@ Cualquier estado → FAILED (error) → IDLE
 | RetroArch | 55435 | Fijo (loopback) |
 | P2P externo | Dinámico | `bind(0)` |
 | Proxy local por guest | Dinámico | `bind(0)` en 127.0.0.1 |
+| GGPO Host | 6003 | Fijo (fcadefbneo) |
+| GGPO Guest | 6004 | Fijo (fcadefbneo) |

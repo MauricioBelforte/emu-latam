@@ -89,3 +89,5 @@ Emu Latam actualmente depende de servicios externos para conectar jugadores: Tai
 | CA-06 | Puerto P2P no colisiona | Nunca 55435 ni 7350 |
 | CA-07 | RetroArch sin cambios | Apunta a 127.0.0.1:proxy, no modificado |
 | CA-08 | Overhead relay | < 5ms en localhost |
+| CA-09 | GGPO+P2P en LAN | Guest descubre host via P2P, ambos lanzan GGPO con IPs LAN | Prioritaria |
+| CA-10 | GGPO+P2P en WAN | Host envía IP propia via connection_info, guest lanza GGPO | Futura |

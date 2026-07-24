@@ -1,64 +1,51 @@
-# 06 - Plan de Testings (Actualizado)
+# Plan de Testings — Integración GGPO + P2P
 
-> **Módulo:** 18-P2P-Propio
-> **Fecha:** 2026-07-23
-> **Versión:** 1.1
+## Pruebas Unitarias (Script desechable)
 
----
+- [ ] Test 1: P2PManager detecta LAN correctamente con IPs simuladas
+- [ ] Test 2: Guest send ACCEPT incluye `guestIp` en el mensaje
+- [ ] Test 3: Host ACCEPT handler envía `connection_info` con `ggpoHostIp`
+- [ ] Test 4: Guest recibe connection_info y llama a ggpo-launch
 
-## Pruebas Unitarias
+## Pruebas de Integración (Sin Electron)
 
-| # | Archivo | Prueba | Criterio |
-|:---|:---|:---|:---|
-| UT-01 | `packet.test.ts` | encode/decode round-trip con payload | Buffer coincide |
-| UT-02 | `packet.test.ts` | encode/decode sin payload | Header correcto |
-| UT-03 | `packet.test.ts` | decode buffer < 4 bytes | Retorna null |
-| UT-04 | `packet.test.ts` | sessionToken se preserva | Match exacto |
-| UT-05 | `NatDetector.test.ts` | Mismo puerto en 2 STUN → Cone | Cone |
-| UT-06 | `NatDetector.test.ts` | Distinto puerto → Symmetric | Symmetric |
-| UT-07 | `NatDetector.test.ts` | STUN falla → Symmetric seguro | Symmetric |
-| UT-08 | `HolePuncher.test.ts` | Symmetric-Symmetric corta inmediato | Retorna false sin enviar |
-| UT-09 | `HolePuncher.test.ts` | Backoff respeta tiempos | 3 intentos en ~2.8s |
-| UT-10 | `RelayServer.test.ts` | 1 guest recibe datos del host | Forwarding funciona |
-| UT-11 | `RelayServer.test.ts` | 2 guests no mezclan paquetes | Aislamiento total |
-| UT-12 | `RelayServer.test.ts` | Token inválido es descartado | Sin forwarding |
-| UT-13 | `KeepAliveService.test.ts` | 3 misses → timeout | onTimeout se dispara |
-| UT-14 | `KeepAliveService.test.ts` | ACK resetea contador | missed = 0 tras ack |
-| UT-15 | `StateMachine.test.ts` | Transiciones válidas | Solo las permitidas |
-| UT-16 | `StateMachine.test.ts` | Transiciones inválidas lanzan error | Error |
+- [ ] Test 5: Flujo completo P2P+GGPO sin Electron (simulado)
+  - Simular p2p-host → candidate → send challenge
+  - Simular p2p-guest → detect LAN → send ACCEPT + guestIp
+  - Simular host ACCEPT → send connection_info with hostIp
+  - Simular guest recibe conn_info → ggpo-launch
+  - Simular host recibe guest_ready → ggpo-launch
 
----
+## Pruebas de Casos Límite
 
-## Pruebas de Integración
+- [ ] Test 6: engine !== "ggpo" → cae al flujo RetroArch existente (sin regression)
+- [ ] Test 7: method !== "p2p" para GGPO → usa tailscale/lan existente (sin regression)
+- [ ] Test 8: p2p-guest falla → alert mostrado, flujo se cancela
 
-| # | Prueba | Descripción | Criterio |
-|:---|:---|:---|:---|
-| IT-01 | Loopback 1v1 | Dos P2PManager en misma PC | Conexión directa exitosa |
-| IT-02 | LAN simulada | Misma IP pública fake | LAN_CONNECTED < 10ms |
-| IT-03 | Relay forzado | Simular timeout de punching | RELAY_CONNECTED |
-| IT-04 | Keepalive 60s | Conexión idle 60s | Sigue activa |
-| IT-05 | Timeout 54s | Matar socket peer | DISCONNECTED en ~54s |
-| IT-06 | 4 guests relay | 1 host + 3 guests relay | Todos reciben datos |
-| IT-07 | Señalización Nakama | Intercambio de candidatos | Completo en < 2s |
+## Pruebas de Regresión
 
----
+- [ ] Test 9: Flujo P2P + RetroArch (LAN) sigue funcionando
+- [ ] Test 10: Flujo P2P + RetroArch (WAN) sigue funcionando
+- [ ] Test 11: Flujo Tailscale + GGPO sigue funcionando
+- [ ] Test 12: Flujo LAN + GGPO (directo sin P2P) sigue funcionando
 
-## Casos Límite
+## Criterios de Éxito
 
 | # | Prueba | Criterio |
 |:---|:---|:---|
-| EC-01 | Sin conectividad STUN | Symmetric seguro, relay |
-| EC-02 | Puerto 55435 ocupado | bind(0) asigna otro |
-| EC-03 | Paquete corrupto | Se descarta (decode null) |
-| EC-04 | Sesión duplicada | Segundo connect es ignorado |
+| 1 | LAN detection | Manager.status === "lan_check" tras startJoin |
+| 2 | ACCEPT message | content.guestIp es string válido no vacío |
+| 3 | connection_info | content.ggpoHostIp es string IP válido |
+| 4 | ggpo-launch guest | Se invoca con remoteIp = hostIp |
+| 5 | Flujo completo | Todas las funciones se llaman en orden correcto |
+| 6-12 | Regresión | Sin cambios en flujos existentes |
 
----
+## Resultados de Ejecución
 
-## Resumen
+- [ ] Todas las pruebas unitarias pasaron
+- [ ] Todas las pruebas de integración pasaron
+- [ ] Todos los casos límite pasaron
+- [ ] Todas las pruebas de regresión pasaron
 
-| Tipo | Cantidad |
-|:---|:---|
-| Unitarias | 16 |
-| Integración | 7 |
-| Casos límite | 4 |
-| **Total** | **27** |
+## Fecha de Ejecución: [PENDIENTE]
+## Estado: PENDIENTE

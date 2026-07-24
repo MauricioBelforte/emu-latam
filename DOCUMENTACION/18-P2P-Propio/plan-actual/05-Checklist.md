@@ -38,6 +38,20 @@
 
 ---
 
+## Fase 1.5 — Integración GGPO + P2P
+
+| # | Tarea | Complejidad | Ref. | Estado |
+|:---|:---|:---|:---|:---|
+| 1.20 | acceptChallenge: agregar rama engine==="ggpo" para P2P | 🟢 Baja | ChallengeContext.tsx | ✅ |
+| 1.21 | ACCEPT handler: agregar rama engine==="ggpo" para P2P | 🟢 Baja | ChallengeContext.tsx | ✅ |
+| 1.22 | Guest envía guestIp en ACCEPT mensaje para P2P+GGPO | 🟢 Baja | ChallengeContext.tsx | ✅ |
+| 1.23 | Host envía connection_info con ggpoHostIp en P2P+GGPO | 🟢 Baja | ChallengeContext.tsx | ✅ |
+| 1.24 | Test script: validar flujo P2P+GGPO sin Electron | 🟡 Media | test_p2p_ggpo.js | ✅ |
+| 1.25 | Verificación: npm run dev sin errores | 🟢 Baja | — | ✅ |
+| 1.26 | Verificación: GGPO+P2P LAN funcional con 2 PCs (test simulado) | 🔴 Alta | — | ✅ |
+
+---
+
 ## Fase 2 — Mejoras (multi-peer, LAN, robustez)
 
 | # | Tarea | Complejidad |
