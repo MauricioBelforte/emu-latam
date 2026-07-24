@@ -12,31 +12,45 @@ let hostManager: StoredManager | null = null;
 let guestForwarder: dgram.Socket | null = null;
 let tokenCounter = 100;
 
-function startForwarder(token: number, manager: P2PManager): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const transport = manager.getTransport();
-    const sock = dgram.createSocket("udp4");
+async function startForwarder(token: number, manager: P2PManager): Promise<number> {
+  const transport = manager.getTransport();
 
-    sock.on("message", (gameData) => {
-      const pkt = encodePacket(PacketType.RELAY_DATA, token, gameData);
-      const remote = manager.getRemoteInfo();
-      if (remote) transport.send(pkt, remote.port, remote.address);
-    });
+  // handler compartido para RELAY_DATA entrantes
+  const pktHandler = (data: Buffer) => {
+    const pkt = decodePacket(data);
+    if (pkt && pkt.type === PacketType.RELAY_DATA && guestForwarder) {
+      guestForwarder.send(pkt.payload, RETROARCH_PORT, "127.0.0.1");
+    }
+  };
+  transport.onRawMessage(pktHandler);
 
-    transport.onRawMessage((data) => {
-      const pkt = decodePacket(data);
-      if (pkt && pkt.type === PacketType.RELAY_DATA && sock) {
-        sock.send(pkt.payload, RETROARCH_PORT, "127.0.0.1");
-      }
-    });
+  async function tryBind(port: number): Promise<number> {
+    return new Promise((res, rej) => {
+      const sock = dgram.createSocket("udp4");
 
-    // RetroArch siempre conecta a 127.0.0.1:55435, el forwarder debe estar ahí
-    sock.bind(RETROARCH_PORT, "127.0.0.1", () => {
-      guestForwarder = sock;
-      resolve();
+      sock.on("message", (gameData) => {
+        const pkt = encodePacket(PacketType.RELAY_DATA, token, gameData);
+        const remote = manager.getRemoteInfo();
+        if (remote) transport.send(pkt, remote.port, remote.address);
+      });
+
+      sock.once("error", (err) => { sock.close(); rej(err); });
+      sock.bind(port, "127.0.0.1", () => {
+        guestForwarder = sock;
+        res(sock.address().port);
+      });
     });
-    sock.on("error", reject);
-  });
+  }
+
+  try {
+    return await tryBind(RETROARCH_PORT);
+  } catch (err: any) {
+    if (err.code === "EADDRINUSE") {
+      return await tryBind(0);
+    }
+    transport.offRawMessage(pktHandler);
+    throw err;
+  }
 }
 
 export async function handleP2PHost(): Promise<any> {
