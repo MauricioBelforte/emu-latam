@@ -157,10 +157,23 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
       try {
         const guestResult = await (window as any).electron.ipcRenderer.invoke("p2p-guest", { hostCandidate: currentChallenge.hostCandidate });
         if (!guestResult.success) { alert("Error conectando P2P: " + (guestResult.error || "desconocido")); return; }
+
+        // LAN mode: conectar directo al host por IP LAN
+        if (guestResult.isLan) {
+          await sendToLobby(CHALLENGE_ACCEPT_MSG_TYPE, { targetId: challengerId, acceptedBy: userId, acceptedByName: username });
+          await (window as any).electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: false, directConnectIp: guestResult.hostLanIp, connectPort: 55435 });
+          setTimeout(() => resetChallenge(), 5000);
+          return;
+        }
+
+        // WAN mode: publicar candidate y esperar confirmación del host
         await sendToLobby(CHALLENGE_ACCEPT_MSG_TYPE, { targetId: challengerId, acceptedBy: userId, acceptedByName: username, guestCandidate: guestResult.candidate });
-        setTimeout(() => {
-          (window as any).electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: false, directConnectIp: "127.0.0.1" });
-        }, 1000);
+
+        // Esperar connection_confirmed del host
+        const confirmed = await nakamaService.waitForP2pConnectionConfirmed(userId || "", challengerId, 15000);
+        if (!confirmed) { alert("Timeout: el host no confirmó la conexión"); return; }
+
+        await (window as any).electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: false, directConnectIp: "127.0.0.1", connectPort: guestResult.forwarderPort || 55435 });
         setTimeout(() => resetChallenge(), 5000);
       } catch (e) {
         console.error("Error en p2p accept:", e); alert("Error conectando P2P");
@@ -216,10 +229,14 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
         // P2P method: register guest candidate and launch RA
         if (method === "p2p") {
           const guestCandidate = content.guestCandidate;
+          const acceptedBy = content.acceptedBy;
           if (guestCandidate) {
             try {
               await (window as any).electron.ipcRenderer.invoke("p2p-host-register-guest", { guestCandidate });
               await (window as any).electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: true });
+              if (acceptedBy) {
+                await nakamaService.publishP2pConnectionConfirmed(acceptedBy);
+              }
             } catch (e) {
               console.error("Error registrando guest P2P:", e);
             }
