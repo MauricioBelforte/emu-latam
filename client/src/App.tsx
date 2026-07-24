@@ -442,19 +442,28 @@ function App() {
     try {
       const result = await (window as any).electron.ipcRenderer.invoke("p2p-guest", { hostCandidate: hostCand });
       if (result.success) {
-        setP2pStatus("P2P conectado. Iniciando RetroArch...");
         // Publicar guest candidate para que el host lo detecte
         const hostUserId = hostCand.userId;
-        if (nakamaService.session?.user_id && hostUserId) {
+        const guestUserId = nakamaService.session?.user_id || "";
+        if (nakamaService.session && hostUserId) {
           const cand = result.candidate || {};
           await nakamaService.client.writeStorageObjects(nakamaService.session, [{
             collection: "emu_p2p",
             key: "guest_candidate",
-            value: { candidate: cand, hostUserId, guestUserId: nakamaService.session.user_id, timestamp: Date.now() },
+            value: { candidate: cand, hostUserId, guestUserId, timestamp: Date.now() },
             permission_read: 2,
             permission_write: 1,
           }]);
+          // Esperar confirmación del host (máx 15s)
+          setP2pStatus("Esperando confirmación del host...");
+          const confirmed = await nakamaService.waitForP2pConnectionConfirmed(guestUserId, hostUserId);
+          if (!confirmed) {
+            setP2pStatus("Timeout: el host no confirmó la conexión P2P.");
+            setLoadingP2p(p => ({ ...p, guest: false }));
+            return;
+          }
         }
+        setP2pStatus("Host confirmado. Iniciando RetroArch...");
         const gameResult = await (window as any).electron.ipcRenderer.invoke("launch-game", {
           useRelay: false, isHost: false, directConnectIp: "127.0.0.1",
           connectPort: result.forwarderPort || 55435,
@@ -603,7 +612,10 @@ function App() {
         if (guestObj && guestObj.candidate) {
           clearInterval(poll);
           setP2pStatus("Guest conectado! Registrando...");
-          await (window as any).electron.ipcRenderer.invoke("p2p-host-register-guest", { guestCandidate: guestObj.candidate });
+          const regResult = await (window as any).electron.ipcRenderer.invoke("p2p-host-register-guest", { guestCandidate: guestObj.candidate });
+          if (regResult?.success && guestObj.guestUserId) {
+            await nakamaService.publishP2pConnectionConfirmed(guestObj.guestUserId);
+          }
           setP2pStatus("✅ Guest conectado via P2P");
         }
       } catch {}

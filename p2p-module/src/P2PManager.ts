@@ -227,6 +227,11 @@ export class P2PManager {
     if (!pkt) return;
 
     switch (pkt.type) {
+      case PacketType.PUNCH:
+        this.transport.send(encodePacket(PacketType.PUNCH_ACK, pkt.sessionToken), rinfo.port, rinfo.address);
+        break;
+      case PacketType.PUNCH_ACK:
+        break;
       case PacketType.KEEPALIVE:
         this.transport.send(encodePacket(PacketType.KEEPALIVE_ACK, pkt.sessionToken), rinfo.port, rinfo.address);
         break;

@@ -12,7 +12,7 @@ let hostManager: StoredManager | null = null;
 let guestForwarder: dgram.Socket | null = null;
 let tokenCounter = 100;
 
-function startForwarder(token: number, manager: P2PManager): Promise<number> {
+function startForwarder(token: number, manager: P2PManager): Promise<void> {
   return new Promise((resolve, reject) => {
     const transport = manager.getTransport();
     const sock = dgram.createSocket("udp4");
@@ -30,9 +30,10 @@ function startForwarder(token: number, manager: P2PManager): Promise<number> {
       }
     });
 
-    sock.bind(0, "127.0.0.1", () => {
+    // RetroArch siempre conecta a 127.0.0.1:55435, el forwarder debe estar ahí
+    sock.bind(RETROARCH_PORT, "127.0.0.1", () => {
       guestForwarder = sock;
-      resolve(sock.address().port);
+      resolve();
     });
     sock.on("error", reject);
   });

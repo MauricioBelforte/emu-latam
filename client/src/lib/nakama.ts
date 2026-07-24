@@ -190,6 +190,37 @@ class NakamaService {
     } catch { return []; }
   }
 
+  async publishP2pConnectionConfirmed(guestUserId: string): Promise<boolean> {
+    if (!this.session) return false;
+    try {
+      await this.client.writeStorageObjects(this.session, [
+        {
+          collection: "emu_p2p",
+          key: `connection_confirmed_${guestUserId}`,
+          value: { hostUserId: this.session.user_id, guestUserId, timestamp: Date.now() },
+          permission_read: 2,
+          permission_write: 1,
+        },
+      ]);
+      return true;
+    } catch { return false; }
+  }
+
+  async waitForP2pConnectionConfirmed(guestUserId: string, hostUserId: string, timeoutMs = 15000): Promise<boolean> {
+    if (!this.session) return false;
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      try {
+        const result = await this.client.readStorageObjects(this.session, {
+          object_ids: [{ collection: "emu_p2p", key: `connection_confirmed_${guestUserId}`, user_id: hostUserId }],
+        });
+        if (result.objects && result.objects.length > 0) return true;
+      } catch {}
+      await new Promise(r => setTimeout(r, 1000));
+    }
+    return false;
+  }
+
   async deleteP2pCandidates(): Promise<boolean> {
     if (!this.session) return false;
     try {
