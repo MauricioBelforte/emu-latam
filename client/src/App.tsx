@@ -691,7 +691,13 @@ function App() {
           setStatusText("");
           setPeerReachable(null);
           setIsP2pSala(false);
+          setMyTailscaleIp("");
+          setTailscaleHostIp("");
+          setCopiedIp(false);
           setP2pStatus("");
+          setP2pAutoCandidate(null);
+          setP2pHostCandidate(null);
+          setP2pGuestReady(false);
           discoveryDoneRef.current = false;
           p2pDiscoveryRef.current = false;
         } : () => {
