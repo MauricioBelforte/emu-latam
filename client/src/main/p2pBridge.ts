@@ -106,7 +106,8 @@ export async function handleP2PGuest(hostCandidate: any): Promise<any> {
   const guestCandidate = await manager.sendCandidate();
 
   // LAN mode: conexión directa al host RetroArch, sin P2P ni forwarder
-  if (manager.status === "lan_connected") {
+  // Nota: tras transition('lan_match'), el estado es 'lan_check' (no 'lan_connected')
+  if (manager.status === "lan_check") {
     const remote = manager.getRemoteInfo();
     const hostLanIp = remote?.address || hostCandidate.privateIps?.[0] || hostCandidate.publicIp;
     console.log(`[P2P-GUEST] LAN mode directo — hostLanIp=${hostLanIp}`);

@@ -101,10 +101,12 @@ export class P2PManager {
       await this.startHost();
     }
 
-    // LAN check (todas las IPs, no solo [0])
+    // LAN check (todas las IPs, priorizando LAN real sobre VPN/Tailscale)
     const hostIps = this.localCandidate!.privateIps.length ? this.localCandidate!.privateIps : [this.localCandidate!.publicIp];
     const guestIps = guestCandidate.privateIps.length ? guestCandidate.privateIps : [guestCandidate.publicIp];
-    const lanIp = guestIps.find(gp => hostIps.some(hp => NatDetector.isSameSubnet(hp, gp)));
+    const matchingIps = guestIps.filter(gp => hostIps.some(hp => NatDetector.isSameSubnet(hp, gp)));
+    const isRealLan = (ip: string) => !ip.startsWith('100.');
+    const lanIp = matchingIps.find(isRealLan) || matchingIps[0];
     if (lanIp) {
       this.remoteAddr = lanIp;
       this.remotePort = RETROARCH_PORT;
@@ -152,10 +154,13 @@ export class P2PManager {
     this.remoteCandidate = hostCandidate;
     this.sessionToken = this.opts.sessionToken;
 
-    // LAN check (todas las IPs, no solo [0])
+    // LAN check (todas las IPs, priorizando LAN real sobre VPN/Tailscale)
     const hostIps = hostCandidate.privateIps.length ? hostCandidate.privateIps : [hostCandidate.publicIp];
     const guestIps = this.localCandidate.privateIps.length ? this.localCandidate.privateIps : [this.localCandidate.publicIp];
-    const lanIp = hostIps.find(hp => guestIps.some(gp => NatDetector.isSameSubnet(hp, gp)));
+    const matchingIps = hostIps.filter(hp => guestIps.some(gp => NatDetector.isSameSubnet(hp, gp)));
+    // Preferir IP que NO sea 100.x.x.x (Tailscale) sobre VPN
+    const isRealLan = (ip: string) => !ip.startsWith('100.');
+    const lanIp = matchingIps.find(isRealLan) || matchingIps[0];
     if (lanIp) {
       this.remoteAddr = lanIp;
       this.remotePort = RETROARCH_PORT;
