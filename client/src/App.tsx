@@ -763,12 +763,8 @@ function App() {
                       <SalaButton onClick={() => {
                         setJoinMode("join");
                         setIsP2pSala(true);
-                        const saved = localStorage.getItem("emu_latam_last_guest_ip");
-                        if (saved) {
-                          const parts = saved.split(":");
-                          setNakamaHost(parts[0]);
-                          if (parts[1]) setNakamaPort(parts[1]);
-                        }
+                        setNakamaHost("");
+                        setNakamaPort("7350");
                       }} $accent="#f0f">
                         UNIRSE A SALA P2P
                         <span style={{ display: "block", fontSize: "0.5rem", opacity: 0.6, marginTop: 6, fontFamily: "Inter" }}>
