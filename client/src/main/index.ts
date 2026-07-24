@@ -285,12 +285,18 @@ function stopAllProxies(): void {
 // Útil para que bore (que usa 55436) pueda alcanzar al host RA (55435)
 function getLanIp(): string {
   const nets = os.networkInterfaces();
+  let fallback = "127.0.0.1";
   for (const name of Object.keys(nets)) {
     for (const net of nets[name]!) {
-      if (net.family === "IPv4" && !net.internal) return net.address;
+      if (net.family === "IPv4" && !net.internal) {
+        const addr = net.address;
+        // Skip Tailscale (100.x.x.x), buscar IP LAN real
+        if (!addr.startsWith("100.")) return addr;
+        if (fallback === "127.0.0.1") fallback = addr;
+      }
     }
   }
-  return "127.0.0.1";
+  return fallback;
 }
 
 function getTailscaleIp(): string | null {
