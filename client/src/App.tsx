@@ -694,8 +694,9 @@ function App() {
           {!isAuthenticated ? (
             <>
               {joinMode === null ? (
-                <Row style={{ maxWidth: 500, marginTop: 20 }}>
-                  <SalaButton onClick={async () => {
+                <>
+                  <Row style={{ maxWidth: 500, marginTop: 20 }}>
+                    <SalaButton onClick={async () => {
                     setJoinMode("create");
                     discoveryDoneRef.current = false;
                     await (window as any).electron.ipcRenderer.invoke("set-nakama-server", { host: "127.0.0.1", port: "7350" });
@@ -728,6 +729,44 @@ function App() {
                     </span>
                   </SalaButton>
                 </Row>
+                <p style={{ color: "#555", fontSize: "0.5rem", fontFamily: "monospace", margin: "14px 0 6px", textAlign: "center", letterSpacing: 1 }}>
+                  --- MODO MULTIJUGADOR (RETOS P2P) ---
+                </p>
+                <Row style={{ maxWidth: 500 }}>
+                  <SalaButton onClick={async () => {
+                    setJoinMode("create");
+                    discoveryDoneRef.current = false;
+                    await (window as any).electron.ipcRenderer.invoke("set-nakama-server", { host: "127.0.0.1", port: "7350" });
+                    setNakamaHost("127.0.0.1"); setNakamaPort("7350");
+                    await loginGhost();
+                    const ts = await (window as any).electron.ipcRenderer.invoke("get-tailscale-ip");
+                    if (ts.ip) {
+                      setMyTailscaleIp(ts.ip);
+                      await nakamaService.publishHostInfo(ts.ip, "p2p");
+                    }
+                    await (window as any).electron.ipcRenderer.invoke("open-firewall-port");
+                  }} $accent="#f0f">
+                    🏠 SALA P2P
+                    <span style={{ display: "block", fontSize: "0.5rem", opacity: 0.6, marginTop: 6, fontFamily: "Inter" }}>
+                      Creá tu sala y retá a otros con P2P automático
+                    </span>
+                  </SalaButton>
+                  <SalaButton onClick={() => {
+                    setJoinMode("join");
+                    const saved = localStorage.getItem("emu_latam_last_guest_ip");
+                    if (saved) {
+                      const parts = saved.split(":");
+                      setNakamaHost(parts[0]);
+                      if (parts[1]) setNakamaPort(parts[1]);
+                    }
+                  }} $accent="#f0f">
+                    🔗 UNIRSE A SALA P2P
+                    <span style={{ display: "block", fontSize: "0.5rem", opacity: 0.6, marginTop: 6, fontFamily: "Inter" }}>
+                      Conectate y retá a otros jugadores
+                    </span>
+                  </SalaButton>
+                </Row>
+                </>
               ) : joinMode === "create" ? null : (
                 <div style={{ marginTop: 16, width: "100%", maxWidth: 400 }}>
                   <p style={{ color: "#888", fontFamily: "monospace", fontSize: "0.6rem", marginBottom: 8, textAlign: "center" }}>

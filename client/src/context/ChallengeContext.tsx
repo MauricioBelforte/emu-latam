@@ -13,7 +13,8 @@ export interface ChallengeData {
   targetId: string;
   targetName: string;
   timestamp: number;
-  method?: "tailscale" | "bore" | "lan";
+  method?: "tailscale" | "bore" | "lan" | "p2p";
+  hostCandidate?: any;
 }
 
 export interface PendingTarget {
@@ -95,15 +96,28 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
     setChallengeStatus("idle");
   }, []);
 
-  const selectMethod = useCallback((method: string) => {
+  const selectMethod = useCallback(async (method: string) => {
     if (!userId || !username || !pendingTarget || challengeStatus !== "picking_method") return;
+
+    let hostCandidate: any = null;
+    if (method === "p2p") {
+      try {
+        const result = await (window as any).electron.ipcRenderer.invoke("p2p-host");
+        if (!result.success) { alert("Error iniciando P2P: " + (result.error || "desconocido")); return; }
+        hostCandidate = result.candidate;
+      } catch (e) {
+        console.error("Error p2p-host:", e); alert("Error iniciando P2P"); return;
+      }
+    }
+
     const challenge: ChallengeData = {
       challengerId: userId,
       challengerName: username,
       targetId: pendingTarget.userId,
       targetName: pendingTarget.username,
       timestamp: Date.now(),
-      method: method as "tailscale" | "bore" | "lan",
+      method: method as "tailscale" | "bore" | "lan" | "p2p",
+      hostCandidate,
     };
     setCurrentChallenge(challenge);
     setChallengeStatus("sent");
@@ -135,8 +149,25 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
   const acceptChallenge = useCallback(async () => {
     if (!currentChallenge || !userId || challengeStatus !== "received") return;
     const challengerId = currentChallenge.challengerId;
+    const method = currentChallenge.method || "bore";
     setChallengeStatus("accepted");
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+    if (method === "p2p" && currentChallenge.hostCandidate) {
+      try {
+        const guestResult = await (window as any).electron.ipcRenderer.invoke("p2p-guest", { hostCandidate: currentChallenge.hostCandidate });
+        if (!guestResult.success) { alert("Error conectando P2P: " + (guestResult.error || "desconocido")); return; }
+        await sendToLobby(CHALLENGE_ACCEPT_MSG_TYPE, { targetId: challengerId, acceptedBy: userId, acceptedByName: username, guestCandidate: guestResult.candidate });
+        setTimeout(() => {
+          (window as any).electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: false, directConnectIp: "127.0.0.1" });
+        }, 1000);
+        setTimeout(() => resetChallenge(), 5000);
+      } catch (e) {
+        console.error("Error en p2p accept:", e); alert("Error conectando P2P");
+      }
+      return;
+    }
+
     await sendToLobby(CHALLENGE_ACCEPT_MSG_TYPE, { targetId: challengerId, acceptedBy: userId, acceptedByName: username });
   }, [currentChallenge, userId, challengeStatus, sendToLobby]);
 
@@ -181,6 +212,21 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         const method = currentChallenge?.method || "bore";
         console.log(`Reto aceptado! Mtodo: ${method}`);
+
+        // P2P method: register guest candidate and launch RA
+        if (method === "p2p") {
+          const guestCandidate = content.guestCandidate;
+          if (guestCandidate) {
+            try {
+              await (window as any).electron.ipcRenderer.invoke("p2p-host-register-guest", { guestCandidate });
+              await (window as any).electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: true });
+            } catch (e) {
+              console.error("Error registrando guest P2P:", e);
+            }
+          }
+          setTimeout(() => resetChallenge(), 5000);
+          return;
+        }
 
         try {
           await (window as any).electron.ipcRenderer.invoke("kill-retroarch");
