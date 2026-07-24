@@ -682,14 +682,17 @@ function App() {
         showPlayers={isAuthenticated}
         showBack={isAuthenticated || joinMode === "join"}
         onBack={isAuthenticated ? () => {
+          (window as any).electron.ipcRenderer.invoke("p2p-stop-broadcast");
           logout();
           setNakamaReady(false);
           setStatusText("");
           setPeerReachable(null);
           setIsP2pSala(false);
+          setP2pStatus("");
         } : () => {
           setJoinMode(null);
           setIsP2pSala(false);
+          setP2pStatus("");
         }}
         showNetplayConfig={showNetplayConfig}
         onToggleNetplayConfig={() => setShowNetplayConfig((o) => !o)}
@@ -754,25 +757,42 @@ function App() {
                         setNakamaHost("127.0.0.1"); setNakamaPort("7350");
                         await loginGhost();
                         await (window as any).electron.ipcRenderer.invoke("open-firewall-port");
+                        const lan = await (window as any).electron.ipcRenderer.invoke("get-lan-ip");
+                        if (lan.ip) await (window as any).electron.ipcRenderer.invoke("p2p-start-broadcast", { host: lan.ip, port: "7350" });
                       }} $accent="#f0f">
                         CREAR SALA P2P
                         <span style={{ display: "block", fontSize: "0.5rem", opacity: 0.6, marginTop: 6, fontFamily: "Inter" }}>
                           Creá tu sala y retá a otros con P2P automático
                         </span>
                       </SalaButton>
-                      <SalaButton onClick={() => {
-                        setJoinMode("join");
+                      <SalaButton onClick={async () => {
                         setIsP2pSala(true);
-                        setNakamaHost("");
-                        setNakamaPort("7350");
+                        setP2pStatus("🔍 Buscando sala P2P en la red...");
+                        const result = await (window as any).electron.ipcRenderer.invoke("p2p-discover-host");
+                        if (result.success) {
+                          await (window as any).electron.ipcRenderer.invoke("set-nakama-server", { host: result.host, port: result.port });
+                          const ok = await (window as any).electron.ipcRenderer.invoke("check-nakama-health");
+                          if (ok) {
+                            setNakamaHost(result.host);
+                            setNakamaPort(result.port);
+                            setNakamaReady(true);
+                            setP2pStatus("");
+                            await loginGhost();
+                          } else {
+                            setP2pStatus("❌ Sala encontrada pero no responde");
+                          }
+                        } else {
+                          setP2pStatus("❌ No se encontró ninguna sala P2P en la red");
+                        }
                       }} $accent="#f0f">
                         UNIRSE A SALA P2P
                         <span style={{ display: "block", fontSize: "0.5rem", opacity: 0.6, marginTop: 6, fontFamily: "Inter" }}>
-                          Conectate y retá a otros jugadores
+                          Busca automáticamente salas en tu red
                         </span>
                       </SalaButton>
                     </Row>
                   </Section>
+                  {p2pStatus && <StatusText $color="#f0f" style={{ fontSize: "0.65rem", textAlign: "center", marginTop: 4 }}>{p2pStatus}</StatusText>}
                 </>
               ) : joinMode === "create" ? null : (
                 <div style={{ marginTop: 16, width: "100%", maxWidth: 400 }}>
