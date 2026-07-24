@@ -159,6 +159,18 @@
   6. Forwarder en modo LAN enviaba RELAY_DATA que RetroArch no entiende. Fix: en modo LAN, saltar forwarder y conectar directo.
 - **Flujo en misma LAN:** Host publica candidate en Nakama → Guest detecta LAN en `startJoin` → salta forwarder → conecta directo a `hostLanIp:55435` → sin Nakama confirmation ni P2P.
 
+### ✅ SALA PÚBLICA WAN — Bootstrap via bore + paste service (24-Jul-2026)
+- **Componente:** `20-Bootstrap-WAN` — Conecta guest al Nakama del host desde cualquier red
+- **Archivo:** `client/src/main/bootstrap.ts` — 7 funciones exportables
+- **Host:** Botón "ABRIR SALA PÚBLICA" → spawn bore local 7350 → publica URL en dpaste.org → muestra room code de 6 caracteres
+- **Guest:** Input de código → fetch de dpaste.org → obtiene bore URL → configura Nakama remoto en `emu_latam_nakama.json`
+- **Una vez conectado a Nakama:** el guest aparece en el lobby del host, se pueden enviar retos y usar P2P para game data
+- **Fallback manual:** Si dpaste.org no responde, se muestra la bore URL completa para compartir manualmente
+- **Cierre:** Botón "CERRAR SALA" → mata bore → restaura Nakama a localhost
+- **Dependencias:** bore.exe (existente), dpaste.org (paste service público), Node.js https (nativo)
+- **Test:** 34 tests, 100% éxito
+- **UI:** Sección verde entre P2P y DEBUG en OTROS MÉTODOS DE CONEXIÓN
+
 ### ✅ GGPO+P2P WAN — Relay UDP vía P2P entre países (24-Jul-2026)
 - **Componente:** `19-GGPO-P2P-WAN` — Módulo paralelo e independiente de `p2pBridge.ts`
 - **Archivo:** `client/src/main/ggpoP2PBridge.ts` con estado global separado (tokenCounter=200+)

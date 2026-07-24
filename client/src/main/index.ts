@@ -17,6 +17,7 @@ import { spawnFcadefbneo, killGgpo, findFcadefbneo, getGgpoProcess, spawnLocalTe
 import { handleP2PHost, handleP2PGuest, handleP2PHostRegisterGuest, handleP2PDisconnect } from "./p2pBridge";
 import { handleGGPOP2PHost, handleGGPOP2PGuest, handleGGPOP2PHostRegisterGuest, handleGGPOP2PDisconnect } from "./ggpoP2PBridge";
 import { startBroadcast, stopBroadcast, discoverHost } from "./discovery";
+import { handleBootstrapHost, handleBootstrapGuest, handleBootstrapClose } from "./bootstrap";
 
 // ========================================
 // CONSTANTES DE AYUDA
@@ -1032,6 +1033,24 @@ app.whenReady().then(() => {
   });
 
   logInfo("Monitor", "Handlers P2P registrados");
+
+  // ========================================
+  // BOOTSTRAP WAN (Módulo 20)
+  // ========================================
+
+  ipcMain.handle("bootstrap-host", async () => {
+    return handleBootstrapHost();
+  });
+
+  ipcMain.handle("bootstrap-guest", async (_e, { roomCode }: { roomCode: string }) => {
+    return handleBootstrapGuest(roomCode);
+  });
+
+  ipcMain.handle("bootstrap-close", async () => {
+    return handleBootstrapClose();
+  });
+
+  logInfo("Monitor", "Handlers Bootstrap WAN registrados");
 
   launchNakama();
   startNakamaHealthCheck();

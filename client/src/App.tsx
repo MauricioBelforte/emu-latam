@@ -234,6 +234,11 @@ function App() {
   const [p2pGuestReady, setP2pGuestReady] = useState(false);
   const [loadingP2p, setLoadingP2p] = useState({ host: false, guest: false });
   const p2pDiscoveryRef = useRef(false);
+  const [bootstrapStatus, setBootstrapStatus] = useState("");
+  const [bootstrapRoomCode, setBootstrapRoomCode] = useState("");
+  const [bootstrapBoreUrl, setBootstrapBoreUrl] = useState("");
+  const [bootstrapLoading, setBootstrapLoading] = useState(false);
+  const [bootstrapRoomInput, setBootstrapRoomInput] = useState("");
 
   useEffect(() => {
     const electron = (window as any).electron;
@@ -503,6 +508,61 @@ function App() {
     setP2pGuestReady(false);
     p2pDiscoveryRef.current = false;
     setP2pStatus("Desconectado");
+  };
+
+  const handleBootstrapHost = async () => {
+    setBootstrapLoading(true);
+    setBootstrapStatus("Iniciando sala pública (bore + paste)...");
+    try {
+      const result = await (window as any).electron.ipcRenderer.invoke("bootstrap-host");
+      if (result.success && result.roomCode) {
+        setBootstrapRoomCode(result.roomCode);
+        setBootstrapBoreUrl(result.boreUrl || "");
+        setBootstrapStatus("SALA PÚBLICA ACTIVA — Compartí el código");
+      } else if (result.success && !result.roomCode && result.boreUrl) {
+        setBootstrapBoreUrl(result.boreUrl);
+        setBootstrapStatus("⚠️ " + (result.error || "Usá esta URL manualmente: " + result.boreUrl));
+      } else {
+        setBootstrapStatus("Error: " + (result.error || "desconocido"));
+      }
+    } catch (e: any) {
+      setBootstrapStatus("Error inesperado: " + String(e));
+    }
+    setBootstrapLoading(false);
+  };
+
+  const handleBootstrapGuest = async () => {
+    const code = bootstrapRoomInput.trim();
+    if (!code) { alert("Ingresá el código de sala de 6 caracteres."); return; }
+    setBootstrapLoading(true);
+    setBootstrapStatus("Conectando a sala pública...");
+    try {
+      const result = await (window as any).electron.ipcRenderer.invoke("bootstrap-guest", { roomCode: code });
+      if (result.success && result.boreUrl) {
+        setBootstrapBoreUrl(result.boreUrl);
+        setBootstrapStatus(`✅ Conectado. Nakama remoto configurado en ${result.boreUrl}. Presioná INSERT COIN para reconectar.`);
+      } else {
+        setBootstrapStatus("Error: " + (result.error || "desconocido"));
+      }
+    } catch (e: any) {
+      setBootstrapStatus("Error inesperado: " + String(e));
+    }
+    setBootstrapLoading(false);
+  };
+
+  const handleBootstrapClose = async () => {
+    setBootstrapLoading(true);
+    setBootstrapStatus("Cerrando sala pública...");
+    try {
+      await (window as any).electron.ipcRenderer.invoke("bootstrap-close");
+      setBootstrapRoomCode("");
+      setBootstrapBoreUrl("");
+      setBootstrapRoomInput("");
+      setBootstrapStatus("Sala pública cerrada. Nakama restaurado a localhost.");
+    } catch (e: any) {
+      setBootstrapStatus("Error cerrando sala: " + String(e));
+    }
+    setBootstrapLoading(false);
   };
 
   const handleTailscaleHost = async () => {
@@ -1048,6 +1108,70 @@ function App() {
                         DESCONECTAR P2P
                       </Btn>
                     </>
+                  )}
+                </Section>
+
+                {/* ───── MODO SALA PÚBLICA WAN (Módulo 20) ───── */}
+                <Section $accent="#0f0">
+                  <SectionHeader $color="#0f0">
+                    <Badge $bg="#0f0">WAN</Badge> MODO SALA PÚBLICA — BORROW + PASTE
+                  </SectionHeader>
+                  {bootstrapRoomCode ? (
+                    <>
+                      <StatusText $color="#0f0" style={{ fontSize: "1.4rem", fontWeight: "bold", textAlign: "center", margin: "8px 0" }}>
+                        CÓDIGO: {bootstrapRoomCode}
+                      </StatusText>
+                      <Btn onClick={() => { navigator.clipboard.writeText(bootstrapRoomCode); }} $accent="#0f0" $bg="#0f022">
+                        📋 COPIAR CÓDIGO
+                      </Btn>
+                      {bootstrapBoreUrl && (
+                        <StatusText $color="#888" style={{ fontSize: "0.5rem", marginTop: 4 }}>
+                          URL: {bootstrapBoreUrl}
+                        </StatusText>
+                      )}
+                      <Btn onClick={handleBootstrapClose} $accent="#f00" $bg="#500" style={{ marginTop: 8, fontSize: "0.5rem", padding: "6px" }}>
+                        CERRAR SALA
+                      </Btn>
+                    </>
+                  ) : bootstrapBoreUrl && !bootstrapRoomCode ? (
+                    <>
+                      <StatusText $color="#fa0" style={{ marginBottom: 6 }}>
+                        ⚠️ {bootstrapStatus}
+                      </StatusText>
+                      <Btn onClick={() => { navigator.clipboard.writeText(bootstrapBoreUrl); }} $accent="#0f0" $bg="#0f022">
+                        📋 COPIAR URL
+                      </Btn>
+                      <Btn onClick={handleBootstrapClose} $accent="#f00" $bg="#500" style={{ marginTop: 6, fontSize: "0.5rem", padding: "6px" }}>
+                        CERRAR SALA
+                      </Btn>
+                    </>
+                  ) : (
+                    <>
+                      <Btn onClick={handleBootstrapHost} disabled={bootstrapLoading} $loading={bootstrapLoading} $accent="#0f0" $bg={bootstrapLoading ? "#0f022" : "transparent"}>
+                        {bootstrapLoading ? "INICIANDO..." : "ABRIR SALA PÚBLICA"}
+                      </Btn>
+                      <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center" }}>
+                        <input
+                          type="text"
+                          value={bootstrapRoomInput}
+                          onChange={(e) => setBootstrapRoomInput(e.target.value)}
+                          placeholder="Código de 6 caracteres"
+                          style={{
+                            flex: 1, padding: "8px", borderRadius: 4, border: "1px solid #0f0",
+                            background: "#111", color: "#0f0", fontSize: "0.7rem",
+                            outline: "none", textTransform: "uppercase",
+                          }}
+                        />
+                        <Btn onClick={handleBootstrapGuest} disabled={bootstrapLoading || !bootstrapRoomInput.trim()} $accent="#0f0" $bg="#0f022" style={{ padding: "8px 12px" }}>
+                          {bootstrapLoading ? "..." : "CONECTAR"}
+                        </Btn>
+                      </div>
+                    </>
+                  )}
+                  {bootstrapStatus && !bootstrapRoomCode && (
+                    <StatusText $color={bootstrapStatus.startsWith("✅") ? "#0f0" : bootstrapStatus.startsWith("⚠️") ? "#fa0" : "#f88"} style={{ marginTop: 6, fontSize: "0.5rem" }}>
+                      {bootstrapStatus}
+                    </StatusText>
                   )}
                 </Section>
 

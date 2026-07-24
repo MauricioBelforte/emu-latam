@@ -354,4 +354,20 @@ Con run_ahead=false + buffer dinámico 1-2, no es necesario check_frames porque 
 - [x] Documentación completa en `DOCUMENTACION/19-GGPO-P2P-WAN/` con 7 archivos
 - [ ] Pendiente: probar entre 2 PCs en distintas redes (WAN real)
 
+---
+
+## ✅ Módulo 20 — Bootstrap Público WAN (24-Jul-2026)
+
+- [x] Módulo `bootstrap.ts` con 7 funciones: publishBoreUrl, fetchBoreUrl, startNakamaBore, setNakamaConfigRemote, restoreNakamaLocalhost, handleBootstrapHost, handleBootstrapGuest, handleBootstrapClose
+- [x] 3 IPCs registrados: `bootstrap-host`, `bootstrap-guest`, `bootstrap-close`
+- [x] Canales whitelisteados en `ipcChannels.ts`
+- [x] UI en App.tsx: sección verde "SALA PÚBLICA" con botón ABRIR SALA, input código, room code grande + copiar, fallback manual, cerrar sala
+- [x] Host: spawn bore para puerto 7350 (Nakama) + publica URL en dpaste.org → room code de 6 caracteres
+- [x] Guest: ingresa room code → fetch desde dpaste → configura Nakama remoto en `emu_latam_nakama.json`
+- [x] Fallback automático: si dpaste falla, muestra URL manual para copiar
+- [x] 34 tests, 100% (inline logic + verificación archivos fuente)
+- [x] Regresión: test_stable_flows.js 50/51, test_p2p_ggpo.js 39/39, test_ggpo_p2p_wan.js 17/17
+- [x] Build TypeScript + Vite sin errores
+- [x] Documentación completa en `DOCUMENTACION/20-Bootstrap-WAN/` con 7 archivos
+
 

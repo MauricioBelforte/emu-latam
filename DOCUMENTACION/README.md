@@ -28,3 +28,4 @@
 | 17-Nombre-Usuario-Personalizado | Modal de nombre al primer inicio + presencia en sidebar | ✅ Completado | 2026-07-21 | Cross-PC | localStorage, AuthContext, SocialContext, Nakama lobby messages |
 | 18-P2P-Propio | Sistema P2P propio (reemplazo de Tailscale/Bore) con NAT hole punching + relay en host | 🔄 Plan actual (v1.1) | 2026-07-23 | 27 tests planificados (ver 06-Plan-Testings.md) | dgram, stun, tweetnacl (opcional), Nakama |
 | 19-GGPO-P2P-WAN | Relay WAN para GGPO via P2P: túnel UDP entre países sin configuración de router | ✅ Completado | 2026-07-24 | 17 tests, 100% (ver 07-Resultados-Testings.md) | dgram, P2PManager (p2p-module) |
+| 20-Bootstrap-WAN | Conexión remota a Nakama via túnel bore público + paste service para room code | ✅ Completado | 2026-07-24 | 34 tests, 100% (ver 07-Resultados-Testings.md) | bore, dpaste.org, Node.js https |
