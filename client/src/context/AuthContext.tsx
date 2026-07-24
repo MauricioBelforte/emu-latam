@@ -95,12 +95,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const logout = useCallback(() => {
-    clearReconnect();
     setUserId(null);
     setUsername(null);
     setIsAuthenticated(false);
     setIsConnected(false);
+    reconnectAttempts.current = RECONNECT_MAX_ATTEMPTS; // evitar que ondisconnect reconecte
     nakamaService.disconnect();
+    clearReconnect(); // limpia timer residual
+    reconnectAttempts.current = 0; // resetea para próxima conexión
   }, [clearReconnect]);
 
   return (
