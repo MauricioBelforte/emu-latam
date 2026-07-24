@@ -782,7 +782,10 @@ function App() {
                             setP2pStatus("❌ Sala encontrada pero no responde");
                           }
                         } else {
-                          setP2pStatus("❌ No se encontró ninguna sala P2P en la red");
+                          setP2pStatus("⚠ No se encontró en LAN. Ingresá la IP del host manualmente.");
+                          setJoinMode("join");
+                          setNakamaHost("");
+                          setNakamaPort("7350");
                         }
                       }} $accent="#f0f">
                         UNIRSE A SALA P2P
@@ -797,7 +800,7 @@ function App() {
               ) : joinMode === "create" ? null : (
                 <div style={{ marginTop: 16, width: "100%", maxWidth: 400 }}>
                   <p style={{ color: "#888", fontFamily: "monospace", fontSize: "0.6rem", marginBottom: 8, textAlign: "center" }}>
-                    Ingresá la IP y puerto de la sala a la que querés conectarte
+                    {isP2pSala ? "Ingresá la IP del host (amigo que creó la sala)" : "Ingresá la IP y puerto de la sala a la que querés conectarte"}
                   </p>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "center" }}>
                     <Input $accent={theme.colors.primary} type="text" value={nakamaHost} onChange={(e) => {
