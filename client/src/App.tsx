@@ -702,11 +702,11 @@ function App() {
             <>
               {joinMode === null ? (
                 <>
-                  <Section $accent={theme.colors.primary} style={{ borderStyle: "solid", borderWidth: 2, borderColor: theme.colors.primary + "44", padding: "16px" }}>
+                  <Section $accent={theme.colors.primary} style={{ borderStyle: "solid", borderWidth: 2, borderColor: theme.colors.primary + "aa", padding: "16px" }}>
                     <p style={{ color: theme.colors.primary, fontFamily: theme.fonts.arcade, fontSize: "0.65rem", marginBottom: 10, textAlign: "center" }}>
                       ▸ SALA TAILSCALE ◂
                     </p>
-                    <Row style={{ maxWidth: 500 }}>
+                    <Row style={{ maxWidth: 480, margin: "0 auto" }}>
                       <SalaButton onClick={async () => {
                         setJoinMode("create");
                         discoveryDoneRef.current = false;
@@ -741,11 +741,11 @@ function App() {
                       </SalaButton>
                     </Row>
                   </Section>
-                  <Section $accent="#f0f" style={{ borderStyle: "solid", borderWidth: 2, borderColor: "#f0f44", padding: "16px" }}>
+                  <Section $accent="#f0f" style={{ borderStyle: "solid", borderWidth: 2, borderColor: "#f0f88", padding: "16px" }}>
                     <p style={{ color: "#f0f", fontFamily: theme.fonts.arcade, fontSize: "0.65rem", marginBottom: 10, textAlign: "center" }}>
                       ▸ SALA P2P (SIN TERCEROS) ◂
                     </p>
-                    <Row style={{ maxWidth: 500 }}>
+                    <Row style={{ maxWidth: 480, margin: "0 auto" }}>
                       <SalaButton onClick={async () => {
                         setJoinMode("create");
                         setIsP2pSala(true);
