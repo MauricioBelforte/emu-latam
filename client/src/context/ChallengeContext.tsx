@@ -158,9 +158,10 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
         const guestResult = await (window as any).electron.ipcRenderer.invoke("p2p-guest", { hostCandidate: currentChallenge.hostCandidate });
         if (!guestResult.success) { alert("Error conectando P2P: " + (guestResult.error || "desconocido")); return; }
 
-        // LAN mode: conectar directo al host por IP LAN
+        // LAN mode: esperar a que el host levante RA antes de conectar
         if (guestResult.isLan) {
           await sendToLobby(CHALLENGE_ACCEPT_MSG_TYPE, { targetId: challengerId, acceptedBy: userId, acceptedByName: username });
+          await new Promise(r => setTimeout(r, 2000));
           await (window as any).electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: false, directConnectIp: guestResult.hostLanIp, connectPort: 55435 });
           setTimeout(() => resetChallenge(), 5000);
           return;
@@ -226,20 +227,20 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
         const method = currentChallenge?.method || "bore";
         console.log(`Reto aceptado! Mtodo: ${method}`);
 
-        // P2P method: register guest candidate and launch RA
+        // P2P method: host must ALWAYS launch RA (LAN direct or WAN relay)
         if (method === "p2p") {
           const guestCandidate = content.guestCandidate;
           const acceptedBy = content.acceptedBy;
-          if (guestCandidate) {
-            try {
+          try {
+            await (window as any).electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: true });
+            if (guestCandidate) {
               await (window as any).electron.ipcRenderer.invoke("p2p-host-register-guest", { guestCandidate });
-              await (window as any).electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: true });
               if (acceptedBy) {
                 await nakamaService.publishP2pConnectionConfirmed(acceptedBy);
               }
-            } catch (e) {
-              console.error("Error registrando guest P2P:", e);
             }
+          } catch (e) {
+            console.error("Error en P2P host challenge:", e);
           }
           setTimeout(() => resetChallenge(), 5000);
           return;
