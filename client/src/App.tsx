@@ -791,16 +791,6 @@ function App() {
                       ? "✅ IP copiada. Pasásela a tu amigo para que la pegue en UNIRSE A SALA → CONECTAR."
                       : "Hacé click en la IP para copiarla. Tu amigo debe poner esta IP en UNIRSE A SALA."}
                   </StatusText>
-                  <Divider style={{ margin: "10px 0" }} />
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
-                    <Btn onClick={handleP2pHost} disabled={loadingP2p.host} $loading={loadingP2p.host} $accent="#f0f" $bg={loadingP2p.host ? "#f0f22" : "transparent"} style={{ flex: 1, minWidth: 100 }}>
-                      {loadingP2p.host ? "..." : "▶ VÍA P2P"}
-                    </Btn>
-                    <Btn onClick={handleTailscaleHost} disabled={loading.tsHost} $loading={loading.tsHost} $accent="#00f3ff" $bg={loading.tsHost ? "#00f3ff22" : "transparent"} style={{ flex: 1, minWidth: 100 }}>
-                      {loading.tsHost ? "..." : "▶ VÍA TAILSCALE"}
-                    </Btn>
-                  </div>
-                  {(p2pStatus && p2pStatus !== "✅ Guest conectado via P2P") && <StatusText $color="#f0f" style={{ fontSize: "0.6rem", marginTop: 4 }}>{p2pStatus}</StatusText>}
                   {tsStatus && <StatusText $color="#00f3ff" style={{ fontSize: "0.6rem" }}>{tsStatus}</StatusText>}
                 </Section>
               )}
@@ -818,20 +808,7 @@ function App() {
                       ⚠ El servidor Nakama del host parece no estar accesible desde aquí. Si no podés conectar, verificá la IP o probá modo BORE.
                     </StatusText>
                   )}
-                  <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", justifyContent: "center" }}>
-                    <Btn onClick={handleP2pGuest} disabled={loadingP2p.guest} $loading={loadingP2p.guest} $accent="#f0f" $bg={loadingP2p.guest ? "#f0f22" : "transparent"} style={{ flex: 1, minWidth: 100 }}>
-                      {loadingP2p.guest ? "..." : "▶ VÍA P2P"}
-                    </Btn>
-                    <Btn onClick={handleTailscaleGuest} disabled={loading.tsJoin || !tailscaleHostIp} $loading={loading.tsJoin} $accent="#00f3ff" $bg={loading.tsJoin ? "#00f3ff22" : "transparent"} style={{ flex: 1, minWidth: 100 }}>
-                      {loading.tsJoin ? "..." : "▶ VÍA TAILSCALE"}
-                    </Btn>
-                  </div>
-                  <div style={{ marginTop: 8, display: "flex", gap: 6, alignItems: "center" }}>
-                    <span style={{ color: "#888", fontSize: "0.6rem" }}>IP host:</span>
-                    <Input $accent="#00f3ff" type="text" value={tailscaleHostIp} onChange={(e) => setTailscaleHostIp(e.target.value)} placeholder="IP Tailscale" style={{ flex: 1, fontSize: "0.6rem", padding: "6px" }} />
-                  </div>
-                  {(p2pStatus && p2pStatus !== "✅ Guest conectado via P2P") && <StatusText $color="#f0f" style={{ fontSize: "0.6rem", marginTop: 4 }}>{p2pStatus}</StatusText>}
-                  {tsStatus && <StatusText $color="#00f3ff" style={{ fontSize: "0.6rem" }}>{tsStatus}</StatusText>}
+                  {tsStatus && <StatusText $color="#00f3ff" style={{ fontSize: "0.6rem", marginTop: 4 }}>{tsStatus}</StatusText>}
                 </Section>
               )}
 
