@@ -684,11 +684,16 @@ function App() {
         onBack={isAuthenticated ? () => {
           (window as any).electron.ipcRenderer.invoke("p2p-stop-broadcast");
           logout();
+          setJoinMode(null);
+          setNakamaHost("127.0.0.1");
+          setNakamaPort("7350");
           setNakamaReady(false);
           setStatusText("");
           setPeerReachable(null);
           setIsP2pSala(false);
           setP2pStatus("");
+          discoveryDoneRef.current = false;
+          p2pDiscoveryRef.current = false;
         } : () => {
           setJoinMode(null);
           setIsP2pSala(false);
