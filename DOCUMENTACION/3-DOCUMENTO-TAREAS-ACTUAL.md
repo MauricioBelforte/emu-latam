@@ -327,7 +327,9 @@ Con run_ahead=false + buffer dinámico 1-2, no es necesario check_frames porque 
 - [x] Forwarder con fallback EADDRINUSE a puerto aleatorio + `--port`
 - [x] PUNCH handler en P2PManager para que `doHolePunch` funcione
 - [x] **Verificado funcional en misma LAN (24-Jul-2026)**
+- [x] Integrado con sistema de Retos (método "p2p" automático)
+- [x] METHOD_META agregado en ChallengeModal evita crash con método p2p
+- [x] getLanIp() corregido para excluir IPs Tailscale del broadcast
 - [ ] Pendiente: probar entre PCs en distintas redes (WAN)
-- [ ] Pendiente: integrar con sistema de Retos (desafío)
 
 

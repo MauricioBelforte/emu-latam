@@ -26,6 +26,16 @@
 
 **Estimación Fase 1:** ~10-12 días hábiles
 
+### Tareas Completadas Post-MVP (24-Jul-2026)
+| # | Tarea | Estado |
+|:---|:---|:---|
+| 1.14 | Auto-descubrimiento LAN por broadcast UDP (discovery.ts) | ✅ |
+| 1.15 | Fallback WAN con input manual de IP (sin Tailscale) | ✅ |
+| 1.16 | Botones SALA P2P / UNIRSE A SALA P2P en recuadro rosa | ✅ |
+| 1.17 | Integración con sistema de Retos (método "p2p" en MethodPicker) | ✅ |
+| 1.18 | ChallengeModal: METHOD_META incluye "p2p" | ✅ |
+| 1.19 | getLanIp() excluye IPs Tailscale (100.x.x.x) | ✅ |
+
 ---
 
 ## Fase 2 — Mejoras (multi-peer, LAN, robustez)

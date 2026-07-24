@@ -55,3 +55,28 @@ netplay_check_frames = "0"
 ```
 
 **Resultado:** El temblequeo desapareció. Jugable cross-PC vía Tailscale.
+
+---
+
+## Módulo P2P Propio (Julio 2026)
+
+### Arquitectura P2P
+- **Módulo independiente:** `p2p-module/` con 29 tests, 0 dependencias runtime
+- **Hole punching:** STUN + predicción de puertos + backoff exponencial
+- **Relay fallback:** Si hole punching falla, host actúa como relay TCP
+- **Detección LAN:** Broadcast UDP (puerto 48888) para auto-descubrimiento sin servidor
+
+### Auto-descubrimiento LAN
+- **Host:** Emite broadcast `emu_p2p_sala|{IP}|{puerto}` cada 2s por UDP puerto 48888
+- **Guest:** Escucha 4s, si recibe broadcast → conecta automáticamente
+- **Fallback WAN:** Si no hay broadcast, guest ingresa IP manual
+
+### Integración con Retos (Challenges)
+- Método `"p2p"` disponible en MethodPicker como "P2P Automático"
+- Host llama `p2p-host`, guest llama `p2p-guest` automáticamente
+- Nakama Storage para signaling: `emu_p2p/host_candidate` + `connection_confirmed`
+- `METHOD_META` incluye entrada `p2p` con label y color (#f0f)
+
+### getLanIp() — Exclusión de Tailscale
+- `getLanIp()` en `index.ts:286` ahora prioriza IPs LAN reales (192.168.x.x, 10.x.x.x)
+- Excluye IPs de Tailscale (100.x.x.x) que antes causaban broadcasts con IP incorrecta

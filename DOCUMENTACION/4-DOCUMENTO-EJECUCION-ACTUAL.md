@@ -81,6 +81,23 @@
 
 ## Hallazgos Técnicos
 
+### P2P — Auto-descubrimiento LAN
+- **Broadcast UDP:** `discovery.ts` — host emite `emu_p2p_sala|{IP}|{puerto}` cada 2s en puerto 48888
+- **Detección guest:** Escucha 4s en puerto 48888, si recibe broadcast → auto-conecta
+- **Fallback WAN:** Si no recibe broadcast, muestra input manual de IP
+
+### P2P — getLanIp() (index.ts:286)
+- **Problema original:** Retornaba la primera IP no-interna, que podía ser Tailscale (100.x.x.x)
+- **Fix (24-Jul-2026):** Ahora itera TODAS las interfaces, salta IPs 100.x.x.x, prioriza IP LAN real
+- Si solo hay IP Tailscale, la usa como fallback
+- Afecta: broadcast discovery, forwarder target (startPortForwarder)
+
+### P2P — METHOD_META (ChallengeModal.tsx:170)
+- **Problema original:** `"p2p"` no estaba en METHOD_META, causaba `Cannot read properties of undefined (reading 'accent')`
+- **Fix (24-Jul-2026):** Agregada entrada `p2p: { label: "P2P Automático", accent: "#f0f" }`
+
+---
+
 ### `--port` ignorado por RetroArch
 - **Modo host:** `--host --port 55436` → escucha en 55435 (default), no 55436
 - **Modo cliente:** `--connect host --port 9999` → conecta a puerto 55435, no 9999
