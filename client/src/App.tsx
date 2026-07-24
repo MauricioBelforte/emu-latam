@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import styled, { ThemeProvider, keyframes } from "styled-components";
 import { useAuth } from "./context/AuthContext";
+import { useChallenge } from "./context/ChallengeContext";
 import { useSocial } from "./context/SocialContext";
 import { useGgpo } from "./ggpo/context/GgpoContext";
 import { GgpoToggle } from "./ggpo/components/GgpoToggle";
@@ -204,6 +205,7 @@ const inline = {
 function App() {
   const { loginGhost, logout, isAuthenticated, username, isConnected, userId, updateDisplayName } = useAuth();
   const { onlineUsers } = useSocial();
+  const { initiateChallenge } = useChallenge();
   const [loading, setLoading] = useState({ bore: false, mitm: false, tsHost: false, tsJoin: false, directJoin: false });
   const [directHostIp, setDirectHostIp] = useState("");
   const [tailscaleHostIp, setTailscaleHostIp] = useState("");
@@ -215,6 +217,7 @@ function App() {
   const [nakamaHost, setNakamaHost] = useState("127.0.0.1");
   const [nakamaPort, setNakamaPort] = useState("7350");
   const [joinMode, setJoinMode] = useState<"create" | "join" | null>(null);
+  const [isP2pSala, setIsP2pSala] = useState(false);
   const [copiedIp, setCopiedIp] = useState(false);
   const [peerReachable, setPeerReachable] = useState<boolean | null>(null);
   const [showOtherMethods, setShowOtherMethods] = useState(false);
@@ -683,7 +686,11 @@ function App() {
           setNakamaReady(false);
           setStatusText("");
           setPeerReachable(null);
-        } : () => setJoinMode(null)}
+          setIsP2pSala(false);
+        } : () => {
+          setJoinMode(null);
+          setIsP2pSala(false);
+        }}
         showNetplayConfig={showNetplayConfig}
         onToggleNetplayConfig={() => setShowNetplayConfig((o) => !o)}
       >
@@ -735,15 +742,11 @@ function App() {
                 <Row style={{ maxWidth: 500 }}>
                   <SalaButton onClick={async () => {
                     setJoinMode("create");
+                    setIsP2pSala(true);
                     discoveryDoneRef.current = false;
                     await (window as any).electron.ipcRenderer.invoke("set-nakama-server", { host: "127.0.0.1", port: "7350" });
                     setNakamaHost("127.0.0.1"); setNakamaPort("7350");
                     await loginGhost();
-                    const ts = await (window as any).electron.ipcRenderer.invoke("get-tailscale-ip");
-                    if (ts.ip) {
-                      setMyTailscaleIp(ts.ip);
-                      await nakamaService.publishHostInfo(ts.ip, "p2p");
-                    }
                     await (window as any).electron.ipcRenderer.invoke("open-firewall-port");
                   }} $accent="#f0f">
                     🏠 SALA P2P
@@ -753,6 +756,7 @@ function App() {
                   </SalaButton>
                   <SalaButton onClick={() => {
                     setJoinMode("join");
+                    setIsP2pSala(true);
                     const saved = localStorage.getItem("emu_latam_last_guest_ip");
                     if (saved) {
                       const parts = saved.split(":");
@@ -790,8 +794,10 @@ function App() {
                       if (ok) {
                         setNakamaReady(true);
                         await loginGhost();
-                        const ts = await (window as any).electron.ipcRenderer.invoke("get-tailscale-ip");
-                        if (ts.ip) setMyTailscaleIp(ts.ip);
+                        if (!isP2pSala) {
+                          const ts = await (window as any).electron.ipcRenderer.invoke("get-tailscale-ip");
+                          if (ts.ip) setMyTailscaleIp(ts.ip);
+                        }
                         localStorage.setItem("emu_latam_last_guest_ip", `${nakamaHost}:${nakamaPort}`);
                       } else {
                         alert("No se pudo conectar al servidor. Verificá la IP.");
@@ -817,35 +823,72 @@ function App() {
                 {`> ${username} CONECTADO <`}
               </p>
 
-              {isHostingSala && myTailscaleIp && (
-                <Section $accent="#0af" style={{ borderStyle: "solid", borderWidth: 3, borderColor: "#0af" }}>
-                  <p style={{ color: "#0af", fontFamily: theme.fonts.arcade, fontSize: "1rem", marginBottom: 8, textShadow: "0 0 20px #0af" }}>
-                    🏠 SALA CREADA
+              {isHostingSala && (myTailscaleIp || isP2pSala) && (
+                <Section $accent={isP2pSala ? "#f0f" : "#0af"} style={{ borderStyle: "solid", borderWidth: 3, borderColor: isP2pSala ? "#f0f" : "#0af" }}>
+                  <p style={{ color: isP2pSala ? "#f0f" : "#0af", fontFamily: theme.fonts.arcade, fontSize: "1rem", marginBottom: 8, textShadow: isP2pSala ? "0 0 20px #f0f" : "0 0 20px #0af" }}>
+                    {isP2pSala ? "🏠 SALA P2P CREADA" : "🏠 SALA CREADA"}
                   </p>
-                  <p style={{ color: "#fff", fontFamily: "monospace", fontSize: "1.5rem", background: "#000", padding: "12px 20px", borderRadius: 6, border: "2px solid #0af", display: "inline-block", marginBottom: 8, cursor: "pointer", userSelect: "text", letterSpacing: 2 }} onClick={handleCopyIp} title="Click para copiar">
-                    {myTailscaleIp} <span style={{ fontSize: "0.9rem" }}>{copiedIp ? "✅" : "📋"}</span>
-                  </p>
-                  <StatusText $color="#0af" style={{ fontSize: "0.7rem" }}>
-                    {copiedIp
-                      ? "✅ IP copiada. Pasásela a tu amigo para que la pegue en UNIRSE A SALA → CONECTAR."
-                      : "Hacé click en la IP para copiarla. Tu amigo debe poner esta IP en UNIRSE A SALA."}
-                  </StatusText>
+                  {isP2pSala ? (
+                    <>
+                      <p style={{ color: "#888", fontSize: "0.65rem", marginBottom: 8 }}>Jugadores conectados:</p>
+                      {onlineUsers.filter(u => u.userId !== userId).length === 0 ? (
+                        <StatusText $color="#888" style={{ fontSize: "0.6rem" }}>Esperando jugadores...</StatusText>
+                      ) : (
+                        onlineUsers.filter(u => u.userId !== userId).map(p => (
+                          <div key={p.userId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", margin: "4px 0", background: "#ffffff08", borderRadius: 4 }}>
+                            <span style={{ color: "#fff", fontFamily: "monospace", fontSize: "0.7rem" }}>{p.username}</span>
+                            <Btn onClick={() => initiateChallenge(p.userId, p.username)} $accent="#f0f" $bg="transparent" style={{ padding: "4px 10px", fontSize: "0.5rem" }}>
+                              RETAR
+                            </Btn>
+                          </div>
+                        ))
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <p style={{ color: "#fff", fontFamily: "monospace", fontSize: "1.5rem", background: "#000", padding: "12px 20px", borderRadius: 6, border: "2px solid #0af", display: "inline-block", marginBottom: 8, cursor: "pointer", userSelect: "text", letterSpacing: 2 }} onClick={handleCopyIp} title="Click para copiar">
+                        {myTailscaleIp} <span style={{ fontSize: "0.9rem" }}>{copiedIp ? "✅" : "📋"}</span>
+                      </p>
+                      <StatusText $color="#0af" style={{ fontSize: "0.7rem" }}>
+                        {copiedIp
+                          ? "✅ IP copiada. Pasásela a tu amigo para que la pegue en UNIRSE A SALA → CONECTAR."
+                          : "Hacé click en la IP para copiarla. Tu amigo debe poner esta IP en UNIRSE A SALA."}
+                      </StatusText>
+                    </>
+                  )}
                   {tsStatus && <StatusText $color="#00f3ff" style={{ fontSize: "0.6rem" }}>{tsStatus}</StatusText>}
                 </Section>
               )}
 
               {!isHostingSala && (
-                <Section $accent="#0a0" style={{ borderStyle: "dashed" }}>
-                  <p style={{ color: "#0f0", fontFamily: theme.fonts.arcade, fontSize: "0.7rem", marginBottom: 4 }}>
-                    CONECTADO A SALA
+                <Section $accent={isP2pSala ? "#f0f" : "#0a0"} style={{ borderStyle: "dashed", borderColor: isP2pSala ? "#f0f" : undefined }}>
+                  <p style={{ color: isP2pSala ? "#f0f" : "#0f0", fontFamily: theme.fonts.arcade, fontSize: "0.7rem", marginBottom: 4 }}>
+                    {isP2pSala ? "CONECTADO A SALA P2P" : "CONECTADO A SALA"}
                   </p>
                   <StatusText $color="#888" style={{ fontSize: "0.6rem" }}>
                     Servidor: {nakamaHost}:{nakamaPort}
                   </StatusText>
-                  {peerReachable === false && (
+                  {!isP2pSala && peerReachable === false && (
                     <StatusText $color="#fa0" style={{ fontSize: "0.55rem", marginTop: 4 }}>
                       ⚠ El servidor Nakama del host parece no estar accesible desde aquí. Si no podés conectar, verificá la IP o probá modo BORE.
                     </StatusText>
+                  )}
+                  {isP2pSala && (
+                    <>
+                      <p style={{ color: "#888", fontSize: "0.65rem", margin: "8px 0" }}>Jugadores conectados:</p>
+                      {onlineUsers.filter(u => u.userId !== userId).length === 0 ? (
+                        <StatusText $color="#888" style={{ fontSize: "0.6rem" }}>Esperando jugadores...</StatusText>
+                      ) : (
+                        onlineUsers.filter(u => u.userId !== userId).map(p => (
+                          <div key={p.userId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", margin: "4px 0", background: "#ffffff08", borderRadius: 4 }}>
+                            <span style={{ color: "#fff", fontFamily: "monospace", fontSize: "0.7rem" }}>{p.username}</span>
+                            <Btn onClick={() => initiateChallenge(p.userId, p.username)} $accent="#f0f" $bg="transparent" style={{ padding: "4px 10px", fontSize: "0.5rem" }}>
+                              RETAR
+                            </Btn>
+                          </div>
+                        ))
+                      )}
+                    </>
                   )}
                   {tsStatus && <StatusText $color="#00f3ff" style={{ fontSize: "0.6rem", marginTop: 4 }}>{tsStatus}</StatusText>}
                 </Section>
