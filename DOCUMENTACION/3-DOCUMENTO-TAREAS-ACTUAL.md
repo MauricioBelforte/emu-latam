@@ -332,4 +332,26 @@ Con run_ahead=false + buffer dinámico 1-2, no es necesario check_frames porque 
 - [x] getLanIp() corregido para excluir IPs Tailscale del broadcast
 - [ ] Pendiente: probar entre PCs en distintas redes (WAN)
 
+---
+
+## ✅ Módulo 19 — GGPO+P2P WAN (Relay UDP vía P2P) (24-Jul-2026)
+
+- [x] Módulo `ggpoP2PBridge.ts` independiente y paralelo a `p2pBridge.ts` con estado global separado (tokenCounter empieza en 200)
+- [x] `handleGGPOP2PHost()`: P2PManager startHost, retorna candidate vía Nakama
+- [x] `handleGGPOP2PGuest()`: P2PManager startJoin, auto-detecta LAN/WAN; si WAN crea forwarder local, si LAN retorna hostLanIp
+- [x] `handleGGPOP2PHostRegisterGuest()`: registra guest, crea relay socket en 127.0.0.1:0 ↔ GGPO host :6003 ↔ P2P transport
+- [x] `handleGGPOP2PDisconnect()`: limpia sockets, managers y resetea tokenCounter
+- [x] 4 IPCs registrados: `ggpo-p2p-host`, `ggpo-p2p-guest`, `ggpo-p2p-register-guest`, `ggpo-p2p-disconnect`
+- [x] Canales whitelisteados en `ipcChannels.ts`
+- [x] ChallengeContext.tsx modificado con ramas WAN/LAN en acceptChallenge y ACCEPT handler
+- [x] `ggpoForwarderPortRef` y `ggpoRelayPortRef` para pasar puertos entre accepts y connection_info
+- [x] connection_info handler: rama WAN (`useGgpoRelay`) usa forwarderPort → GGPO guest conecta a 127.0.0.1
+- [x] guest_ready handler: rama WAN (relayPort > 0) → GGPO host conecta a 127.0.0.1:relayPort
+- [x] **Pipeline testado (17 tests, 100%)**: guest → forwarder → P2P → relay → host GGPO :6003 → eco → relay → forwarder → guest
+- [x] Auto-detección LAN/WAN en flujo completo
+- [x] Regresión: `test_stable_flows.js` 50/51, `test_p2p_ggpo.js` 39/39
+- [x] Build TypeScript + Vite sin errores
+- [x] Documentación completa en `DOCUMENTACION/19-GGPO-P2P-WAN/` con 7 archivos
+- [ ] Pendiente: probar entre 2 PCs en distintas redes (WAN real)
+
 

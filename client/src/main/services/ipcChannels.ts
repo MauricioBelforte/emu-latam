@@ -37,6 +37,10 @@ export const IPC_CHANNELS = {
   P2P_START_BROADCAST: "p2p-start-broadcast",
   P2P_STOP_BROADCAST: "p2p-stop-broadcast",
   P2P_DISCOVER_HOST: "p2p-discover-host",
+  GGPO_P2P_HOST: "ggpo-p2p-host",
+  GGPO_P2P_GUEST: "ggpo-p2p-guest",
+  GGPO_P2P_REGISTER_GUEST: "ggpo-p2p-register-guest",
+  GGPO_P2P_DISCONNECT: "ggpo-p2p-disconnect",
 } as const
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS]

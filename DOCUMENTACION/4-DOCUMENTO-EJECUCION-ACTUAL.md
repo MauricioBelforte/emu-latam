@@ -159,6 +159,20 @@
   6. Forwarder en modo LAN enviaba RELAY_DATA que RetroArch no entiende. Fix: en modo LAN, saltar forwarder y conectar directo.
 - **Flujo en misma LAN:** Host publica candidate en Nakama → Guest detecta LAN en `startJoin` → salta forwarder → conecta directo a `hostLanIp:55435` → sin Nakama confirmation ni P2P.
 
+### ✅ GGPO+P2P WAN — Relay UDP vía P2P entre países (24-Jul-2026)
+- **Componente:** `19-GGPO-P2P-WAN` — Módulo paralelo e independiente de `p2pBridge.ts`
+- **Archivo:** `client/src/main/ggpoP2PBridge.ts` con estado global separado (tokenCounter=200+)
+- **4 funciones:**
+  1. `handleGGPOP2PHost()`: P2PManager startHost, retorna candidate vía Nakama
+  2. `handleGGPOP2PGuest()`: auto-detecta LAN (hostLanIp) o WAN (forwarder local en 127.0.0.1:0)
+  3. `handleGGPOP2PHostRegisterGuest()`: relay socket local 127.0.0.1:0 ↔ GGPO host :6003 ↔ P2P
+  4. `handleGGPOP2PDisconnect()`: cleanup completo
+- **Pipeline WAN:** GGPO guest → forwarder 127.0.0.1:forwarderPort → P2P → relay 127.0.0.1:relayPort → GGPO host :6003
+- **IPC handlers:** `ggpo-p2p-host`, `ggpo-p2p-guest`, `ggpo-p2p-register-guest`, `ggpo-p2p-disconnect`
+- **ChallengeContext:** ramas WAN/LAN en acceptChallenge, ACCEPT handler, connection_info y guest_ready
+- **Test:** 17 tests simulados, 100% éxito
+- **Pendiente:** probar entre 2 PCs en distintas redes (WAN real)
+
 ### ⚠️ Tiriteo en check_frames > 0 en AMBAS PCs (18-Jul-2026)
 - **Síntoma:** Con `check_frames > 0`, los inputs direccionales se
   interrumpen rítmicamente (check_frames/60 segundos). El personaje

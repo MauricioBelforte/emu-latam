@@ -15,6 +15,7 @@ import { assertPortFree } from "./services/portUtils";
 import { relayConfigStore } from "./services/relayConfigStore";
 import { spawnFcadefbneo, killGgpo, findFcadefbneo, getGgpoProcess, spawnLocalTest } from "../ggpo/main/ggpoHandler";
 import { handleP2PHost, handleP2PGuest, handleP2PHostRegisterGuest, handleP2PDisconnect } from "./p2pBridge";
+import { handleGGPOP2PHost, handleGGPOP2PGuest, handleGGPOP2PHostRegisterGuest, handleGGPOP2PDisconnect } from "./ggpoP2PBridge";
 import { startBroadcast, stopBroadcast, discoverHost } from "./discovery";
 
 // ========================================
@@ -993,6 +994,26 @@ app.whenReady().then(() => {
 
   ipcMain.handle("p2p-disconnect", async () => {
     return handleP2PDisconnect();
+  });
+
+  // ========================================
+  // GGPO P2P WAN (Módulo 19)
+  // ========================================
+
+  ipcMain.handle("ggpo-p2p-host", async () => {
+    return handleGGPOP2PHost();
+  });
+
+  ipcMain.handle("ggpo-p2p-guest", async (_e, args) => {
+    return handleGGPOP2PGuest(args?.hostCandidate);
+  });
+
+  ipcMain.handle("ggpo-p2p-register-guest", async (_e, args) => {
+    return handleGGPOP2PHostRegisterGuest(args?.guestCandidate);
+  });
+
+  ipcMain.handle("ggpo-p2p-disconnect", async () => {
+    return handleGGPOP2PDisconnect();
   });
 
   ipcMain.handle("p2p-start-broadcast", async (_e, { host, port }: { host: string; port: string }) => {
