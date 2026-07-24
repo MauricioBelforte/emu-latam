@@ -442,7 +442,20 @@ function App() {
     try {
       const result = await (window as any).electron.ipcRenderer.invoke("p2p-guest", { hostCandidate: hostCand });
       if (result.success) {
-        // Publicar guest candidate para que el host lo detecte
+        // LAN mode: conexión directa, sin P2P ni forwarder
+        if (result.isLan) {
+          setP2pStatus("Modo LAN detectado. Conectando directo...");
+          const gameResult = await (window as any).electron.ipcRenderer.invoke("launch-game", {
+            useRelay: false, isHost: false, directConnectIp: result.hostLanIp,
+            connectPort: 55435,
+          });
+          if (!gameResult?.success) setP2pStatus("Error al lanzar RetroArch: " + (gameResult?.error || "desconocido"));
+          else setP2pStatus("✅ Conectado! RetroArch iniciado.");
+          setLoadingP2p(p => ({ ...p, guest: false }));
+          return;
+        }
+
+        // Publicar guest candidate en Nakama (para conexión WAN)
         const hostUserId = hostCand.userId;
         const guestUserId = nakamaService.session?.user_id || "";
         if (nakamaService.session && hostUserId) {
@@ -454,7 +467,6 @@ function App() {
             permission_read: 2,
             permission_write: 1,
           }]);
-          // Esperar confirmación del host (máx 15s)
           setP2pStatus("Esperando confirmación del host...");
           const confirmed = await nakamaService.waitForP2pConnectionConfirmed(guestUserId, hostUserId);
           if (!confirmed) {

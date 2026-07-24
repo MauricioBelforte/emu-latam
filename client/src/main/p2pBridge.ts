@@ -105,13 +105,25 @@ export async function handleP2PGuest(hostCandidate: any): Promise<any> {
   await manager.startJoin(hostCandidate);
   const guestCandidate = await manager.sendCandidate();
 
+  // LAN mode: conexión directa al host RetroArch, sin P2P ni forwarder
+  if (manager.status === "lan_connected") {
+    const hostLanIp = hostCandidate.privateIps?.[0] || hostCandidate.publicIp;
+    console.log(`[P2P-GUEST] LAN mode directo — hostLanIp=${hostLanIp}`);
+    return {
+      success: true,
+      isLan: true,
+      hostLanIp,
+      candidate: guestCandidate,
+    };
+  }
+
   let forwarderPort: number | null = null;
 
   // Same-machine: bridge host + skip forwarder (RA habla directo)
   if (hostManager && guestCandidate) {
     await hostManager.manager.onGuestJoin(guestCandidate, token);
   } else {
-    // Cross-machine: crear forwarder en puerto aleatorio
+    // Cross-machine (WAN): crear forwarder
     forwarderPort = await startForwarder(token, manager);
   }
 
