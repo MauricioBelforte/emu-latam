@@ -1101,7 +1101,32 @@ function App() {
                     )}
                   </Section>
                 </>
-              ) : joinMode === "create" ? null : joinMode === "bootstrap" ? (
+              ) : joinMode === "create" ? (
+                isP2pSala && p2pWanHostPublic && p2pWanHostPublic !== "___MANUAL___" ? (
+                  <div style={{ textAlign: "center", marginTop: 16 }}>
+                    <p style={{ color: "#f0f", fontFamily: theme.fonts.arcade, fontSize: "0.65rem", marginBottom: 10 }}>
+                      ▸ SALA P2P CREADA ◂
+                    </p>
+                    <StatusText $color="#f0f" style={{ fontSize: "0.8rem", fontWeight: "bold" }}>
+                      🌐 IP Pública: {p2pWanHostPublic}
+                    </StatusText>
+                    {p2pWanLanAddr && (
+                      <StatusText $color="#66f" style={{ fontSize: "0.6rem" }}>
+                        🏠 IP LAN: {p2pWanLanAddr}
+                      </StatusText>
+                    )}
+                    <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 10 }}>
+                      <Btn onClick={() => { navigator.clipboard.writeText(p2pWanHostPublic); }} $accent="#f0f" $bg="#f0f022" style={{ fontSize: "0.55rem", padding: "8px 14px" }}>
+                        📋 COPIAR IP
+                      </Btn>
+                      <Btn onClick={handleP2pDisconnect} $accent="#f00" $bg="#500" style={{ fontSize: "0.55rem", padding: "8px 14px" }}>
+                        CERRAR SALA
+                      </Btn>
+                    </div>
+                    {p2pWanStatus && <StatusText $color="#f0f" style={{ fontSize: "0.6rem", marginTop: 6 }}>{p2pWanStatus}</StatusText>}
+                  </div>
+                ) : null
+              ) : joinMode === "bootstrap" ? (
                 <div style={{ marginTop: 16, width: "100%", maxWidth: 400 }}>
                   <p style={{ color: "#0f0", fontFamily: "monospace", fontSize: "0.6rem", marginBottom: 8, textAlign: "center" }}>
                     Ingresá el código numérico que te dió el host (ej: 28734)
