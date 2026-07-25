@@ -44,6 +44,9 @@ export const IPC_CHANNELS = {
   BOOTSTRAP_HOST: "bootstrap-host",
   BOOTSTRAP_GUEST: "bootstrap-guest",
   BOOTSTRAP_CLOSE: "bootstrap-close",
+  BOOTSTRAP_GGPO_RELAY_HOST: "bootstrap-ggpo-relay-host",
+  BOOTSTRAP_GGPO_RELAY_GUEST: "bootstrap-ggpo-relay-guest",
+  BOOTSTRAP_GGPO_RELAY_CLOSE: "bootstrap-ggpo-relay-close",
 } as const
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS]

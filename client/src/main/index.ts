@@ -18,6 +18,7 @@ import { handleP2PHost, handleP2PGuest, handleP2PHostRegisterGuest, handleP2PDis
 import { handleGGPOP2PHost, handleGGPOP2PGuest, handleGGPOP2PHostRegisterGuest, handleGGPOP2PDisconnect } from "./ggpoP2PBridge";
 import { startBroadcast, stopBroadcast, discoverHost } from "./discovery";
 import { handleBootstrapHost, handleBootstrapGuest, handleBootstrapClose } from "./bootstrap";
+import { handleBootstrapGgpoRelayHost, handleBootstrapGgpoRelayGuest, handleBootstrapGgpoRelayCleanup } from "./bootstrapGgpoRelay";
 
 // ========================================
 // CONSTANTES DE AYUDA
@@ -1048,6 +1049,19 @@ app.whenReady().then(() => {
 
   ipcMain.handle("bootstrap-close", async () => {
     return handleBootstrapClose();
+  });
+
+  ipcMain.handle("bootstrap-ggpo-relay-host", async (_e, { relayUdpPort }: { relayUdpPort: number }) => {
+    return handleBootstrapGgpoRelayHost(relayUdpPort);
+  });
+
+  ipcMain.handle("bootstrap-ggpo-relay-guest", async (_e, { forwarderUdpPort, boreUrl }: { forwarderUdpPort: number; boreUrl: string }) => {
+    return handleBootstrapGgpoRelayGuest(forwarderUdpPort, boreUrl);
+  });
+
+  ipcMain.handle("bootstrap-ggpo-relay-close", async () => {
+    handleBootstrapGgpoRelayCleanup();
+    return { success: true };
   });
 
   logInfo("Monitor", "Handlers Bootstrap WAN registrados");

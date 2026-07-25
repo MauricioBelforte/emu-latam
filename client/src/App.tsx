@@ -249,6 +249,10 @@ function App() {
   }, []);
 
   useEffect(() => {
+    (window as any).__BOOTSTRAP_ACTIVE__ = isBootstrapSala;
+  }, [isBootstrapSala]);
+
+  useEffect(() => {
     if (isAuthenticated && !localStorage.getItem("emu_display_name")) {
       setShowNamePicker(true);
     }
@@ -745,6 +749,7 @@ function App() {
         showBack={isAuthenticated || joinMode === "join"}
         onBack={isAuthenticated ? () => {
           (window as any).electron.ipcRenderer.invoke("p2p-stop-broadcast");
+          (window as any).electron.ipcRenderer.invoke("bootstrap-close");
           logout();
           setJoinMode(null);
           setNakamaHost("127.0.0.1");
@@ -761,12 +766,22 @@ function App() {
           setP2pAutoCandidate(null);
           setP2pHostCandidate(null);
           setP2pGuestReady(false);
+          setBootstrapRoomCode("");
+          setBootstrapBoreUrl("");
+          setBootstrapRoomInput("");
+          setBootstrapStatus("");
+          setBootstrapLoading(false);
           discoveryDoneRef.current = false;
           p2pDiscoveryRef.current = false;
         } : () => {
           setJoinMode(null);
           setIsP2pSala(false);
           setP2pStatus("");
+          setBootstrapRoomCode("");
+          setBootstrapBoreUrl("");
+          setBootstrapRoomInput("");
+          setBootstrapStatus("");
+          setBootstrapLoading(false);
         }}
         showNetplayConfig={showNetplayConfig}
         onToggleNetplayConfig={() => setShowNetplayConfig((o) => !o)}
@@ -979,6 +994,8 @@ function App() {
                       if (result.success) {
                         setBootstrapBoreUrl(result.boreUrl);
                         setIsBootstrapSala(true);
+                        setJoinMode(null);
+                        setBootstrapRoomInput("");
                         const ok = await (window as any).electron.ipcRenderer.invoke("check-nakama-health");
                         if (ok) {
                           setNakamaReady(true);
