@@ -989,27 +989,39 @@ function App() {
                     />
                     <Btn onClick={async () => {
                       setBootstrapLoading(true);
+                      setBootstrapStatus("Conectando...");
                       const result = await (window as any).electron.ipcRenderer.invoke("bootstrap-guest", { roomCode: bootstrapRoomInput.trim() });
-                      setBootstrapLoading(false);
                       if (result.success) {
-                        setBootstrapBoreUrl(result.boreUrl);
-                        setIsBootstrapSala(true);
-                        setJoinMode(null);
-                        setBootstrapRoomInput("");
-                        const ok = await (window as any).electron.ipcRenderer.invoke("check-nakama-health");
+                        setBootstrapStatus("Verificando conexión remota...");
+                        let ok = false;
+                        for (let i = 0; i < 3; i++) {
+                          ok = await (window as any).electron.ipcRenderer.invoke("check-nakama-health");
+                          if (ok) break;
+                          if (i < 2) await new Promise(r => setTimeout(r, 3000));
+                        }
                         if (ok) {
+                          setBootstrapBoreUrl(result.boreUrl);
+                          setIsBootstrapSala(true);
+                          setJoinMode(null);
+                          setBootstrapRoomInput("");
                           setNakamaReady(true);
                           await loginGhost();
                         } else {
-                          alert("Conectado al host, pero Nakama remoto no responde. Verificá el código.");
+                          setBootstrapStatus("No se pudo conectar al host. Verificá el código y que el host tenga la sala activa.");
                         }
                       } else {
-                        alert("Error: " + (result.error || "desconocido"));
+                        setBootstrapStatus("Error: " + (result.error || "desconocido"));
                       }
+                      setBootstrapLoading(false);
                     }} disabled={bootstrapLoading || !bootstrapRoomInput.trim()} $accent="#0f0" $bg="#0f022" style={{ padding: "8px 14px" }}>
                       {bootstrapLoading ? "..." : "CONECTAR"}
                     </Btn>
                   </div>
+                  {bootstrapStatus && (
+                    <StatusText $color="#fa0" style={{ fontSize: "0.6rem", textAlign: "center", marginTop: 8 }}>
+                      {bootstrapStatus}
+                    </StatusText>
+                  )}
                   <Btn onClick={() => setJoinMode(null)} $accent="#555" $bg="transparent" style={{ marginTop: 8, padding: "6px", fontSize: "0.5rem" }}>
                     VOLVER
                   </Btn>
