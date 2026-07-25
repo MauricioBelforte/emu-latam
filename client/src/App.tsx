@@ -1003,19 +1003,25 @@ function App() {
                     <Btn onClick={async () => {
                       setBootstrapLoading(true);
                       setBootstrapStatus("Conectando...");
-                      const result = await (window as any).electron.ipcRenderer.invoke("bootstrap-guest", { roomCode: bootstrapRoomInput.trim(), lanIp: bootstrapGuestLanIp.trim() || undefined });
-                      setBootstrapLoading(false);
+                      const lanIp = bootstrapGuestLanIp.trim();
+                      const result = await (window as any).electron.ipcRenderer.invoke("bootstrap-guest", { roomCode: bootstrapRoomInput.trim(), lanIp: lanIp || undefined });
                       if (result.success) {
+                        const nakamaHost = lanIp || "bore.pub";
+                        const nakamaPort = lanIp ? "7350" : bootstrapRoomInput.trim();
+                        await (window as any).electron.ipcRenderer.invoke("set-nakama-server", { host: nakamaHost, port: nakamaPort });
+                        setNakamaHost(nakamaHost);
+                        setNakamaPort(nakamaPort);
                         setBootstrapBoreUrl(result.boreUrl);
                         setIsBootstrapSala(true);
                         setJoinMode(null);
                         setBootstrapRoomInput("");
                         setBootstrapGuestLanIp("");
                         setBootstrapStatus("");
-                        const logged = await loginGhost();
+                        await loginGhost();
                       } else {
                         setBootstrapStatus("Error: " + (result.error || "desconocido"));
                       }
+                      setBootstrapLoading(false);
                     }} disabled={bootstrapLoading || !bootstrapRoomInput.trim()} $accent="#0f0" $bg="#0f022" style={{ padding: "8px 14px" }}>
                       {bootstrapLoading ? "..." : "CONECTAR"}
                     </Btn>
