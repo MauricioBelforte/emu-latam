@@ -545,7 +545,11 @@ function App() {
       const result = await (window as any).electron.ipcRenderer.invoke("bootstrap-guest", { roomCode: code });
       if (result.success && result.boreUrl) {
         setBootstrapBoreUrl(result.boreUrl);
-        setBootstrapStatus(`✅ Conectado. Nakama remoto configurado en ${result.boreUrl}. Presioná INSERT COIN para reconectar.`);
+        if (result.warning) {
+          setBootstrapStatus(`⚠️ ${result.warning}`);
+        } else {
+          setBootstrapStatus(`✅ Conectado. Nakama remoto configurado en ${result.boreUrl}. Presioná INSERT COIN para reconectar.`);
+        }
       } else {
         setBootstrapStatus("Error: " + (result.error || "desconocido"));
       }

@@ -13,6 +13,7 @@ export interface HandlerResult {
   roomCode?: string;
   boreUrl?: string;
   error?: string;
+  warning?: string;
 }
 
 let nakamaBoreProcess: ChildProcess | null = null;
@@ -205,11 +206,12 @@ export async function handleBootstrapGuest(roomCode: string): Promise<HandlerRes
       port = parts[1] || "7350";
     }
     const tcpErr = await testTcpConnect(host, parseInt(port, 10));
-    if (tcpErr) {
-      return { success: false, error: tcpErr + ". Usá WiFi o Tailscale si estás en datos móviles." };
-    }
     setNakamaConfigRemote(host, port);
     console.log("[BOOTSTRAP] Guest configurado para Nakama remoto:", { host, port });
+    if (tcpErr) {
+      console.warn("[BOOTSTRAP] TCP test falló (no bloqueante):", tcpErr);
+      return { success: true, boreUrl, warning: `${tcpErr}. La conexión Nakama puede fallar, pero se configuró igual. Probá presionar INSERT COIN.` };
+    }
     return { success: true, boreUrl };
   } catch (e: any) {
     return { success: false, error: "Error en bootstrap guest: " + String(e) };
