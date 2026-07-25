@@ -914,13 +914,25 @@ function App() {
                       <SalaButton onClick={async () => {
                         setJoinMode("create");
                         setIsP2pSala(true);
+                        setP2pStatus("Iniciando sala P2P...");
                         discoveryDoneRef.current = false;
+                        // Iniciar P2P host para obtener IP por STUN
+                        const hostResult = await (window as any).electron.ipcRenderer.invoke("p2p-host");
+                        if (hostResult.success && hostResult.nat) {
+                          const pub = `${hostResult.nat.publicIp}:${hostResult.nat.publicPort}`;
+                          const lanIps = hostResult.candidate?.privateIps || [];
+                          const realLan = lanIps.find((ip: string) => !ip.startsWith('100.'));
+                          setP2pWanHostPublic(pub);
+                          setP2pWanLanAddr(realLan ? `${realLan}:${hostResult.nat.publicPort}` : "");
+                        }
+                        // También broadcast + Nakama para compatibilidad LAN
                         await (window as any).electron.ipcRenderer.invoke("set-nakama-server", { host: "127.0.0.1", port: "7350" });
                         setNakamaHost("127.0.0.1"); setNakamaPort("7350");
                         await loginGhost();
                         await (window as any).electron.ipcRenderer.invoke("open-firewall-port");
                         const lan = await (window as any).electron.ipcRenderer.invoke("get-lan-ip");
                         if (lan.ip) await (window as any).electron.ipcRenderer.invoke("p2p-start-broadcast", { host: lan.ip, port: "7350" });
+                        setP2pStatus("Sala lista. Compartí la IP de abajo.");
                       }} $accent="#f0f">
                         CREAR SALA P2P
                         <span style={{ display: "block", fontSize: "0.5rem", opacity: 0.6, marginTop: 6, fontFamily: "Inter" }}>
@@ -944,10 +956,10 @@ function App() {
                             setP2pStatus("❌ Sala encontrada pero no responde");
                           }
                         } else {
+                          // No hay broadcast → modo WAN manual
+                          setP2pWanHostPublic("___MANUAL___");
                           setP2pStatus("⚠ No se encontró en LAN. Ingresá la IP del host manualmente.");
                           setJoinMode("join");
-                          setNakamaHost("");
-                          setNakamaPort("7350");
                         }
                       }} $accent="#f0f">
                         UNIRSE A SALA P2P
@@ -956,45 +968,41 @@ function App() {
                         </span>
                       </SalaButton>
                     </Row>
-                    {/* WAN Manual: host muestra IP pública */}
-                    {p2pWanHostPublic && (
-                      <div style={{ textAlign: "center", marginTop: 10 }}>
+                    {/* Host: muestra IP después de crear sala */}
+                    {p2pWanHostPublic && p2pWanHostPublic !== "___MANUAL___" && (
+                      <div style={{ textAlign: "center", marginTop: 10, borderTop: "1px solid #f0f33", paddingTop: 10 }}>
                         <StatusText $color="#f0f" style={{ fontSize: "0.7rem", fontWeight: "bold" }}>
                           🌐 IP Pública: {p2pWanHostPublic}
                         </StatusText>
                         {p2pWanLanAddr && (
                           <StatusText $color="#66f" style={{ fontSize: "0.6rem" }}>
-                            🏠 IP LAN (misma red): {p2pWanLanAddr}
+                            🏠 IP LAN: {p2pWanLanAddr}
                           </StatusText>
                         )}
-                        <Btn onClick={() => { navigator.clipboard.writeText(p2pWanHostPublic); }} $accent="#f0f" $bg="#f0f022" style={{ marginTop: 4, fontSize: "0.5rem", padding: "6px" }}>
-                          📋 COPIAR IP
-                        </Btn>
-                        <Btn onClick={async () => {
-                          await handleP2pDisconnect();
-                          setP2pWanHostPublic("");
-                        }} $accent="#f00" $bg="#500" style={{ marginTop: 4, fontSize: "0.5rem", padding: "6px" }}>
-                          CERRAR SALA
-                        </Btn>
+                        <div style={{ display: "flex", gap: 6, justifyContent: "center", marginTop: 6 }}>
+                          <Btn onClick={() => { navigator.clipboard.writeText(p2pWanHostPublic); }} $accent="#f0f" $bg="#f0f022" style={{ fontSize: "0.5rem", padding: "6px" }}>
+                            📋 COPIAR IP
+                          </Btn>
+                          <Btn onClick={handleP2pDisconnect} $accent="#f00" $bg="#500" style={{ fontSize: "0.5rem", padding: "6px" }}>
+                            CERRAR SALA
+                          </Btn>
+                        </div>
                       </div>
                     )}
-                    {/* WAN Manual: guest input IP */}
-                    {!p2pWanHostPublic && (
+                    {/* Guest: input IP manual si no hay broadcast */}
+                    {p2pWanHostPublic === "___MANUAL___" && (
                       <div style={{ marginTop: 8, borderTop: "1px solid #f0f33", paddingTop: 8 }}>
-                        <p style={{ color: "#f0f", fontFamily: "monospace", fontSize: "0.5rem", textAlign: "center", marginBottom: 4 }}>
-                          ── WAN Manual: ingresá IP:puerto del host ──
-                        </p>
                         <div style={{ display: "flex", gap: 6, alignItems: "center", justifyContent: "center" }}>
                           <input type="text" value={p2pWanGuestInput}
                             onChange={e => setP2pWanGuestInput(e.target.value)}
-                            placeholder="203.0.113.5:55435"
+                            placeholder="203.0.113.5:54321"
                             style={{ width: 200, padding: "6px", borderRadius: 4, border: "1px solid #f0f", background: "#111", color: "#f0f", fontSize: "0.65rem", outline: "none", textAlign: "center", fontFamily: "monospace" }}
                           />
                           <Btn onClick={handleP2pGuestWan} disabled={loadingP2pWan || !p2pWanGuestInput.trim()} $accent="#f0f" $bg="#f0f022" style={{ fontSize: "0.5rem", padding: "6px 10px" }}>
                             {loadingP2pWan ? "..." : "CONECTAR"}
                           </Btn>
-                          <Btn onClick={handleP2pHostWan} disabled={loadingP2pWan} $accent="#f0f" $bg="#f0f022" style={{ fontSize: "0.5rem", padding: "6px 10px" }}>
-                            {loadingP2pWan ? "..." : "CREAR SALA WAN"}
+                          <Btn onClick={() => { setP2pWanHostPublic(""); setP2pWanGuestInput(""); setP2pStatus(""); setJoinMode(null); setIsP2pSala(false); }} $accent="#555" $bg="transparent" style={{ fontSize: "0.45rem", padding: "6px" }}>
+                            VOLVER
                           </Btn>
                         </div>
                       </div>
