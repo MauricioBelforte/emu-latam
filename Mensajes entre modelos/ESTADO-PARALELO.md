@@ -31,6 +31,15 @@ Este archivo coordina los agentes que trabajan en paralelo. **Leerlo siempre ant
 **Carpeta:** `Mensajes entre modelos/inputs-retroarch-netplay-latencia-desync-audio/`
 **Estado:** `completado`
 
+### Tarea 02: Reestructuración UI de Conexión (Módulo 21)
+**Agente:** Gemini (Flash) / Claude (Opus)
+**Carpeta:** `Mensajes entre modelos/02-Reestructuracion-UI-Conexion/`
+**Archivo planteo:** `2026-07-24_23-55-00_1-CLAUDE-planteo-reestructuracion.md`
+**Estado:** `planificacion_completada`
+**Prioridad:** Alta (documentado e instruido para ejecución)
+**Inicio:** 2026-07-24 23:50
+
+
 ---
 
 ## Historial de tareas completadas

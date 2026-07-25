@@ -370,4 +370,28 @@ Con run_ahead=false + buffer dinámico 1-2, no es necesario check_frames porque 
 - [x] Build TypeScript + Vite sin errores
 - [x] Documentación completa en `DOCUMENTACION/20-Bootstrap-WAN/` con 7 archivos
 
+---
+
+## 🔄 Módulo 21 — Reestructuración UI de Conexión y Unificación de Salas (24-Jul-2026)
+
+### 21.1. Planificación e Investigación
+- [x] Análisis del problema de los 6 botones y la sección colapsable redundante
+- [x] Definición del nuevo flujo: 4 botones en 2 secciones (SALA TAILSCALE + SALA P2P)
+- [x] Diseño de auto-detección LAN vs WAN
+- [x] Matriz de filtrado dinámico para `MethodPicker` (contexto `salaType` + `engine`)
+- [x] Documentación inicial de 7 archivos en `DOCUMENTACION/21-Reestructuracion-UI-Conexion/plan-inicial/`
+- [x] Copia a `plan-actual/`
+- [x] Mensaje detallado para el próximo agente en `Mensajes entre modelos/02-Reestructuracion-UI-Conexion/`
+
+### 21.2. Implementación UI y Refactor de Estados (Pendiente de Ejecución)
+- [ ] Refactorizar variables de estado en `App.tsx` (`salaType: "tailscale" | "p2p" | null`)
+- [ ] Refactorizar pantalla principal: unificar fucsia + verde en la nueva sección verde "SALA P2P"
+- [ ] Implementar `handleCreateSalaP2p` y `handleJoinSalaP2p` (auto LAN 4s + fallback código)
+- [ ] Eliminar la sección colapsable "OTROS MÉTODOS DE CONEXIÓN" de `App.tsx`
+- [ ] Agregar botón discreto `[DEBUG]` al fondo
+- [ ] Hacer dinámico `MethodPicker.tsx` según props `salaType` y `engine`
+- [ ] Actualizar `ChallengeModal.tsx` y `ChallengeContext.tsx`
+- [ ] Ejecutar plan de testings (`06-Plan-Testings.md`) y volcar en `07-Resultados-Testings.md`
+
+
 
