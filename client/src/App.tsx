@@ -242,6 +242,10 @@ function App() {
   const [bootstrapRoomInput, setBootstrapRoomInput] = useState("");
   const [bootstrapLanIp, setBootstrapLanIp] = useState("");
   const [bootstrapGuestLanIp, setBootstrapGuestLanIp] = useState("");
+  const [p2pWanHostPublic, setP2pWanHostPublic] = useState("");
+  const [p2pWanGuestInput, setP2pWanGuestInput] = useState("");
+  const [p2pWanStatus, setP2pWanStatus] = useState("");
+  const [loadingP2pWan, setLoadingP2pWan] = useState(false);
 
   useEffect(() => {
     const electron = (window as any).electron;
@@ -508,13 +512,71 @@ function App() {
   };
 
   const handleP2pDisconnect = async () => {
+    await (window as any).electron.ipcRenderer.invoke("kill-retroarch");
     await (window as any).electron.ipcRenderer.invoke("p2p-disconnect");
     await nakamaService.deleteP2pCandidates();
     setP2pHostCandidate(null);
     setP2pAutoCandidate(null);
     setP2pGuestReady(false);
     p2pDiscoveryRef.current = false;
+    setP2pWanHostPublic("");
+    setP2pWanGuestInput("");
+    setP2pWanStatus("");
     setP2pStatus("Desconectado");
+  };
+
+  const handleP2pHostWan = async () => {
+    setLoadingP2pWan(true);
+    setP2pWanStatus("Iniciando host P2P (WAN)...");
+    try {
+      const result = await (window as any).electron.ipcRenderer.invoke("p2p-host");
+      if (result.success && result.nat) {
+        const addr = `${result.nat.publicIp}:${result.nat.publicPort}`;
+        setP2pWanHostPublic(addr);
+        setP2pWanStatus(`✅ Host P2P listo — IP: ${addr}. Iniciando RetroArch...`);
+        // Lanzar RetroArch como host para que el relay lo encuentre en 127.0.0.1:55435
+        const gameResult = await (window as any).electron.ipcRenderer.invoke("launch-game", {
+          useRelay: false, isHost: true,
+        });
+        if (!gameResult?.success) {
+          setP2pWanStatus(`⚠️ RA no inició (${gameResult?.error || "desconocido"}). IP: ${addr} igual visible.`);
+        } else {
+          setP2pWanStatus(`✅ Host P2P + RA activos — IP: ${addr}`);
+        }
+      } else {
+        setP2pWanStatus(`Error: ${result.error || "no se pudo obtener IP pública"}`);
+      }
+    } catch (e) {
+      console.error("P2P host WAN error:", e);
+      setP2pWanStatus("Error al iniciar host P2P");
+    }
+    setLoadingP2pWan(false);
+  };
+
+  const handleP2pGuestWan = async () => {
+    const addr = p2pWanGuestInput.trim();
+    if (!addr.includes(':')) { setP2pWanStatus("Formato inválido. Usá IP:puerto (ej: 203.0.113.5:55435)"); return; }
+    setLoadingP2pWan(true);
+    setP2pWanStatus("Conectando al host P2P (WAN)...");
+    try {
+      const result = await (window as any).electron.ipcRenderer.invoke("p2p-guest-wan", { hostAddress: addr });
+      if (result.success) {
+        const mode = result.status?.includes('direct') ? 'directo' : 'relay';
+        setP2pWanStatus(`✅ Conectado (${mode}). Iniciando RetroArch...`);
+        const gameResult = await (window as any).electron.ipcRenderer.invoke("launch-game", {
+          useRelay: false, isHost: false, directConnectIp: "127.0.0.1",
+          connectPort: result.forwarderPort || 55435,
+        });
+        if (!gameResult?.success) setP2pWanStatus("Error al lanzar RA: " + (gameResult?.error || "desconocido"));
+        else setP2pWanStatus("✅ Conectado! RetroArch iniciado.");
+      } else {
+        setP2pWanStatus(`Error: ${result.error}`);
+      }
+    } catch (e) {
+      console.error("P2P guest WAN error:", e);
+      setP2pWanStatus("Error al conectar guest P2P");
+    }
+    setLoadingP2pWan(false);
   };
 
   const handleBootstrapHost = async () => {
@@ -889,6 +951,45 @@ function App() {
                         </span>
                       </SalaButton>
                     </Row>
+                    {/* WAN Manual: host muestra IP pública */}
+                    {p2pWanHostPublic && (
+                      <div style={{ textAlign: "center", marginTop: 10 }}>
+                        <StatusText $color="#f0f" style={{ fontSize: "0.7rem", fontWeight: "bold" }}>
+                          🌐 IP Pública: {p2pWanHostPublic}
+                        </StatusText>
+                        <Btn onClick={() => { navigator.clipboard.writeText(p2pWanHostPublic); }} $accent="#f0f" $bg="#f0f022" style={{ marginTop: 4, fontSize: "0.5rem", padding: "6px" }}>
+                          📋 COPIAR IP
+                        </Btn>
+                        <Btn onClick={async () => {
+                          await handleP2pDisconnect();
+                          setP2pWanHostPublic("");
+                        }} $accent="#f00" $bg="#500" style={{ marginTop: 4, fontSize: "0.5rem", padding: "6px" }}>
+                          CERRAR SALA
+                        </Btn>
+                      </div>
+                    )}
+                    {/* WAN Manual: guest input IP */}
+                    {!p2pWanHostPublic && (
+                      <div style={{ marginTop: 8, borderTop: "1px solid #f0f33", paddingTop: 8 }}>
+                        <p style={{ color: "#f0f", fontFamily: "monospace", fontSize: "0.5rem", textAlign: "center", marginBottom: 4 }}>
+                          ── WAN Manual: ingresá IP:puerto del host ──
+                        </p>
+                        <div style={{ display: "flex", gap: 6, alignItems: "center", justifyContent: "center" }}>
+                          <input type="text" value={p2pWanGuestInput}
+                            onChange={e => setP2pWanGuestInput(e.target.value)}
+                            placeholder="203.0.113.5:55435"
+                            style={{ width: 200, padding: "6px", borderRadius: 4, border: "1px solid #f0f", background: "#111", color: "#f0f", fontSize: "0.65rem", outline: "none", textAlign: "center", fontFamily: "monospace" }}
+                          />
+                          <Btn onClick={handleP2pGuestWan} disabled={loadingP2pWan || !p2pWanGuestInput.trim()} $accent="#f0f" $bg="#f0f022" style={{ fontSize: "0.5rem", padding: "6px 10px" }}>
+                            {loadingP2pWan ? "..." : "CONECTAR"}
+                          </Btn>
+                          <Btn onClick={handleP2pHostWan} disabled={loadingP2pWan} $accent="#f0f" $bg="#f0f022" style={{ fontSize: "0.5rem", padding: "6px 10px" }}>
+                            {loadingP2pWan ? "..." : "CREAR SALA WAN"}
+                          </Btn>
+                        </div>
+                      </div>
+                    )}
+                    {p2pWanStatus && <StatusText $color="#f0f" style={{ fontSize: "0.6rem", textAlign: "center", marginTop: 2 }}>{p2pWanStatus}</StatusText>}
                   </Section>
                   {p2pStatus && <StatusText $color="#f0f" style={{ fontSize: "0.65rem", textAlign: "center", marginTop: 4 }}>{p2pStatus}</StatusText>}
 

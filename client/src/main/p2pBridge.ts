@@ -140,6 +140,62 @@ export async function handleP2PGuest(hostCandidate: any): Promise<any> {
   };
 }
 
+export async function handleP2PGuestWan(hostAddress: string): Promise<any> {
+  if (!hostAddress || !hostAddress.includes(':')) {
+    return { success: false, error: "Formato inválido. Use IP:puerto (ej: 203.0.113.5:55435)" };
+  }
+
+  const [ip, portStr] = hostAddress.trim().split(':');
+  const port = parseInt(portStr, 10);
+  if (!ip || isNaN(port)) {
+    return { success: false, error: "Formato inválido. Use IP:puerto (ej: 203.0.113.5:55435)" };
+  }
+
+  const token = tokenCounter++;
+  const hostCandidate = {
+    peerId: 'host',
+    publicIp: ip,
+    publicPort: port,
+    privateIps: [],
+    natType: 'unknown' as any,
+    protocolVersion: 1,
+  };
+
+  const manager = new P2PManager({
+    sessionToken: token,
+    callbacks: {
+      onStatus: (s: any) => console.log(`[P2P-GUEST-WAN] ${JSON.stringify(s)}`),
+      onConnected: (peerId: string, mode: string) =>
+        console.log(`[P2P-GUEST-WAN] Connected to ${peerId} via ${mode}`),
+      onDisconnected: (peerId: string, reason: string) =>
+        console.log(`[P2P-GUEST-WAN] Disconnected: ${reason}`),
+      onError: (code: string, msg: string) =>
+        console.log(`[P2P-GUEST-WAN] Error ${code}: ${msg}`),
+    },
+  });
+
+  await manager.startJoinWan(hostCandidate);
+  const guestCandidate = await manager.sendCandidate();
+
+  let forwarderPort: number | null = null;
+
+  if (hostManager) {
+    await hostManager.manager.onGuestJoin(guestCandidate!, token);
+  } else {
+    forwarderPort = await startForwarder(token, manager);
+  }
+
+  return {
+    success: true,
+    token,
+    status: manager.status,
+    nat: manager.getNatInfo(),
+    candidate: guestCandidate,
+    hostConnected: !!hostManager,
+    forwarderPort,
+  };
+}
+
 export async function handleP2PHostRegisterGuest(guestCandidate: any): Promise<any> {
   if (!hostManager) {
     return { success: false, error: "No active host manager." };

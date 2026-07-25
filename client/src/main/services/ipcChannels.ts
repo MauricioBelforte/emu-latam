@@ -32,6 +32,7 @@ export const IPC_CHANNELS = {
   GGPO_LAUNCH_LOCAL: "ggpo-launch-local",
   P2P_HOST: "p2p-host",
   P2P_GUEST: "p2p-guest",
+  P2P_GUEST_WAN: "p2p-guest-wan",
   P2P_HOST_REGISTER_GUEST: "p2p-host-register-guest",
   P2P_DISCONNECT: "p2p-disconnect",
   P2P_START_BROADCAST: "p2p-start-broadcast",

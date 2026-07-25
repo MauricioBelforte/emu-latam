@@ -14,7 +14,7 @@ import { logInfo } from "./logger";
 import { assertPortFree } from "./services/portUtils";
 import { relayConfigStore } from "./services/relayConfigStore";
 import { spawnFcadefbneo, killGgpo, findFcadefbneo, getGgpoProcess, spawnLocalTest } from "../ggpo/main/ggpoHandler";
-import { handleP2PHost, handleP2PGuest, handleP2PHostRegisterGuest, handleP2PDisconnect } from "./p2pBridge";
+import { handleP2PHost, handleP2PGuest, handleP2PGuestWan, handleP2PHostRegisterGuest, handleP2PDisconnect } from "./p2pBridge";
 import { handleGGPOP2PHost, handleGGPOP2PGuest, handleGGPOP2PHostRegisterGuest, handleGGPOP2PDisconnect } from "./ggpoP2PBridge";
 import { startBroadcast, stopBroadcast, discoverHost } from "./discovery";
 import { handleBootstrapHost, handleBootstrapGuest, handleBootstrapClose } from "./bootstrap";
@@ -988,6 +988,10 @@ app.whenReady().then(() => {
 
   ipcMain.handle("p2p-guest", async (_e, args) => {
     return handleP2PGuest(args?.hostCandidate);
+  });
+
+  ipcMain.handle("p2p-guest-wan", async (_e, args) => {
+    return handleP2PGuestWan(args?.hostAddress);
   });
 
   ipcMain.handle("p2p-host-register-guest", async (_e, args) => {

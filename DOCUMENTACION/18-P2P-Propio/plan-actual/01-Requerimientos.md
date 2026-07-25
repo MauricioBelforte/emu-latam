@@ -21,16 +21,19 @@ Emu Latam actualmente depende de servicios externos para conectar jugadores: Tai
 
 ## 2. Objetivos del Sistema
 
-### MVP
-- Reemplazar Tailscale y Bore para partidas 1v1
-- Tasa de conexión exitosa ≥ 95% (hole punching + relay en host)
-- Sin binarios externos, solo Node.js + librería `stun`
-- Nakama como único servidor de señalización
+### MVP (Completado)
+- ✅ Módulo standalone `p2p-module/` con hole punching + STUN + relay propio
+- ✅ Soporte LAN (broadcast UDP) + WAN (IP manual)
+- ✅ 29 tests unitarios
+- ✅ Relay en el host como fallback sin terceros
 
-### Mediano Plazo
-- Soporte multi-peer (hasta 16 jugadores)
-- Detección automática de LAN
-- Autenticación de paquetes en el relay
+### WAN Manual (Nuevo - Julio 2026)
+- Conexión WAN vía IP pública + puerto P2P (sin Nakama, sin bore, sin Tailscale)
+- Host muestra IP pública detectada vía STUN
+- Guest ingresa IP:puerto manualmente
+- Hole punching automático con relay fallback
+- Funciona desde datos móviles (el guest solo necesita salida UDP)
+- Sin servidores externos, sin dependencias de red
 
 ### Largo Plazo
 - Cifrado opcional con `tweetnacl`

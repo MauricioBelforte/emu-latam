@@ -24,6 +24,8 @@ export enum PacketType {
   KEEPALIVE_ACK = 0x04,
   RELAY_DATA = 0x05,
   DISCONNECT = 0x06,
+  RELAY_REQUEST = 0x07,
+  RELAY_ACK = 0x08,
 }
 
 export interface PeerCandidate {

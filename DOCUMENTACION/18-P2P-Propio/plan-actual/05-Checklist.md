@@ -99,8 +99,26 @@
 | Bootstrap test local (IP LAN) | ❌ Hotspot del celular tiene AP isolation |
 | TCP↔UDP bridge pipeline | ✅ 5/5 tests locales pasan |
 
-## Próximos Pasos
+## Tareas WAN Manual (Nuevas - Jul 2026)
 
-1. Decidir si implementar el MVP real del P2P Propio (hole punching + STUN + relay)
-2. Mientras tanto, Tailscale es el método recomendado y funcional
-3. Bootstrap verde sirve como alternativa para usuarios sin Tailscale (cuando bore.pub esté disponible)
+| # | Tarea | Estado |
+|:---|:---|:---|
+| WAN-01 | Agregar RELAY_REQUEST / RELAY_ACK a protocol/types.ts | ✅ Completado |
+| WAN-02 | Modificar P2PManager.handlePacket para RELAY_REQUEST + auto-registro | ✅ Completado |
+| WAN-03 | Agregar `handleP2PGuestWan()` en p2pBridge.ts (IP manual → candidate) | ✅ Completado |
+| WAN-04 | UI: host muestra IP pública P2P después de crear sala | ✅ Completado |
+| WAN-05 | UI: guest tiene input para IP:puerto manual + botón CONECTAR | ✅ Completado |
+| WAN-06 | UI: modo WAN no rompe broadcast LAN existente | ✅ Completado (código separado, no toca LAN) |
+| WAN-07 | Test: build sin errores + lint | ✅ Completado |
+| WAN-08 | Test: regresión LAN broadcast sigue funcionando | 🔄 Pendiente (test manual) |
+
+## Estado de Conexiones Actual (Jul-2026)
+
+| Método | Estado | Funciona en |
+|:---|:---|:---|
+| **Tailscale** | ✅ Funcional | Cualquier red (WAN/LAN) |
+| **P2P Propio LAN** (broadcast) | ✅ Funcional | Misma red local |
+| **P2P Propio WAN** (IP manual) | 🔄 En desarrollo | Host con puerto abierto |
+| **Bore (túnel público)** | ⚠️ Depende de bore.pub | Solo si red no bloquea bore.pub |
+| **Bootstrap verde** | 🔄 Parcial | Con bore o IP local |
+

@@ -188,6 +188,48 @@ export class P2PManager {
     }
   }
 
+  async startJoinWan(hostCandidate: PeerCandidate): Promise<void> {
+    this._role = 'guest';
+    await this.ensureTransport();
+    await this.doNatDiscovery();
+    this.sm.transition('discovery_done');
+
+    this.localCandidate = {
+      peerId: 'guest',
+      publicIp: this.nat!.publicIp,
+      publicPort: this.nat!.publicPort,
+      privateIps: NatDetector.getLocalIps(),
+      natType: this.nat!.natType,
+      protocolVersion: PROTOCOL_VERSION,
+    };
+
+    this.remoteCandidate = hostCandidate;
+    this.sessionToken = this.opts.sessionToken;
+
+    // Hole punching
+    const punched = await doHolePunch(this.transport, this.localCandidate, hostCandidate, this.sessionToken);
+    if (punched) {
+      this.remoteAddr = hostCandidate.publicIp;
+      this.remotePort = hostCandidate.publicPort;
+      this.sm.transition('punch_success');
+      this.opts.callbacks.onConnected('host', 'direct');
+      this.emitStatus({ progress: 100, message: 'Conexión directa', mode: 'direct' });
+    } else {
+      // WAN sin Nakama → enviar RELAY_REQUEST y esperar RELAY_ACK
+      this.remoteAddr = hostCandidate.publicIp;
+      this.remotePort = hostCandidate.publicPort;
+      this.sm.transition('punch_fail');
+
+      await this.sendRelayRequest();
+
+      // Esperar RELAY_ACK con timeout 8s
+      await waitForRelayAck(this.transport, 8000);
+
+      this.opts.callbacks.onConnected('host', 'relay');
+      this.emitStatus({ progress: 100, message: 'Relay conectado (WAN manual)', mode: 'relay' });
+    }
+  }
+
   // ========= SHARED =========
 
   async sendGameData(data: Buffer): Promise<void> {
@@ -236,15 +278,57 @@ export class P2PManager {
         this.transport.send(encodePacket(PacketType.PUNCH_ACK, pkt.sessionToken), rinfo.port, rinfo.address);
         break;
       case PacketType.PUNCH_ACK:
+        if (!this.remoteAddr) {
+          this.remoteAddr = rinfo.address;
+          this.remotePort = rinfo.port;
+        }
         break;
       case PacketType.KEEPALIVE:
         this.transport.send(encodePacket(PacketType.KEEPALIVE_ACK, pkt.sessionToken), rinfo.port, rinfo.address);
+        break;
+      case PacketType.KEEPALIVE_ACK:
+        this.keepalive.onAckReceived();
+        break;
+      case PacketType.RELAY_REQUEST: {
+        // Guest solicita relay → registrar peer + responder RELAY_ACK
+        if (this._role !== 'host') break;
+        const guestToken = pkt.sessionToken;
+        const guestId = `wan-${rinfo.address}-${rinfo.port}`;
+        this.remoteAddr = rinfo.address;
+        this.remotePort = rinfo.port;
+        const relayToken = Math.floor(Math.random() * 65535);
+        this.relay.registerPeer(guestId, relayToken);
+        this.transport.send(encodePacket(PacketType.RELAY_ACK, relayToken), rinfo.port, rinfo.address);
+        this.sm.transition('relay_connected');
+        this.emitStatus({ state: 'relay_connected', progress: 100, message: 'Relay conectado (RELAY_REQUEST)', mode: 'relay' });
+        this.opts.callbacks.onConnected(guestId, 'relay');
+        break;
+      }
+      case PacketType.RELAY_ACK:
+        // Guest recibe confirmación de relay del host
+        if (!this.remoteAddr) {
+          this.remoteAddr = rinfo.address;
+          this.remotePort = rinfo.port;
+        }
+        this.sm.transition('relay_connected');
+        this.emitStatus({ state: 'relay_connected', progress: 100, message: 'Relay confirmado', mode: 'relay' });
+        // onConnected es llamado por startJoinWan() después de recibir RELAY_ACK
         break;
       case PacketType.DISCONNECT:
         this.emitStatus({ state: 'disconnected', progress: 0, message: 'Peer desconectado', mode: null });
         this.opts.callbacks.onDisconnected('', 'Remote disconnect');
         break;
     }
+  }
+
+  async sendRelayRequest(): Promise<void> {
+    if (!this.remoteCandidate) return;
+    const token = Math.floor(Math.random() * 65535);
+    await this.transport.send(
+      encodePacket(PacketType.RELAY_REQUEST, token),
+      this.remoteCandidate.publicPort,
+      this.remoteCandidate.publicIp,
+    );
   }
 
   // Permite enviar el candidate al otro lado via signaling externo (Nakama)
@@ -278,4 +362,23 @@ export class P2PManager {
   setNatResult(nat: NatResult): void {
     this.nat = nat;
   }
+}
+
+function waitForRelayAck(transport: UDPTransport, timeoutMs: number): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      transport.removeListener('message', handler);
+      reject(new Error('RELAY_ACK timeout'));
+    }, timeoutMs);
+
+    const handler = (data: Buffer) => {
+      const pkt = decodePacket(data);
+      if (pkt && pkt.type === PacketType.RELAY_ACK) {
+        clearTimeout(timer);
+        transport.removeListener('message', handler);
+        resolve();
+      }
+    };
+    transport.on('message', handler);
+  });
 }

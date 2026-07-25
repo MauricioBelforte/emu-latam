@@ -330,7 +330,23 @@ Con run_ahead=false + buffer dinámico 1-2, no es necesario check_frames porque 
 - [x] Integrado con sistema de Retos (método "p2p" automático)
 - [x] METHOD_META agregado en ChallengeModal evita crash con método p2p
 - [x] getLanIp() corregido para excluir IPs Tailscale del broadcast
-- [ ] Pendiente: probar entre PCs en distintas redes (WAN)
+- [ ] Pendiente: probar entre PCs en distintas redes (WAN con Nakama)
+
+## ✅ Módulo 18b — P2P Propio WAN Manual (25-Jul-2026)
+
+- [x] RELAY_REQUEST (0x07) / RELAY_ACK (0x08) agregados a protocol/types.ts
+- [x] P2PManager.handlePacket maneja RELAY_REQUEST: host registra peer + envía RELAY_ACK
+- [x] P2PManager.handlePacket maneja RELAY_ACK: guest recibe confirmación relay
+- [x] P2PManager.startJoinWan(): hole punch + fallback RELAY_REQUEST con timeout 8s
+- [x] waitForRelayAck(): helper para esperar RELAY_ACK en guest
+- [x] handleP2PGuestWan() en p2pBridge.ts: parsea IP:puerto manual, llama startJoinWan
+- [x] IPC handler p2p-guest-wan registrado en index.ts + ipcChannels.ts
+- [x] UI fucsia: host muestra IP pública (STUN), guest input IP:puerto + botón CONECTAR
+- [x] UI fucsia: botón CREAR SALA WAN para iniciar host sin Nakama
+- [x] Build TypeScript + Vite sin errores
+- [x] p2p-module 29/29 tests pasando
+- [x] Stable flows 50/51 (misma tolerancia preexistente)
+- [ ] Pendiente: test manual WAN real entre PCs con puerto abierto
 
 ---
 
