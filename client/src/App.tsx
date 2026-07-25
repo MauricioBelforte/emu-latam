@@ -243,6 +243,7 @@ function App() {
   const [bootstrapLanIp, setBootstrapLanIp] = useState("");
   const [bootstrapGuestLanIp, setBootstrapGuestLanIp] = useState("");
   const [p2pWanHostPublic, setP2pWanHostPublic] = useState("");
+  const [p2pWanLanAddr, setP2pWanLanAddr] = useState("");
   const [p2pWanGuestInput, setP2pWanGuestInput] = useState("");
   const [p2pWanStatus, setP2pWanStatus] = useState("");
   const [loadingP2pWan, setLoadingP2pWan] = useState(false);
@@ -520,6 +521,7 @@ function App() {
     setP2pGuestReady(false);
     p2pDiscoveryRef.current = false;
     setP2pWanHostPublic("");
+    setP2pWanLanAddr("");
     setP2pWanGuestInput("");
     setP2pWanStatus("");
     setP2pStatus("Desconectado");
@@ -531,17 +533,19 @@ function App() {
     try {
       const result = await (window as any).electron.ipcRenderer.invoke("p2p-host");
       if (result.success && result.nat) {
-        const addr = `${result.nat.publicIp}:${result.nat.publicPort}`;
-        setP2pWanHostPublic(addr);
-        setP2pWanStatus(`✅ Host P2P listo — IP: ${addr}. Iniciando RetroArch...`);
-        // Lanzar RetroArch como host para que el relay lo encuentre en 127.0.0.1:55435
+        const publicAddr = `${result.nat.publicIp}:${result.nat.publicPort}`;
+        const lanIps = result.candidate?.privateIps || [];
+        const lanAddr = lanIps.length ? `${lanIps[0]}:${result.nat.publicPort}` : "";
+        setP2pWanHostPublic(publicAddr);
+        setP2pWanLanAddr(lanAddr);
+        setP2pWanStatus(`✅ Host P2P listo. Iniciando RetroArch...`);
         const gameResult = await (window as any).electron.ipcRenderer.invoke("launch-game", {
           useRelay: false, isHost: true,
         });
         if (!gameResult?.success) {
-          setP2pWanStatus(`⚠️ RA no inició (${gameResult?.error || "desconocido"}). IP: ${addr} igual visible.`);
+          setP2pWanStatus(`⚠️ RA no inició. IP visible igual.`);
         } else {
-          setP2pWanStatus(`✅ Host P2P + RA activos — IP: ${addr}`);
+          setP2pWanStatus(`✅ Host P2P + RA activos`);
         }
       } else {
         setP2pWanStatus(`Error: ${result.error || "no se pudo obtener IP pública"}`);
@@ -957,6 +961,11 @@ function App() {
                         <StatusText $color="#f0f" style={{ fontSize: "0.7rem", fontWeight: "bold" }}>
                           🌐 IP Pública: {p2pWanHostPublic}
                         </StatusText>
+                        {p2pWanLanAddr && (
+                          <StatusText $color="#66f" style={{ fontSize: "0.6rem" }}>
+                            🏠 IP LAN (misma red): {p2pWanLanAddr}
+                          </StatusText>
+                        )}
                         <Btn onClick={() => { navigator.clipboard.writeText(p2pWanHostPublic); }} $accent="#f0f" $bg="#f0f022" style={{ marginTop: 4, fontSize: "0.5rem", padding: "6px" }}>
                           📋 COPIAR IP
                         </Btn>
