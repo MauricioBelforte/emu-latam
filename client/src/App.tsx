@@ -535,7 +535,8 @@ function App() {
       if (result.success && result.nat) {
         const publicAddr = `${result.nat.publicIp}:${result.nat.publicPort}`;
         const lanIps = result.candidate?.privateIps || [];
-        const lanAddr = lanIps.length ? `${lanIps[0]}:${result.nat.publicPort}` : "";
+        const realLanIp = lanIps.find((ip: string) => !ip.startsWith('100.'));
+        const lanAddr = realLanIp ? `${realLanIp}:${result.nat.publicPort}` : "";
         setP2pWanHostPublic(publicAddr);
         setP2pWanLanAddr(lanAddr);
         setP2pWanStatus(`✅ Host P2P listo. Iniciando RetroArch...`);
