@@ -168,10 +168,10 @@ const CloseButton = styled.button`
 `;
 
 const METHOD_META: Record<string, { label: string; accent: string }> = {
-  tailscale: { label: "Tailscale (P2P)", accent: "#00f3ff" },
-  bore: { label: "Bore (Tnnel)", accent: "#0af" },
-  lan: { label: "LAN Directo", accent: "#0f0" },
+  tailscale: { label: "⭐ Tailscale (Recomendado)", accent: "#00f3ff" },
   p2p: { label: "P2P Automático", accent: "#f0f" },
+  bore: { label: "Bore (Túnel)", accent: "#0af" },
+  lan: { label: "LAN Directo", accent: "#0f0" },
 };
 
 export const ChallengeModal: React.FC = () => {

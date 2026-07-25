@@ -90,8 +90,8 @@ const CancelBtn = styled.button`
 `;
 
 const methods = [
-  { key: "p2p", label: "P2P AUTOMÁTICO", accent: "#f0f", desc: "Automático — sin Tailscale ni configuración" },
-  { key: "tailscale", label: "TAILSCALE (P2P)", accent: "#00f3ff", desc: "Conexión directa, ambos necesitan Tailscale" },
+  { key: "tailscale", label: "⭐ TAILSCALE (RECOMENDADO)", accent: "#00f3ff", desc: "Conexión directa vía Tailscale. El que mejor funciona actualmente." },
+  { key: "p2p", label: "P2P AUTOMÁTICO", accent: "#f0f", desc: "Automático — experimental, sin Tailscale" },
   { key: "bore", label: "BORE (TÚNEL)", accent: "#0af", desc: "Túnel por internet, sin configuración" },
   { key: "lan", label: "LAN DIRECTO", accent: "#0f0", desc: "Solo funciona en la misma red local" },
 ] as const;
