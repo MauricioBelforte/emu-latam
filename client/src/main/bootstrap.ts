@@ -1,14 +1,9 @@
-import https from "https";
-import http from "http";
 import { spawn, execSync } from "child_process";
 import path from "path";
 import fs from "fs";
 import type { ChildProcess } from "child_process";
 
-const PASTE_API_HOST = "dpaste.org";
-const PASTE_API_PATH = "/api/";
 const BORE_TIMEOUT_MS = 12000;
-const HTTP_TIMEOUT_MS = 6000;
 
 export interface HandlerResult {
   success: boolean;
@@ -33,77 +28,15 @@ function getRelayDir(): string {
   return path.join(getProjectRoot(), "relay-server");
 }
 
-function httpsPost(urlPath: string, data: string, host: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const req = https.request({
-      hostname: host || PASTE_API_HOST,
-      path: urlPath,
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Content-Length": Buffer.byteLength(data),
-      },
-      timeout: HTTP_TIMEOUT_MS,
-    }, (res) => {
-      let body = "";
-      res.on("data", (chunk) => body += chunk.toString());
-      res.on("end", () => resolve(body));
-    });
-    req.on("error", reject);
-    req.on("timeout", () => { req.destroy(); reject(new Error("Timeout")); });
-    req.write(data);
-    req.end();
-  });
+export function generateRoomCode(boreUrl: string): string {
+  const match = boreUrl.match(/:(\d+)$/);
+  return match ? match[1] : "";
 }
 
-function httpsGet(url: string, host: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const req = https.request({
-      hostname: host || PASTE_API_HOST,
-      path: url,
-      method: "GET",
-      timeout: HTTP_TIMEOUT_MS,
-    }, (res) => {
-      let body = "";
-      res.on("data", (chunk) => body += chunk.toString());
-      res.on("end", () => {
-        if (res.statusCode === 404) reject(new Error("Room code inválido o expirado (404)"));
-        else if (res.statusCode && res.statusCode >= 400) reject(new Error(`HTTP ${res.statusCode}: ${body.slice(0, 100)}`));
-        else resolve(body.trim());
-      });
-    });
-    req.on("error", reject);
-    req.on("timeout", () => { req.destroy(); reject(new Error("Timeout")); });
-    req.end();
-  });
-}
-
-export async function publishBoreUrl(boreUrl: string): Promise<{ success: boolean; roomCode?: string; error?: string }> {
-  try {
-    const postData = `content=${encodeURIComponent(boreUrl)}&title=emu-sala&expiry_days=1`;
-    const body = await httpsPost(PASTE_API_PATH, postData, PASTE_API_HOST);
-    const hashMatch = body.match(/dpaste\.org\/([a-zA-Z0-9]+)/);
-    if (!hashMatch) return { success: false, error: "No se pudo extraer room code de dpaste: " + body.slice(0, 100) };
-    const roomCode = hashMatch[1];
-    if (!roomCode || roomCode.length < 4) return { success: false, error: "Room code muy corto: " + roomCode };
-    return { success: true, roomCode };
-  } catch (e: any) {
-    return { success: false, error: "Error publicando en dpaste: " + (e.message || String(e)) };
-  }
-}
-
-export async function fetchBoreUrl(roomCode: string): Promise<{ success: boolean; boreUrl?: string; error?: string }> {
-  if (!roomCode || roomCode.trim().length < 3) {
-    return { success: false, error: "Room code inválido. Ingresá el código de 6 caracteres." };
-  }
-  try {
-    const rawPath = `/${roomCode.trim()}/raw/`;
-    const body = await httpsGet(rawPath, PASTE_API_HOST);
-    if (!body || !body.includes(":")) return { success: false, error: "Respuesta inválida del paste service: " + (body || "vacía") };
-    return { success: true, boreUrl: body };
-  } catch (e: any) {
-    return { success: false, error: "Error obteniendo URL: " + (e.message || String(e)) };
-  }
+export function boreUrlFromRoomCode(roomCode: string): string | null {
+  const port = parseInt(roomCode.trim(), 10);
+  if (isNaN(port) || port < 1024 || port > 65535) return null;
+  return `bore.pub:${port}`;
 }
 
 export function setNakamaConfigRemote(host: string, port: string): void {
@@ -200,16 +133,12 @@ export async function handleBootstrapHost(): Promise<HandlerResult> {
     if (!boreResult.success || !boreResult.url) {
       return { success: false, error: boreResult.error || "No se pudo iniciar bore para Nakama" };
     }
-    const publishResult = await publishBoreUrl(boreResult.url);
-    if (!publishResult.success) {
-      return {
-        success: true,
-        boreUrl: boreResult.url,
-        error: "Sala pública sin código automático: " + (publishResult.error || "error publicando") + ". Compartí esta URL manualmente: " + boreResult.url,
-      };
+    const roomCode = generateRoomCode(boreResult.url);
+    if (!roomCode) {
+      return { success: true, boreUrl: boreResult.url, error: "No se pudo generar código de la URL: " + boreResult.url };
     }
-    console.log("[BOOTSTRAP] Sala pública activa:", { roomCode: publishResult.roomCode, boreUrl: boreResult.url });
-    return { success: true, roomCode: publishResult.roomCode, boreUrl: boreResult.url };
+    console.log("[BOOTSTRAP] Conexión P2P activa:", { roomCode, boreUrl: boreResult.url });
+    return { success: true, roomCode, boreUrl: boreResult.url };
   } catch (e: any) {
     return { success: false, error: "Error en bootstrap host: " + String(e) };
   }
@@ -217,14 +146,13 @@ export async function handleBootstrapHost(): Promise<HandlerResult> {
 
 export async function handleBootstrapGuest(roomCode: string): Promise<HandlerResult> {
   if (!roomCode || roomCode.trim().length < 3) {
-    return { success: false, error: "Ingresá el código de sala de 6 caracteres." };
+    return { success: false, error: "Ingresá el código de sala numérico." };
   }
   try {
-    const fetchResult = await fetchBoreUrl(roomCode.trim());
-    if (!fetchResult.success || !fetchResult.boreUrl) {
-      return { success: false, error: fetchResult.error || "No se pudo obtener la URL del host" };
+    const boreUrl = boreUrlFromRoomCode(roomCode.trim());
+    if (!boreUrl) {
+      return { success: false, error: "Código inválido. Debe ser un número de puerto (ej: 28734)." };
     }
-    const boreUrl = fetchResult.boreUrl;
     let host = boreUrl;
     let port = "7350";
     if (boreUrl.includes(":")) {
@@ -243,6 +171,6 @@ export async function handleBootstrapGuest(roomCode: string): Promise<HandlerRes
 export async function handleBootstrapClose(): Promise<HandlerResult> {
   stopNakamaBore();
   restoreNakamaLocalhost();
-  console.log("[BOOTSTRAP] Sala pública cerrada");
+  console.log("[BOOTSTRAP] Conexión P2P cerrada");
   return { success: true };
 }

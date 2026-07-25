@@ -878,6 +878,9 @@ function App() {
                         <StatusText $color="#0f0" style={{ fontSize: "1.4rem", fontWeight: "bold", textAlign: "center", margin: "8px 0" }}>
                           CÓDIGO: {bootstrapRoomCode}
                         </StatusText>
+                        <StatusText $color="#888" style={{ fontSize: "0.5rem", marginBottom: 4 }}>
+                          Compartí este número con tu amigo
+                        </StatusText>
                         <Btn onClick={() => { navigator.clipboard.writeText(bootstrapRoomCode); }} $accent="#0f0" $bg="#0f022">
                           📋 COPIAR CÓDIGO
                         </Btn>
@@ -920,16 +923,13 @@ function App() {
                             await (window as any).electron.ipcRenderer.invoke("set-nakama-server", { host: "127.0.0.1", port: "7350" });
                             setNakamaHost("127.0.0.1"); setNakamaPort("7350");
                             await loginGhost();
-                          } else if (result.success && !result.roomCode && result.boreUrl) {
-                            setBootstrapBoreUrl(result.boreUrl);
-                            setBootstrapStatus("⚠️ " + (result.error || "Usá la URL manualmente"));
                           } else {
                             setBootstrapStatus("Error: " + (result.error || "desconocido"));
                           }
                         }} $accent="#0f0">
                           CREAR CONEXIÓN P2P
                           <span style={{ display: "block", fontSize: "0.5rem", opacity: 0.6, marginTop: 6, fontFamily: "Inter" }}>
-                            Host: creá sala pública con código
+                            Host: creá conexión y compartí el código
                           </span>
                         </SalaButton>
                         <SalaButton onClick={() => {
@@ -938,7 +938,7 @@ function App() {
                         }} $accent="#0f0">
                           CONECTAR VÍA P2P
                           <span style={{ display: "block", fontSize: "0.5rem", opacity: 0.6, marginTop: 6, fontFamily: "Inter" }}>
-                            Guest: ingresá código de 6 caracteres
+                            Guest: ingresá código numérico
                           </span>
                         </SalaButton>
                       </Row>
@@ -953,18 +953,18 @@ function App() {
               ) : joinMode === "create" ? null : joinMode === "bootstrap" ? (
                 <div style={{ marginTop: 16, width: "100%", maxWidth: 400 }}>
                   <p style={{ color: "#0f0", fontFamily: "monospace", fontSize: "0.6rem", marginBottom: 8, textAlign: "center" }}>
-                    Ingresá el código de 6 caracteres que te dió el host
+                    Ingresá el código numérico que te dió el host (ej: 28734)
                   </p>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "center" }}>
                     <input
                       type="text"
                       value={bootstrapRoomInput}
-                      onChange={(e) => setBootstrapRoomInput(e.target.value.toUpperCase())}
-                      placeholder="Ej: A3BX6Z"
+                      onChange={(e) => setBootstrapRoomInput(e.target.value)}
+                      placeholder="Ej: 28734"
                       style={{
                         width: 140, padding: "8px", borderRadius: 4, border: "1px solid #0f0",
                         background: "#111", color: "#0f0", fontSize: "0.8rem",
-                        outline: "none", textTransform: "uppercase", textAlign: "center",
+                        outline: "none", textAlign: "center",
                         fontFamily: "monospace", letterSpacing: "3px",
                       }}
                     />
