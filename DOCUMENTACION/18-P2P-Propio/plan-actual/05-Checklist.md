@@ -110,7 +110,8 @@
 | WAN-05 | UI: guest tiene input para IP:puerto manual + botón CONECTAR | ✅ Completado |
 | WAN-06 | UI: modo WAN no rompe broadcast LAN existente | ✅ Completado (código separado, no toca LAN) |
 | WAN-07 | Test: build sin errores + lint | ✅ Completado |
-| WAN-08 | Test: regresión LAN broadcast sigue funcionando | 🔄 Pendiente (test manual) |
+| WAN-08 | Test: regresión LAN broadcast sigue funcionando | ✅ Completado |
+| WAN-09 | Probar WAN desde celular (RELAY_ACK timeout - puerto no abierto) | 🔄 Pendiente (verificar forwarding) |
 
 ## Estado de Conexiones Actual (Jul-2026)
 
