@@ -968,46 +968,6 @@ function App() {
                         </span>
                       </SalaButton>
                     </Row>
-                    {/* Host: muestra IP después de crear sala */}
-                    {p2pWanHostPublic && p2pWanHostPublic !== "___MANUAL___" && (
-                      <div style={{ textAlign: "center", marginTop: 10, borderTop: "1px solid #f0f33", paddingTop: 10 }}>
-                        <StatusText $color="#f0f" style={{ fontSize: "0.7rem", fontWeight: "bold" }}>
-                          🌐 IP Pública: {p2pWanHostPublic}
-                        </StatusText>
-                        {p2pWanLanAddr && (
-                          <StatusText $color="#66f" style={{ fontSize: "0.6rem" }}>
-                            🏠 IP LAN: {p2pWanLanAddr}
-                          </StatusText>
-                        )}
-                        <div style={{ display: "flex", gap: 6, justifyContent: "center", marginTop: 6 }}>
-                          <Btn onClick={() => { navigator.clipboard.writeText(p2pWanHostPublic); }} $accent="#f0f" $bg="#f0f022" style={{ fontSize: "0.5rem", padding: "6px" }}>
-                            📋 COPIAR IP
-                          </Btn>
-                          <Btn onClick={handleP2pDisconnect} $accent="#f00" $bg="#500" style={{ fontSize: "0.5rem", padding: "6px" }}>
-                            CERRAR SALA
-                          </Btn>
-                        </div>
-                      </div>
-                    )}
-                    {/* Guest: input IP manual si no hay broadcast */}
-                    {p2pWanHostPublic === "___MANUAL___" && (
-                      <div style={{ marginTop: 8, borderTop: "1px solid #f0f33", paddingTop: 8 }}>
-                        <div style={{ display: "flex", gap: 6, alignItems: "center", justifyContent: "center" }}>
-                          <input type="text" value={p2pWanGuestInput}
-                            onChange={e => setP2pWanGuestInput(e.target.value)}
-                            placeholder="203.0.113.5:54321"
-                            style={{ width: 200, padding: "6px", borderRadius: 4, border: "1px solid #f0f", background: "#111", color: "#f0f", fontSize: "0.65rem", outline: "none", textAlign: "center", fontFamily: "monospace" }}
-                          />
-                          <Btn onClick={handleP2pGuestWan} disabled={loadingP2pWan || !p2pWanGuestInput.trim()} $accent="#f0f" $bg="#f0f022" style={{ fontSize: "0.5rem", padding: "6px 10px" }}>
-                            {loadingP2pWan ? "..." : "CONECTAR"}
-                          </Btn>
-                          <Btn onClick={() => { setP2pWanHostPublic(""); setP2pWanGuestInput(""); setP2pStatus(""); setJoinMode(null); setIsP2pSala(false); }} $accent="#555" $bg="transparent" style={{ fontSize: "0.45rem", padding: "6px" }}>
-                            VOLVER
-                          </Btn>
-                        </div>
-                      </div>
-                    )}
-                    {p2pWanStatus && <StatusText $color="#f0f" style={{ fontSize: "0.6rem", textAlign: "center", marginTop: 2 }}>{p2pWanStatus}</StatusText>}
                   </Section>
                   {p2pStatus && <StatusText $color="#f0f" style={{ fontSize: "0.65rem", textAlign: "center", marginTop: 4 }}>{p2pStatus}</StatusText>}
 
@@ -1053,8 +1013,28 @@ function App() {
                         }} $accent="#f00" $bg="#500" style={{ marginTop: 6, fontSize: "0.5rem", padding: "6px" }}>
                           CERRAR
                         </Btn>
-                      </div>
-                    ) : (
+                </div>
+              ) : isP2pSala && p2pWanHostPublic === "___MANUAL___" ? (
+                <div style={{ marginTop: 16, width: "100%", maxWidth: 400 }}>
+                  <p style={{ color: "#f0f", fontFamily: "monospace", fontSize: "0.6rem", marginBottom: 8, textAlign: "center" }}>
+                    Ingresá la IP:puerto del host (amigo que creó la sala P2P)
+                  </p>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", justifyContent: "center" }}>
+                    <input type="text" value={p2pWanGuestInput}
+                      onChange={e => setP2pWanGuestInput(e.target.value)}
+                      placeholder="203.0.113.5:54321"
+                      style={{ width: 200, padding: "6px", borderRadius: 4, border: "1px solid #f0f", background: "#111", color: "#f0f", fontSize: "0.65rem", outline: "none", textAlign: "center", fontFamily: "monospace" }}
+                    />
+                    <Btn onClick={handleP2pGuestWan} disabled={loadingP2pWan || !p2pWanGuestInput.trim()} $accent="#f0f" $bg="#f0f022" style={{ fontSize: "0.55rem", padding: "8px 14px" }}>
+                      {loadingP2pWan ? "..." : "CONECTAR"}
+                    </Btn>
+                  </div>
+                  {p2pWanStatus && <StatusText $color="#f0f" style={{ fontSize: "0.6rem", marginTop: 4 }}>{p2pWanStatus}</StatusText>}
+                  <Btn onClick={() => { setP2pWanHostPublic(""); setP2pWanGuestInput(""); setP2pStatus(""); setJoinMode(null); setIsP2pSala(false); }} $accent="#555" $bg="transparent" style={{ marginTop: 8, padding: "6px", fontSize: "0.5rem" }}>
+                    VOLVER
+                  </Btn>
+                </div>
+              ) : (
                       <Row style={{ maxWidth: 480, margin: "0 auto" }}>
                         <SalaButton disabled={bootstrapLoading} onClick={async () => {
                           setBootstrapLoading(true);
@@ -1102,27 +1082,33 @@ function App() {
                   </Section>
                 </>
               ) : joinMode === "create" ? (
-                isP2pSala && p2pWanHostPublic && p2pWanHostPublic !== "___MANUAL___" ? (
+                isP2pSala ? (
                   <div style={{ textAlign: "center", marginTop: 16 }}>
                     <p style={{ color: "#f0f", fontFamily: theme.fonts.arcade, fontSize: "0.65rem", marginBottom: 10 }}>
                       ▸ SALA P2P CREADA ◂
                     </p>
-                    <StatusText $color="#f0f" style={{ fontSize: "0.8rem", fontWeight: "bold" }}>
-                      🌐 IP Pública: {p2pWanHostPublic}
-                    </StatusText>
-                    {p2pWanLanAddr && (
-                      <StatusText $color="#66f" style={{ fontSize: "0.6rem" }}>
-                        🏠 IP LAN: {p2pWanLanAddr}
-                      </StatusText>
+                    {p2pWanHostPublic && p2pWanHostPublic !== "___MANUAL___" ? (
+                      <>
+                        <StatusText $color="#f0f" style={{ fontSize: "0.8rem", fontWeight: "bold" }}>
+                          🌐 IP Pública: {p2pWanHostPublic}
+                        </StatusText>
+                        {p2pWanLanAddr && (
+                          <StatusText $color="#66f" style={{ fontSize: "0.6rem" }}>
+                            🏠 IP LAN: {p2pWanLanAddr}
+                          </StatusText>
+                        )}
+                        <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 10 }}>
+                          <Btn onClick={() => { navigator.clipboard.writeText(p2pWanHostPublic); }} $accent="#f0f" $bg="#f0f022" style={{ fontSize: "0.55rem", padding: "8px 14px" }}>
+                            📋 COPIAR IP
+                          </Btn>
+                          <Btn onClick={handleP2pDisconnect} $accent="#f00" $bg="#500" style={{ fontSize: "0.55rem", padding: "8px 14px" }}>
+                            CERRAR SALA
+                          </Btn>
+                        </div>
+                      </>
+                    ) : (
+                      <StatusText $color="#f0f">Iniciando sala P2P...</StatusText>
                     )}
-                    <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 10 }}>
-                      <Btn onClick={() => { navigator.clipboard.writeText(p2pWanHostPublic); }} $accent="#f0f" $bg="#f0f022" style={{ fontSize: "0.55rem", padding: "8px 14px" }}>
-                        📋 COPIAR IP
-                      </Btn>
-                      <Btn onClick={handleP2pDisconnect} $accent="#f00" $bg="#500" style={{ fontSize: "0.55rem", padding: "8px 14px" }}>
-                        CERRAR SALA
-                      </Btn>
-                    </div>
                     {p2pWanStatus && <StatusText $color="#f0f" style={{ fontSize: "0.6rem", marginTop: 6 }}>{p2pWanStatus}</StatusText>}
                   </div>
                 ) : null
