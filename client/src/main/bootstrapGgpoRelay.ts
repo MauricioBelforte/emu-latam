@@ -52,15 +52,13 @@ function startBoreTunnel(localPort: number): Promise<string | null> {
   });
 }
 
-export async function handleBootstrapGgpoRelayHost(): Promise<any> {
+export async function handleBootstrapGgpoRelayHost(targetUdpPort: number = 6003): Promise<any> {
   try {
-    // 1. UDP relay: GGPO host (6003) envía datos aquí ↔ se reenvían por TCP
+    // 1. UDP relay: host emulator envía datos aquí ↔ se reenvían por TCP
     const udpRelay = dgram.createSocket("udp4");
     const relayPort = await new Promise<number>((resolve, reject) => {
       udpRelay.on("message", (msg) => {
-        // Data from GGPO host → forward to TCP clients
-        try { ggpoHostTcpServer?.connections; } catch {}
-        // We'll handle TCP forwarding via the tcpClients set below
+        // Data from host emulator → forward to TCP clients
       });
       udpRelay.on("error", reject);
       udpRelay.bind(0, "127.0.0.1", () => resolve(udpRelay.address().port));
@@ -73,10 +71,10 @@ export async function handleBootstrapGgpoRelayHost(): Promise<any> {
       socket.setNoDelay(true);
       tcpClients.add(socket);
 
-      // TCP from guest → reenviar a GGPO host
+      // TCP from guest → reenviar al emulador host (targetUdpPort)
       socket.on("data", (data) => {
         const tmp = dgram.createSocket("udp4");
-        tmp.send(data, 6003, "127.0.0.1", () => { try { tmp.close(); } catch {} });
+        tmp.send(data, targetUdpPort, "127.0.0.1", () => { try { tmp.close(); } catch {} });
       });
 
       socket.on("close", () => tcpClients.delete(socket));
@@ -93,14 +91,14 @@ export async function handleBootstrapGgpoRelayHost(): Promise<any> {
     });
     ggpoHostTcpServer = tcpServer;
 
-    // Wire UDP → TCP (data from GGPO host goes to TCP clients)
+    // Wire UDP → TCP (data from host emulator goes to TCP clients)
     udpRelay.on("message", (msg) => {
       for (const c of tcpClients) {
         if (c.writable) c.write(msg);
       }
     });
 
-    console.log(`[GGPO-RELAY] Host: UDP relay :${relayPort} ↔ TCP :${tcpPort} → bore`);
+    console.log(`[GGPO-RELAY] Host: UDP relay :${relayPort} → target :${targetUdpPort} ↔ TCP :${tcpPort} → bore`);
 
     // 3. Start bore tunnel for TCP port
     const boreUrl = await startBoreTunnel(tcpPort);
@@ -119,7 +117,7 @@ export async function handleBootstrapGgpoRelayHost(): Promise<any> {
   }
 }
 
-export async function handleBootstrapGgpoRelayGuest(forwarderUdpPort: number, boreUrl: string): Promise<any> {
+export async function handleBootstrapGgpoRelayGuest(forwarderUdpPort: number, boreUrl: string, targetUdpPort: number = 6004): Promise<any> {
   try {
     // 1. Connect TCP to bore endpoint
     const parts = boreUrl.split(":");
@@ -130,10 +128,10 @@ export async function handleBootstrapGgpoRelayGuest(forwarderUdpPort: number, bo
     tcpSocket.setNoDelay(true);
     ggpoGuestTcpSocket = tcpSocket;
 
-    // 2. Bridge: TCP from host → UDP to GGPO guest (6004)
+    // 2. Bridge: TCP from host → UDP to emulador guest (targetUdpPort)
     tcpSocket.on("data", (data) => {
       const tmp = dgram.createSocket("udp4");
-      tmp.send(data, 6004, "127.0.0.1", () => { try { tmp.close(); } catch {} });
+      tmp.send(data, targetUdpPort, "127.0.0.1", () => { try { tmp.close(); } catch {} });
     });
 
     tcpSocket.on("close", () => { cleanupGuest(); });

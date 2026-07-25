@@ -1051,12 +1051,12 @@ app.whenReady().then(() => {
     return handleBootstrapClose();
   });
 
-  ipcMain.handle("bootstrap-ggpo-relay-host", async (_e, { relayUdpPort }: { relayUdpPort: number }) => {
-    return handleBootstrapGgpoRelayHost(relayUdpPort);
+  ipcMain.handle("bootstrap-ggpo-relay-host", async (_e, { targetUdpPort }: { targetUdpPort: number }) => {
+    return handleBootstrapGgpoRelayHost(targetUdpPort);
   });
 
-  ipcMain.handle("bootstrap-ggpo-relay-guest", async (_e, { forwarderUdpPort, boreUrl }: { forwarderUdpPort: number; boreUrl: string }) => {
-    return handleBootstrapGgpoRelayGuest(forwarderUdpPort, boreUrl);
+  ipcMain.handle("bootstrap-ggpo-relay-guest", async (_e, { forwarderUdpPort, boreUrl, targetUdpPort }: { forwarderUdpPort: number; boreUrl: string; targetUdpPort?: number }) => {
+    return handleBootstrapGgpoRelayGuest(forwarderUdpPort, boreUrl, targetUdpPort);
   });
 
   ipcMain.handle("bootstrap-ggpo-relay-close", async () => {

@@ -176,7 +176,6 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
             ggpoForwarderPortRef.current = guestResult.forwarderPort || 0;
             await sendToLobby(CHALLENGE_ACCEPT_MSG_TYPE, { targetId: challengerId, acceptedBy: userId, acceptedByName: username, guestCandidate: guestResult.candidate });
           }
-          setTimeout(() => resetChallenge(), 5000);
           return;
         }
 
@@ -190,11 +189,17 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
 
         // RetroArch WAN mode
-        await sendToLobby(CHALLENGE_ACCEPT_MSG_TYPE, { targetId: challengerId, acceptedBy: userId, acceptedByName: username, guestCandidate: guestResult.candidate });
-        const confirmed = await nakamaService.waitForP2pConnectionConfirmed(userId || "", challengerId, 15000);
-        if (!confirmed) { alert("Timeout: el host no confirmó la conexión"); return; }
-        await (window as any).electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: false, directConnectIp: "127.0.0.1", connectPort: guestResult.forwarderPort || 55435 });
-        setTimeout(() => resetChallenge(), 5000);
+        if (currentChallenge?.isBootstrapChallenge) {
+          // Bootstrap: esperar connection_info con boreUrl (like GGPO)
+          await sendToLobby(CHALLENGE_ACCEPT_MSG_TYPE, { targetId: challengerId, acceptedBy: userId, acceptedByName: username, guestCandidate: guestResult.candidate });
+          ggpoForwarderPortRef.current = guestResult.forwarderPort || 55435;
+        } else {
+          await sendToLobby(CHALLENGE_ACCEPT_MSG_TYPE, { targetId: challengerId, acceptedBy: userId, acceptedByName: username, guestCandidate: guestResult.candidate });
+          const confirmed = await nakamaService.waitForP2pConnectionConfirmed(userId || "", challengerId, 15000);
+          if (!confirmed) { alert("Timeout: el host no confirmó la conexión"); return; }
+          await (window as any).electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: false, directConnectIp: "127.0.0.1", connectPort: guestResult.forwarderPort || 55435 });
+          setTimeout(() => resetChallenge(), 5000);
+        }
       } catch (e) {
         console.error("Error en p2p accept:", e); alert("Error conectando P2P");
       }
@@ -269,10 +274,10 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
 
                 if (currentChallenge?.isBootstrapChallenge) {
                   // Bootstrap WAN: iniciar relay TCP↔UDP + segundo bore
-                  const relayResult = await (window as any).electron.ipcRenderer.invoke("bootstrap-ggpo-relay-host", { relayUdpPort: regResult.relayPort });
+                  const relayResult = await (window as any).electron.ipcRenderer.invoke("bootstrap-ggpo-relay-host", { targetUdpPort: 6003 });
                   if (!relayResult.success) { alert("Error iniciando relay bootstrap: " + (relayResult.error || "desconocido")); resetChallenge(); return; }
                   await sendConnectionInfo(content.acceptedBy, {
-                    useBootstrapGgpoRelay: true, relayPort: regResult.relayPort,
+                    useBootstrapGgpoRelay: true, relayPort: relayResult.relayPort,
                     bootstrapBoreUrl: relayResult.boreUrl, hostName: username,
                   });
                 } else {
@@ -293,11 +298,25 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
           const guestCandidate = content.guestCandidate;
           const acceptedBy = content.acceptedBy;
           try {
-            await (window as any).electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: true });
-            if (guestCandidate) {
-              await (window as any).electron.ipcRenderer.invoke("p2p-host-register-guest", { guestCandidate });
-              if (acceptedBy) {
-                await nakamaService.publishP2pConnectionConfirmed(acceptedBy);
+            if (currentChallenge?.isBootstrapChallenge) {
+              // Bootstrap: relay TCP↔UDP + bore (como GGPO)
+              await (window as any).electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: true });
+              const relayResult = await (window as any).electron.ipcRenderer.invoke("bootstrap-ggpo-relay-host", { targetUdpPort: 55435 });
+              if (relayResult.success) {
+                await sendConnectionInfo(content.acceptedBy, {
+                  useBootstrapRetroarchRelay: true, relayPort: relayResult.relayPort,
+                  bootstrapBoreUrl: relayResult.boreUrl, hostName: username,
+                });
+              } else {
+                console.error("Error relay bootstrap RetroArch:", relayResult.error);
+              }
+            } else {
+              await (window as any).electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: true });
+              if (guestCandidate) {
+                await (window as any).electron.ipcRenderer.invoke("p2p-host-register-guest", { guestCandidate });
+                if (acceptedBy) {
+                  await nakamaService.publishP2pConnectionConfirmed(acceptedBy);
+                }
               }
             }
           } catch (e) {
@@ -363,7 +382,7 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
             if (!fwdPort) { alert("Error: forwarderPort no disponible"); resetChallenge(); return; }
             const electron = (window as any).electron;
             const bridgeResult = await electron.ipcRenderer.invoke("bootstrap-ggpo-relay-guest", {
-              forwarderUdpPort: fwdPort, boreUrl: content.bootstrapBoreUrl,
+              forwarderUdpPort: fwdPort, boreUrl: content.bootstrapBoreUrl, targetUdpPort: 6004,
             });
             if (!bridgeResult.success) { alert("Error conectando relay bootstrap: " + (bridgeResult.error || "desconocido")); resetChallenge(); return; }
             await electron.ipcRenderer.invoke("ggpo-launch", {
@@ -371,6 +390,16 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
             });
             const ipResult = await electron.ipcRenderer.invoke("get-lan-ip");
             await sendToLobby(CHALLENGE_GUEST_READY_MSG_TYPE, { targetId: content.senderId, guestIp: ipResult.ip || "127.0.0.1" });
+          } else if (content.useBootstrapRetroarchRelay) {
+            // Bootstrap WAN: RetroArch guest conecta bridge TCP ↔ forwarder
+            const fwdPort = ggpoForwarderPortRef.current;
+            if (!fwdPort) { alert("Error: forwarderPort no disponible para RetroArch"); resetChallenge(); return; }
+            const electron = (window as any).electron;
+            const bridgeResult = await electron.ipcRenderer.invoke("bootstrap-ggpo-relay-guest", {
+              forwarderUdpPort: fwdPort, boreUrl: content.bootstrapBoreUrl, targetUdpPort: 55435,
+            });
+            if (!bridgeResult.success) { alert("Error conectando relay: " + (bridgeResult.error || "")); resetChallenge(); return; }
+            await electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: false, directConnectIp: "127.0.0.1", connectPort: fwdPort });
           } else if (content.useGgpoRelay) {
             // WAN mode: GGPO guest conecta a forwarder local
             const fwdPort = ggpoForwarderPortRef.current;
