@@ -106,7 +106,7 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
     let hostCandidate: any = null;
     if (method === "p2p") {
       try {
-        const result = await (window as any).electron.ipcRenderer.invoke("p2p-host");
+        const result = await (window as any).electron.ipcRenderer.invoke(engine === "ggpo" ? "ggpo-p2p-host" : "p2p-host");
         if (!result.success) { alert("Error iniciando P2P: " + (result.error || "desconocido")); return; }
         hostCandidate = result.candidate;
       } catch (e) {
