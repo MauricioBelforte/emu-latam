@@ -74,6 +74,8 @@ export async function handleP2PHost(): Promise<any> {
 
   hostManager = { manager, token };
 
+  console.log(`[P2P-HOST] Started on port ${candidate?.publicPort}, local IPs: ${candidate?.privateIps?.join(',')}, public IP: ${candidate?.publicIp}`);
+
   return {
     success: true,
     token,
