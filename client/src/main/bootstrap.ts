@@ -2,6 +2,7 @@ import { spawn, execSync } from "child_process";
 import path from "path";
 import fs from "fs";
 import net from "net";
+import os from "os";
 import type { ChildProcess } from "child_process";
 
 const BORE_TIMEOUT_MS = 15000;
@@ -14,6 +15,7 @@ export interface HandlerResult {
   boreUrl?: string;
   error?: string;
   warning?: string;
+  lanIp?: string;
 }
 
 let nakamaBoreProcess: ChildProcess | null = null;
@@ -164,8 +166,20 @@ export async function handleBootstrapHost(): Promise<HandlerResult> {
     if (!roomCode) {
       return { success: true, boreUrl: boreResult.url, error: "No se pudo generar código de la URL: " + boreResult.url };
     }
-    console.log("[BOOTSTRAP] Conexión P2P activa:", { roomCode, boreUrl: boreResult.url });
-    return { success: true, roomCode, boreUrl: boreResult.url };
+    let lanIp = "";
+    try {
+      const interfaces = os.networkInterfaces();
+      for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name] || []) {
+          if (iface.family === "IPv4" && !iface.internal && name !== "Tailscale") {
+            lanIp = iface.address; break;
+          }
+        }
+        if (lanIp) break;
+      }
+    } catch {}
+    console.log("[BOOTSTRAP] Conexión P2P activa:", { roomCode, boreUrl: boreResult.url, lanIp });
+    return { success: true, roomCode, boreUrl: boreResult.url, lanIp };
   } catch (e: any) {
     return { success: false, error: "Error en bootstrap host: " + String(e) };
   }
@@ -189,30 +203,35 @@ function testTcpConnect(host: string, port: number, timeoutMs = 5000): Promise<s
   });
 }
 
-export async function handleBootstrapGuest(roomCode: string): Promise<HandlerResult> {
+export async function handleBootstrapGuest(roomCode: string, lanIp?: string): Promise<HandlerResult> {
   if (!roomCode || roomCode.trim().length < 3) {
     return { success: false, error: "Ingresá el código de sala numérico." };
   }
   try {
-    const boreUrl = boreUrlFromRoomCode(roomCode.trim());
-    if (!boreUrl) {
-      return { success: false, error: "Código inválido. Debe ser un número de puerto (ej: 28734)." };
-    }
-    let host = boreUrl;
-    let port = "7350";
-    if (boreUrl.includes(":")) {
-      const parts = boreUrl.split(":");
-      host = parts[0];
-      port = parts[1] || "7350";
+    let host = "bore.pub";
+    let port = roomCode.trim();
+    if (lanIp) {
+      host = lanIp;
+      port = "7350";
+    } else {
+      const boreUrl = boreUrlFromRoomCode(roomCode.trim());
+      if (!boreUrl) {
+        return { success: false, error: "Código inválido. Debe ser un número de puerto (ej: 28734)." };
+      }
+      if (boreUrl.includes(":")) {
+        const parts = boreUrl.split(":");
+        host = parts[0];
+        port = parts[1] || "7350";
+      }
     }
     const tcpErr = await testTcpConnect(host, parseInt(port, 10));
     setNakamaConfigRemote(host, port);
-    console.log("[BOOTSTRAP] Guest configurado para Nakama remoto:", { host, port });
+    console.log("[BOOTSTRAP] Guest configurado para Nakama:", { host, port, lanIp: !!lanIp });
     if (tcpErr) {
       console.warn("[BOOTSTRAP] TCP test falló (no bloqueante):", tcpErr);
-      return { success: true, boreUrl, warning: `${tcpErr}. La conexión Nakama puede fallar, pero se configuró igual. Probá presionar INSERT COIN.` };
+      return { success: true, boreUrl: `${host}:${port}`, warning: `${tcpErr}. La conexión Nakama puede fallar, pero se configuró igual. Probá presionar INSERT COIN.` };
     }
-    return { success: true, boreUrl };
+    return { success: true, boreUrl: `${host}:${port}` };
   } catch (e: any) {
     return { success: false, error: "Error en bootstrap guest: " + String(e) };
   }

@@ -1043,8 +1043,8 @@ app.whenReady().then(() => {
     return handleBootstrapHost();
   });
 
-  ipcMain.handle("bootstrap-guest", async (_e, { roomCode }: { roomCode: string }) => {
-    return handleBootstrapGuest(roomCode);
+  ipcMain.handle("bootstrap-guest", async (_e, { roomCode, lanIp }: { roomCode: string; lanIp?: string }) => {
+    return handleBootstrapGuest(roomCode, lanIp);
   });
 
   ipcMain.handle("bootstrap-close", async () => {

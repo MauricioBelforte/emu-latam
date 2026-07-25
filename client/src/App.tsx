@@ -240,6 +240,8 @@ function App() {
   const [bootstrapBoreUrl, setBootstrapBoreUrl] = useState("");
   const [bootstrapLoading, setBootstrapLoading] = useState(false);
   const [bootstrapRoomInput, setBootstrapRoomInput] = useState("");
+  const [bootstrapLanIp, setBootstrapLanIp] = useState("");
+  const [bootstrapGuestLanIp, setBootstrapGuestLanIp] = useState("");
 
   useEffect(() => {
     const electron = (window as any).electron;
@@ -903,6 +905,11 @@ function App() {
                         <StatusText $color="#888" style={{ fontSize: "0.5rem", marginBottom: 4 }}>
                           Compartí este número con tu amigo
                         </StatusText>
+                        {bootstrapLanIp && (
+                          <StatusText $color="#66f" style={{ fontSize: "0.5rem", marginBottom: 6, textAlign: "center" }}>
+                            Test local: guest usa IP <b>{bootstrapLanIp}</b> (misma red)
+                          </StatusText>
+                        )}
                         <Btn onClick={() => { navigator.clipboard.writeText(bootstrapRoomCode); }} $accent="#0f0" $bg="#0f022">
                           📋 COPIAR CÓDIGO
                         </Btn>
@@ -937,6 +944,7 @@ function App() {
                           if (result.success && result.roomCode) {
                             setBootstrapRoomCode(result.roomCode);
                             setBootstrapBoreUrl(result.boreUrl || "");
+                            setBootstrapLanIp(result.lanIp || "");
                             setBootstrapStatus("Conexión P2P activa — Compartí el código");
                             setIsBootstrapSala(true);
                             setIsP2pSala(false);
@@ -995,13 +1003,14 @@ function App() {
                     <Btn onClick={async () => {
                       setBootstrapLoading(true);
                       setBootstrapStatus("Conectando...");
-                      const result = await (window as any).electron.ipcRenderer.invoke("bootstrap-guest", { roomCode: bootstrapRoomInput.trim() });
+                      const result = await (window as any).electron.ipcRenderer.invoke("bootstrap-guest", { roomCode: bootstrapRoomInput.trim(), lanIp: bootstrapGuestLanIp.trim() || undefined });
                       setBootstrapLoading(false);
                       if (result.success) {
                         setBootstrapBoreUrl(result.boreUrl);
                         setIsBootstrapSala(true);
                         setJoinMode(null);
                         setBootstrapRoomInput("");
+                        setBootstrapGuestLanIp("");
                         setBootstrapStatus("");
                         const logged = await loginGhost();
                       } else {
@@ -1010,6 +1019,20 @@ function App() {
                     }} disabled={bootstrapLoading || !bootstrapRoomInput.trim()} $accent="#0f0" $bg="#0f022" style={{ padding: "8px 14px" }}>
                       {bootstrapLoading ? "..." : "CONECTAR"}
                     </Btn>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "center", marginTop: 6 }}>
+                    <input
+                      type="text"
+                      value={bootstrapGuestLanIp}
+                      onChange={(e) => setBootstrapGuestLanIp(e.target.value)}
+                      placeholder="IP local del host (opcional, misma red)"
+                      style={{
+                        width: 220, padding: "6px", borderRadius: 4, border: "1px solid #66f",
+                        background: "#111", color: "#66f", fontSize: "0.65rem",
+                        outline: "none", textAlign: "center",
+                        fontFamily: "monospace",
+                      }}
+                    />
                   </div>
                   {bootstrapStatus && (
                     <StatusText $color="#fa0" style={{ fontSize: "0.6rem", textAlign: "center", marginTop: 8 }}>
