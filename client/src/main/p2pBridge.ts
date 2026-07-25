@@ -2,6 +2,7 @@ import dgram from "dgram";
 import { P2PManager } from "../../../p2p-module/src/index";
 import { RETROARCH_PORT, PacketType } from "../../../p2p-module/src/protocol/types";
 import { encodePacket, decodePacket } from "../../../p2p-module/src/protocol/packet";
+import { tryMapPort, tryUnmapPort } from "./services/upnp";
 
 interface StoredManager {
   manager: P2PManager;
@@ -74,7 +75,13 @@ export async function handleP2PHost(): Promise<any> {
 
   hostManager = { manager, token };
 
-  console.log(`[P2P-HOST] Started on port ${candidate?.publicPort}, local IPs: ${candidate?.privateIps?.join(',')}, public IP: ${candidate?.publicIp}`);
+  // Intentar abrir puerto vía UPnP
+  let upnpOk = false;
+  if (candidate?.publicPort) {
+    upnpOk = await tryMapPort(candidate.publicPort, 'UDP', 'EmuLatam-P2P', 0);
+  }
+
+  console.log(`[P2P-HOST] Started on port ${candidate?.publicPort}, local IPs: ${candidate?.privateIps?.join(',')}, public IP: ${candidate?.publicIp}, UPnP: ${upnpOk ? 'OK' : 'FAIL'}`);
 
   return {
     success: true,
@@ -82,6 +89,7 @@ export async function handleP2PHost(): Promise<any> {
     status: manager.status,
     nat: manager.getNatInfo(),
     candidate,
+    upnpOk,
   };
 }
 
@@ -215,9 +223,13 @@ export function handleP2PDisconnect(): any {
     try { guestForwarder.close(); } catch {}
     guestForwarder = null;
   }
+  const portToClose = hostManager?.manager.getNatInfo()?.publicPort;
   if (hostManager) {
     try { hostManager.manager.disconnect(); } catch {}
     hostManager = null;
+  }
+  if (portToClose) {
+    tryUnmapPort(portToClose, 'UDP');
   }
   return { success: true };
 }

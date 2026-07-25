@@ -244,6 +244,7 @@ function App() {
   const [bootstrapGuestLanIp, setBootstrapGuestLanIp] = useState("");
   const [p2pWanHostPublic, setP2pWanHostPublic] = useState("");
   const [p2pWanLanAddr, setP2pWanLanAddr] = useState("");
+  const [p2pWanUpnp, setP2pWanUpnp] = useState<boolean | null>(null);
   const [p2pWanGuestInput, setP2pWanGuestInput] = useState("");
   const [p2pWanStatus, setP2pWanStatus] = useState("");
   const [loadingP2pWan, setLoadingP2pWan] = useState(false);
@@ -522,6 +523,7 @@ function App() {
     p2pDiscoveryRef.current = false;
     setP2pWanHostPublic("");
     setP2pWanLanAddr("");
+    setP2pWanUpnp(null);
     setP2pWanGuestInput("");
     setP2pWanStatus("");
     setP2pStatus("Desconectado");
@@ -924,6 +926,7 @@ function App() {
                           const realLan = lanIps.find((ip: string) => !ip.startsWith('100.'));
                           setP2pWanHostPublic(pub);
                           setP2pWanLanAddr(realLan ? `${realLan}:${hostResult.nat.publicPort}` : "");
+                          setP2pWanUpnp(hostResult.upnpOk === true);
                         }
                         // También broadcast + Nakama para compatibilidad LAN
                         await (window as any).electron.ipcRenderer.invoke("set-nakama-server", { host: "127.0.0.1", port: "7350" });
@@ -1307,6 +1310,15 @@ function App() {
                               🏠 IP LAN: {p2pWanLanAddr}
                             </StatusText>
                           )}
+                          {p2pWanUpnp === true ? (
+                            <StatusText $color="#0f0" style={{ fontSize: "0.5rem" }}>
+                              ✅ Puerto abierto vía UPnP — WAN accesible
+                            </StatusText>
+                          ) : p2pWanUpnp === false ? (
+                            <StatusText $color="#fa0" style={{ fontSize: "0.5rem" }}>
+                              ⚠️ UPnP no disponible. Si no funciona, usá Tailscale o Sala Pública (verde)
+                            </StatusText>
+                          ) : null}
                           <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 10 }}>
                             <Btn onClick={() => { navigator.clipboard.writeText(p2pWanHostPublic); }} $accent="#f0f" $bg="#f0f022" style={{ fontSize: "0.55rem", padding: "8px 14px" }}>
                               📋 COPIAR IP
