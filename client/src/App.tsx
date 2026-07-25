@@ -1108,6 +1108,11 @@ function App() {
                       <StatusText $color="#888" style={{ fontSize: "0.55rem", marginBottom: 4 }}>
                         Compartí este código con tu amigo
                       </StatusText>
+                      {bootstrapLanIp && (
+                        <StatusText $color="#66f" style={{ fontSize: "0.5rem", marginBottom: 6, textAlign: "center" }}>
+                          Test local (misma red): guest pone IP <b>{bootstrapLanIp}</b> en campo opcional
+                        </StatusText>
+                      )}
                       <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 6 }}>
                         <Btn onClick={() => { navigator.clipboard.writeText(bootstrapRoomCode); }} $accent="#0f0" $bg="#0f022" style={{ fontSize: "0.6rem" }}>
                           📋 COPIAR CÓDIGO
