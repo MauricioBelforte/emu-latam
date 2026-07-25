@@ -1261,11 +1261,34 @@ function App() {
                       </div>
                     </div>
                   ) : isP2pSala ? (
-                    <StatusText $color="#888" style={{ fontSize: "0.6rem" }}>
-                      {onlineUsers.filter(u => u.userId !== userId).length > 0
-                        ? `Jugadores: ${onlineUsers.filter(u => u.userId !== userId).map(u => u.username).join(", ")}`
-                        : "Esperando jugadores..."}
-                    </StatusText>
+                    <div style={{ textAlign: "center" }}>
+                      {p2pWanHostPublic && p2pWanHostPublic !== "___MANUAL___" ? (
+                        <>
+                          <StatusText $color="#f0f" style={{ fontSize: "0.8rem", fontWeight: "bold" }}>
+                            🌐 IP Pública: {p2pWanHostPublic}
+                          </StatusText>
+                          {p2pWanLanAddr && (
+                            <StatusText $color="#66f" style={{ fontSize: "0.6rem" }}>
+                              🏠 IP LAN: {p2pWanLanAddr}
+                            </StatusText>
+                          )}
+                          <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 10 }}>
+                            <Btn onClick={() => { navigator.clipboard.writeText(p2pWanHostPublic); }} $accent="#f0f" $bg="#f0f022" style={{ fontSize: "0.55rem", padding: "8px 14px" }}>
+                              📋 COPIAR IP
+                            </Btn>
+                            <Btn onClick={handleP2pDisconnect} $accent="#f00" $bg="#500" style={{ fontSize: "0.55rem", padding: "8px 14px" }}>
+                              CERRAR SALA
+                            </Btn>
+                          </div>
+                        </>
+                      ) : (
+                        <StatusText $color="#888" style={{ fontSize: "0.6rem" }}>
+                          {onlineUsers.filter(u => u.userId !== userId).length > 0
+                            ? `Jugadores: ${onlineUsers.filter(u => u.userId !== userId).map(u => u.username).join(", ")}`
+                            : "Esperando jugadores..."}
+                        </StatusText>
+                      )}
+                    </div>
                   ) : (
                     <>
                       <p style={{ color: "#fff", fontFamily: "monospace", fontSize: "1.5rem", background: "#000", padding: "12px 20px", borderRadius: 6, border: "2px solid #0af", display: "inline-block", marginBottom: 8, cursor: "pointer", userSelect: "text", letterSpacing: 2 }} onClick={handleCopyIp} title="Click para copiar">
