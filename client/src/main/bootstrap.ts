@@ -1,9 +1,12 @@
 import { spawn, execSync } from "child_process";
 import path from "path";
 import fs from "fs";
+import net from "net";
 import type { ChildProcess } from "child_process";
 
-const BORE_TIMEOUT_MS = 12000;
+const BORE_TIMEOUT_MS = 15000;
+const BORE_MAX_RETRIES = 3;
+const RETRY_DELAYS = [0, 3000, 5000];
 
 export interface HandlerResult {
   success: boolean;
@@ -26,6 +29,10 @@ function getNakamaConfigPath(): string {
 
 function getRelayDir(): string {
   return path.join(getProjectRoot(), "relay-server");
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 export function generateRoomCode(boreUrl: string): string {
@@ -57,7 +64,7 @@ export function restoreNakamaLocalhost(): void {
   }
 }
 
-export function startNakamaBore(): Promise<{ success: boolean; url?: string; error?: string }> {
+function spawnBoreOnce(): Promise<{ success: boolean; url?: string; error?: string }> {
   return new Promise((resolve) => {
     const borePath = path.join(getRelayDir(), "bore.exe");
     if (!fs.existsSync(borePath)) return resolve({ success: false, error: "bore.exe no encontrado en relay-server/" });
@@ -86,7 +93,7 @@ export function startNakamaBore(): Promise<{ success: boolean; url?: string; err
       if (!resolved) {
         resolved = true;
         if (nakamaBoreProcess) nakamaBoreProcess.kill();
-        resolve({ success: false, error: "Timeout esperando bore Nakama (12s). stderr: " + stderrLog });
+        resolve({ success: false, error: "Timeout esperando bore Nakama (15s). stderr: " + stderrLog });
       }
     }, BORE_TIMEOUT_MS);
 
@@ -118,6 +125,25 @@ export function startNakamaBore(): Promise<{ success: boolean; url?: string; err
   });
 }
 
+export async function startNakamaBore(): Promise<{ success: boolean; url?: string; error?: string }> {
+  let lastError = "";
+
+  for (let attempt = 0; attempt < BORE_MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      console.log(`[BOOTSTRAP] Reintentando bore (intento ${attempt + 1}/${BORE_MAX_RETRIES}) en ${RETRY_DELAYS[attempt]}ms...`);
+      await sleep(RETRY_DELAYS[attempt]);
+    }
+
+    const result = await spawnBoreOnce();
+    if (result.success) return result;
+
+    lastError = result.error || "Error desconocido";
+    console.log(`[BOOTSTRAP] Intento ${attempt + 1} falló: ${lastError}`);
+  }
+
+  return { success: false, error: `bore falló tras ${BORE_MAX_RETRIES} intentos. Último error: ${lastError}` };
+}
+
 export function stopNakamaBore(): void {
   if (nakamaBoreProcess) {
     try { nakamaBoreProcess.kill(); } catch {}
@@ -144,6 +170,24 @@ export async function handleBootstrapHost(): Promise<HandlerResult> {
   }
 }
 
+function testTcpConnect(host: string, port: number, timeoutMs = 5000): Promise<string | null> {
+  return new Promise((resolve) => {
+    const sock = new net.Socket();
+    let resolved = false;
+    const done = (err?: string) => {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(timer);
+      sock.destroy();
+      resolve(err || null);
+    };
+    const timer = setTimeout(() => done(`Timeout conectando a ${host}:${port} (${timeoutMs}ms)`), timeoutMs);
+    sock.on("connect", () => done());
+    sock.on("error", (e) => done(`No se puede alcanzar ${host}:${port} — ${e.message}`));
+    sock.connect(port, host);
+  });
+}
+
 export async function handleBootstrapGuest(roomCode: string): Promise<HandlerResult> {
   if (!roomCode || roomCode.trim().length < 3) {
     return { success: false, error: "Ingresá el código de sala numérico." };
@@ -159,6 +203,10 @@ export async function handleBootstrapGuest(roomCode: string): Promise<HandlerRes
       const parts = boreUrl.split(":");
       host = parts[0];
       port = parts[1] || "7350";
+    }
+    const tcpErr = await testTcpConnect(host, parseInt(port, 10));
+    if (tcpErr) {
+      return { success: false, error: tcpErr + ". Usá WiFi o Tailscale si estás en datos móviles." };
     }
     setNakamaConfigRemote(host, port);
     console.log("[BOOTSTRAP] Guest configurado para Nakama remoto:", { host, port });

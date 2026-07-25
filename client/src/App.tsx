@@ -926,11 +926,10 @@ function App() {
                       </div>
                     ) : (
                       <Row style={{ maxWidth: 480, margin: "0 auto" }}>
-                        <SalaButton onClick={async () => {
+                        <SalaButton disabled={bootstrapLoading} onClick={async () => {
                           setBootstrapLoading(true);
                           setBootstrapStatus("Iniciando conexión P2P...");
                           const result = await (window as any).electron.ipcRenderer.invoke("bootstrap-host");
-                          setBootstrapLoading(false);
                           if (result.success && result.roomCode) {
                             setBootstrapRoomCode(result.roomCode);
                             setBootstrapBoreUrl(result.boreUrl || "");
@@ -942,9 +941,11 @@ function App() {
                             await (window as any).electron.ipcRenderer.invoke("set-nakama-server", { host: "127.0.0.1", port: "7350" });
                             setNakamaHost("127.0.0.1"); setNakamaPort("7350");
                             await loginGhost();
+                            setBootstrapStatus("Sala P2P lista. Compartí el código.");
                           } else {
                             setBootstrapStatus("Error: " + (result.error || "desconocido"));
                           }
+                          setBootstrapLoading(false);
                         }} $accent="#0f0">
                           CREAR CONEXIÓN P2P
                           <span style={{ display: "block", fontSize: "0.5rem", opacity: 0.6, marginTop: 6, fontFamily: "Inter" }}>

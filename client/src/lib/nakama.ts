@@ -26,15 +26,25 @@ class NakamaService {
 
   async authenticateDevice(customId?: string): Promise<Session> {
     const deviceId = customId || `dev-${crypto.randomUUID()}-${window.location.port || "default"}`;
-    try {
-      const username = `Player ${Math.floor(Math.random() * 999) + 1}`;
-      this.session = await this.client.authenticateDevice(deviceId, true, username);
-      localStorage.setItem("nakama_session", JSON.stringify(this.session));
-      return this.session;
-    } catch (error) {
-      console.error("Error autenticando con Nakama:", error);
-      throw error;
+    const MAX_RETRIES = 5;
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        const shortId = crypto.randomUUID().slice(0, 6);
+        const username = `Player ${shortId}`;
+        this.session = await this.client.authenticateDevice(deviceId, true, username);
+        localStorage.setItem("nakama_session", JSON.stringify(this.session));
+        return this.session;
+      } catch (error: any) {
+        const is409 = error?.status === 409 || error?.response?.status === 409;
+        if (is409 && attempt < MAX_RETRIES - 1) {
+          console.warn(`[NAKAMA] 409 username collision, retry ${attempt + 1}/${MAX_RETRIES}`);
+          continue;
+        }
+        console.error("Error autenticando con Nakama:", error);
+        throw error;
+      }
     }
+    throw new Error("No se pudo autenticar tras varios intentos");
   }
 
   restoreSession(): boolean {
