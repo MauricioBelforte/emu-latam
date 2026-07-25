@@ -193,11 +193,9 @@ console.log("=".repeat(60));
 {
   const fs = require("fs");
   const source = fs.readFileSync("./src/App.tsx", "utf8");
-  assert(source.includes("handleBootstrapHost"), "Test 16: App.tsx tiene handleBootstrapHost");
-  assert(source.includes("handleBootstrapGuest"), "Test 16: App.tsx tiene handleBootstrapGuest");
-  assert(source.includes("handleBootstrapClose"), "Test 16: App.tsx tiene handleBootstrapClose");
-  assert(source.includes("bootstrapRoomCode"), "Test 16: App.tsx tiene bootstrapRoomCode");
-  assert(source.includes("ABRIR SALA PÚBLICA"), "Test 16: App.tsx tiene botón ABRIR SALA PÚBLICA");
+  assert(source.includes("CONEXIÓN VÍA P2P"), "Test 16: App.tsx tiene CONEXIÓN VÍA P2P");
+  assert(source.includes("CREAR CONEXIÓN P2P"), "Test 16: App.tsx tiene CREAR CONEXIÓN P2P");
+  assert(source.includes("CONECTAR VÍA P2P"), "Test 16: App.tsx tiene CONECTAR VÍA P2P");
 }
 
 // Test 17: Verificar ipcChannels.ts tiene los nuevos canales

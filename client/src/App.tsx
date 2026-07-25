@@ -867,8 +867,132 @@ function App() {
                     </Row>
                   </Section>
                   {p2pStatus && <StatusText $color="#f0f" style={{ fontSize: "0.65rem", textAlign: "center", marginTop: 4 }}>{p2pStatus}</StatusText>}
+
+                  {/* ─── CONEXIÓN VÍA P2P (propia, sin Tailscale) ─── */}
+                  <Section $accent="#0f0" style={{ borderStyle: "solid", borderWidth: 2, borderColor: "#0f08", padding: "16px" }}>
+                    <p style={{ color: "#0f0", fontFamily: theme.fonts.arcade, fontSize: "0.65rem", marginBottom: 10, textAlign: "center" }}>
+                      ▸ CONEXIÓN VÍA P2P (SIN TAILSCALE) ◂
+                    </p>
+                    {bootstrapRoomCode ? (
+                      <div style={{ textAlign: "center" }}>
+                        <StatusText $color="#0f0" style={{ fontSize: "1.4rem", fontWeight: "bold", textAlign: "center", margin: "8px 0" }}>
+                          CÓDIGO: {bootstrapRoomCode}
+                        </StatusText>
+                        <Btn onClick={() => { navigator.clipboard.writeText(bootstrapRoomCode); }} $accent="#0f0" $bg="#0f022">
+                          📋 COPIAR CÓDIGO
+                        </Btn>
+                        <Btn onClick={async () => {
+                          await handleBootstrapClose();
+                          setJoinMode(null);
+                        }} $accent="#f00" $bg="#500" style={{ marginTop: 8, fontSize: "0.5rem", padding: "6px" }}>
+                          CERRAR CONEXIÓN
+                        </Btn>
+                      </div>
+                    ) : bootstrapBoreUrl && !bootstrapRoomCode ? (
+                      <div style={{ textAlign: "center" }}>
+                        <StatusText $color="#fa0" style={{ marginBottom: 6 }}>
+                          ⚠️ {bootstrapStatus}
+                        </StatusText>
+                        <Btn onClick={() => { navigator.clipboard.writeText(bootstrapBoreUrl); }} $accent="#0f0" $bg="#0f022">
+                          📋 COPIAR URL
+                        </Btn>
+                        <Btn onClick={async () => {
+                          await handleBootstrapClose();
+                          setJoinMode(null);
+                        }} $accent="#f00" $bg="#500" style={{ marginTop: 6, fontSize: "0.5rem", padding: "6px" }}>
+                          CERRAR
+                        </Btn>
+                      </div>
+                    ) : (
+                      <Row style={{ maxWidth: 480, margin: "0 auto" }}>
+                        <SalaButton onClick={async () => {
+                          setBootstrapLoading(true);
+                          setBootstrapStatus("Iniciando conexión P2P...");
+                          const result = await (window as any).electron.ipcRenderer.invoke("bootstrap-host");
+                          setBootstrapLoading(false);
+                          if (result.success && result.roomCode) {
+                            setBootstrapRoomCode(result.roomCode);
+                            setBootstrapBoreUrl(result.boreUrl || "");
+                            setBootstrapStatus("Conexión P2P activa — Compartí el código");
+                            setJoinMode("create");
+                            setIsP2pSala(false);
+                            discoveryDoneRef.current = false;
+                            await (window as any).electron.ipcRenderer.invoke("set-nakama-server", { host: "127.0.0.1", port: "7350" });
+                            setNakamaHost("127.0.0.1"); setNakamaPort("7350");
+                            await loginGhost();
+                          } else if (result.success && !result.roomCode && result.boreUrl) {
+                            setBootstrapBoreUrl(result.boreUrl);
+                            setBootstrapStatus("⚠️ " + (result.error || "Usá la URL manualmente"));
+                          } else {
+                            setBootstrapStatus("Error: " + (result.error || "desconocido"));
+                          }
+                        }} $accent="#0f0">
+                          CREAR CONEXIÓN P2P
+                          <span style={{ display: "block", fontSize: "0.5rem", opacity: 0.6, marginTop: 6, fontFamily: "Inter" }}>
+                            Host: creá sala pública con código
+                          </span>
+                        </SalaButton>
+                        <SalaButton onClick={() => {
+                          setJoinMode("bootstrap");
+                          setBootstrapRoomInput("");
+                        }} $accent="#0f0">
+                          CONECTAR VÍA P2P
+                          <span style={{ display: "block", fontSize: "0.5rem", opacity: 0.6, marginTop: 6, fontFamily: "Inter" }}>
+                            Guest: ingresá código de 6 caracteres
+                          </span>
+                        </SalaButton>
+                      </Row>
+                    )}
+                    {bootstrapStatus && !bootstrapRoomCode && !bootstrapBoreUrl && (
+                      <StatusText $color={bootstrapStatus.startsWith("✅") ? "#0f0" : bootstrapStatus.startsWith("⚠️") ? "#fa0" : "#f88"} style={{ fontSize: "0.65rem", textAlign: "center", marginTop: 4 }}>
+                        {bootstrapStatus}
+                      </StatusText>
+                    )}
+                  </Section>
                 </>
-              ) : joinMode === "create" ? null : (
+              ) : joinMode === "create" ? null : joinMode === "bootstrap" ? (
+                <div style={{ marginTop: 16, width: "100%", maxWidth: 400 }}>
+                  <p style={{ color: "#0f0", fontFamily: "monospace", fontSize: "0.6rem", marginBottom: 8, textAlign: "center" }}>
+                    Ingresá el código de 6 caracteres que te dió el host
+                  </p>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "center" }}>
+                    <input
+                      type="text"
+                      value={bootstrapRoomInput}
+                      onChange={(e) => setBootstrapRoomInput(e.target.value.toUpperCase())}
+                      placeholder="Ej: A3BX6Z"
+                      style={{
+                        width: 140, padding: "8px", borderRadius: 4, border: "1px solid #0f0",
+                        background: "#111", color: "#0f0", fontSize: "0.8rem",
+                        outline: "none", textTransform: "uppercase", textAlign: "center",
+                        fontFamily: "monospace", letterSpacing: "3px",
+                      }}
+                    />
+                    <Btn onClick={async () => {
+                      setBootstrapLoading(true);
+                      const result = await (window as any).electron.ipcRenderer.invoke("bootstrap-guest", { roomCode: bootstrapRoomInput.trim() });
+                      setBootstrapLoading(false);
+                      if (result.success) {
+                        setBootstrapBoreUrl(result.boreUrl);
+                        const ok = await (window as any).electron.ipcRenderer.invoke("check-nakama-health");
+                        if (ok) {
+                          setNakamaReady(true);
+                          await loginGhost();
+                        } else {
+                          alert("Conectado al host, pero Nakama remoto no responde. Verificá el código.");
+                        }
+                      } else {
+                        alert("Error: " + (result.error || "desconocido"));
+                      }
+                    }} disabled={bootstrapLoading || !bootstrapRoomInput.trim()} $accent="#0f0" $bg="#0f022" style={{ padding: "8px 14px" }}>
+                      {bootstrapLoading ? "..." : "CONECTAR"}
+                    </Btn>
+                  </div>
+                  <Btn onClick={() => setJoinMode(null)} $accent="#555" $bg="transparent" style={{ marginTop: 8, padding: "6px", fontSize: "0.5rem" }}>
+                    VOLVER
+                  </Btn>
+                </div>
+              ) : (
                 <div style={{ marginTop: 16, width: "100%", maxWidth: 400 }}>
                   <p style={{ color: "#888", fontFamily: "monospace", fontSize: "0.6rem", marginBottom: 8, textAlign: "center" }}>
                     {isP2pSala ? "Ingresá la IP del host (amigo que creó la sala)" : "Ingresá la IP y puerto de la sala a la que querés conectarte"}
@@ -1108,70 +1232,6 @@ function App() {
                         DESCONECTAR P2P
                       </Btn>
                     </>
-                  )}
-                </Section>
-
-                {/* ───── MODO SALA PÚBLICA WAN (Módulo 20) ───── */}
-                <Section $accent="#0f0">
-                  <SectionHeader $color="#0f0">
-                    <Badge $bg="#0f0">WAN</Badge> MODO SALA PÚBLICA — BORROW + PASTE
-                  </SectionHeader>
-                  {bootstrapRoomCode ? (
-                    <>
-                      <StatusText $color="#0f0" style={{ fontSize: "1.4rem", fontWeight: "bold", textAlign: "center", margin: "8px 0" }}>
-                        CÓDIGO: {bootstrapRoomCode}
-                      </StatusText>
-                      <Btn onClick={() => { navigator.clipboard.writeText(bootstrapRoomCode); }} $accent="#0f0" $bg="#0f022">
-                        📋 COPIAR CÓDIGO
-                      </Btn>
-                      {bootstrapBoreUrl && (
-                        <StatusText $color="#888" style={{ fontSize: "0.5rem", marginTop: 4 }}>
-                          URL: {bootstrapBoreUrl}
-                        </StatusText>
-                      )}
-                      <Btn onClick={handleBootstrapClose} $accent="#f00" $bg="#500" style={{ marginTop: 8, fontSize: "0.5rem", padding: "6px" }}>
-                        CERRAR SALA
-                      </Btn>
-                    </>
-                  ) : bootstrapBoreUrl && !bootstrapRoomCode ? (
-                    <>
-                      <StatusText $color="#fa0" style={{ marginBottom: 6 }}>
-                        ⚠️ {bootstrapStatus}
-                      </StatusText>
-                      <Btn onClick={() => { navigator.clipboard.writeText(bootstrapBoreUrl); }} $accent="#0f0" $bg="#0f022">
-                        📋 COPIAR URL
-                      </Btn>
-                      <Btn onClick={handleBootstrapClose} $accent="#f00" $bg="#500" style={{ marginTop: 6, fontSize: "0.5rem", padding: "6px" }}>
-                        CERRAR SALA
-                      </Btn>
-                    </>
-                  ) : (
-                    <>
-                      <Btn onClick={handleBootstrapHost} disabled={bootstrapLoading} $loading={bootstrapLoading} $accent="#0f0" $bg={bootstrapLoading ? "#0f022" : "transparent"}>
-                        {bootstrapLoading ? "INICIANDO..." : "ABRIR SALA PÚBLICA"}
-                      </Btn>
-                      <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center" }}>
-                        <input
-                          type="text"
-                          value={bootstrapRoomInput}
-                          onChange={(e) => setBootstrapRoomInput(e.target.value)}
-                          placeholder="Código de 6 caracteres"
-                          style={{
-                            flex: 1, padding: "8px", borderRadius: 4, border: "1px solid #0f0",
-                            background: "#111", color: "#0f0", fontSize: "0.7rem",
-                            outline: "none", textTransform: "uppercase",
-                          }}
-                        />
-                        <Btn onClick={handleBootstrapGuest} disabled={bootstrapLoading || !bootstrapRoomInput.trim()} $accent="#0f0" $bg="#0f022" style={{ padding: "8px 12px" }}>
-                          {bootstrapLoading ? "..." : "CONECTAR"}
-                        </Btn>
-                      </div>
-                    </>
-                  )}
-                  {bootstrapStatus && !bootstrapRoomCode && (
-                    <StatusText $color={bootstrapStatus.startsWith("✅") ? "#0f0" : bootstrapStatus.startsWith("⚠️") ? "#fa0" : "#f88"} style={{ marginTop: 6, fontSize: "0.5rem" }}>
-                      {bootstrapStatus}
-                    </StatusText>
                   )}
                 </Section>
 
