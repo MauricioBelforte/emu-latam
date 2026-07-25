@@ -97,6 +97,28 @@ Modo LAN (misma subred): salta forwarder, conecta directo a hostLanIp:55435
 - Si solo hay IP Tailscale, la usa como fallback
 - Usado por: discovery.ts (broadcast), startPortForwarder (forwarder target)
 
+## Arquitectura de Botones (3 niveles, NO agregar botones externos)
+
+La UI de conexión tiene 3 niveles. Los 6 botones del nivel 1 son el único filtro de entrada. Cualquier nueva funcionalidad debe integrarse DENTRO de ellos.
+
+### Nivel 1 — 6 botones de entrada (primer filtro)
+Visibles cuando no hay sesión activa:
+1. **INSERT COIN** → login ghost
+2. **HOST DIRECTO (sin bore)** → RetroArch host directo
+3. **JOIN DIRECTO** → RetroArch guest, input IP manual
+4. **SALA TAILSCALE** → CREAR SALA / UNIRSE
+5. **SALA P2P (SIN TERCEROS)** → P2P propio (broadcast LAN + WAN manual + Nakama)
+6. **CONEXIÓN VÍA P2P** → Bootstrap público (verde)
+
+### Nivel 2 — Toggle RetroArch (dentro del flujo)
+Si la conexión lo requiere, toggle para elegir engine.
+
+### Nivel 3 — Sistema de Retos
+ChallengeModal muestra el método (Tailscale, P2P, etc.) y maneja la conexión.
+
+### Regla
+No crear nuevos botones en nivel 1. Integrar dentro de los 6 existentes.
+
 ## Cleanup de Servidores
 - `proxyServers[]`: Se limpia cuando el GUEST RA cierra (`stopAllProxies()`)
 - `forwarderServers[]`: Se limpia cuando el HOST RA cierra (`stopAllForwarders()`)
