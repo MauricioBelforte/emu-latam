@@ -148,12 +148,23 @@ export async function handleBootstrapGgpoRelayGuest(forwarderUdpPort: number, bo
     udpForwarder.on("message", (msg) => {
       if (tcpSocket.writable) tcpSocket.write(msg);
     });
-    udpForwarder.bind(forwarderUdpPort, "127.0.0.1");
+    const actualFwdPort = await new Promise<number>((resolve, reject) => {
+      const tryBind = (port: number) => {
+        udpForwarder.once("error", (err: Error) => {
+          if (port !== 0) { tryBind(0); } else { reject(err); }
+        });
+        udpForwarder.bind(port, "127.0.0.1", () => {
+          udpForwarder.removeAllListeners("error");
+          resolve(udpForwarder.address().port);
+        });
+      };
+      tryBind(forwarderUdpPort);
+    });
     ggpoGuestUdpForwarder = udpForwarder;
 
-    console.log(`[GGPO-RELAY] Guest: TCP connected to ${boreUrl}, UDP forwarder :${forwarderUdpPort} → TCP`);
+    console.log(`[GGPO-RELAY] Guest: TCP connected to ${boreUrl}, UDP forwarder :${actualFwdPort} → TCP`);
 
-    return { success: true };
+    return { success: true, forwarderUdpPort: actualFwdPort };
   } catch (e: any) {
     console.error("[GGPO-RELAY] Guest error:", e);
     cleanupGuest();

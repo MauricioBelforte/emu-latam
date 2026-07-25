@@ -276,6 +276,7 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
                   // Bootstrap WAN: iniciar relay TCP↔UDP + segundo bore
                   const relayResult = await (window as any).electron.ipcRenderer.invoke("bootstrap-ggpo-relay-host", { targetUdpPort: 6003 });
                   if (!relayResult.success) { alert("Error iniciando relay bootstrap: " + (relayResult.error || "desconocido")); resetChallenge(); return; }
+                  ggpoRelayPortRef.current = relayResult.relayPort;
                   await sendConnectionInfo(content.acceptedBy, {
                     useBootstrapGgpoRelay: true, relayPort: relayResult.relayPort,
                     bootstrapBoreUrl: relayResult.boreUrl, hostName: username,
@@ -287,10 +288,7 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
                 console.error("Error en P2P GGPO WAN host:", e); resetChallenge();
               }
             }
-            setTimeout(() => {
-              if (currentChallenge?.isBootstrapChallenge) (window as any).electron.ipcRenderer.invoke("bootstrap-ggpo-relay-close");
-              resetChallenge();
-            }, 5000);
+            setTimeout(() => resetChallenge(), 5000);
             return;
           }
 
@@ -378,28 +376,26 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
         try {
           if (content.useBootstrapGgpoRelay) {
             // Bootstrap WAN: conectar TCP bridge + bore antes de lanzar GGPO
-            const fwdPort = ggpoForwarderPortRef.current;
-            if (!fwdPort) { alert("Error: forwarderPort no disponible"); resetChallenge(); return; }
             const electron = (window as any).electron;
             const bridgeResult = await electron.ipcRenderer.invoke("bootstrap-ggpo-relay-guest", {
-              forwarderUdpPort: fwdPort, boreUrl: content.bootstrapBoreUrl, targetUdpPort: 6004,
+              forwarderUdpPort: 0, boreUrl: content.bootstrapBoreUrl, targetUdpPort: 6004,
             });
             if (!bridgeResult.success) { alert("Error conectando relay bootstrap: " + (bridgeResult.error || "desconocido")); resetChallenge(); return; }
+            const actualFwdPort = bridgeResult.forwarderUdpPort || 0;
             await electron.ipcRenderer.invoke("ggpo-launch", {
-              rom: "kof98", localPort: 6004, remoteIp: "127.0.0.1", remotePort: fwdPort, playerNumber: 1,
+              rom: "kof98", localPort: 6004, remoteIp: "127.0.0.1", remotePort: actualFwdPort, playerNumber: 1,
             });
             const ipResult = await electron.ipcRenderer.invoke("get-lan-ip");
             await sendToLobby(CHALLENGE_GUEST_READY_MSG_TYPE, { targetId: content.senderId, guestIp: ipResult.ip || "127.0.0.1" });
           } else if (content.useBootstrapRetroarchRelay) {
             // Bootstrap WAN: RetroArch guest conecta bridge TCP ↔ forwarder
-            const fwdPort = ggpoForwarderPortRef.current;
-            if (!fwdPort) { alert("Error: forwarderPort no disponible para RetroArch"); resetChallenge(); return; }
             const electron = (window as any).electron;
             const bridgeResult = await electron.ipcRenderer.invoke("bootstrap-ggpo-relay-guest", {
-              forwarderUdpPort: fwdPort, boreUrl: content.bootstrapBoreUrl, targetUdpPort: 55435,
+              forwarderUdpPort: 0, boreUrl: content.bootstrapBoreUrl, targetUdpPort: 55435,
             });
             if (!bridgeResult.success) { alert("Error conectando relay: " + (bridgeResult.error || "")); resetChallenge(); return; }
-            await electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: false, directConnectIp: "127.0.0.1", connectPort: fwdPort });
+            const actualFwdPort = bridgeResult.forwarderUdpPort || 0;
+            await electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: false, directConnectIp: "127.0.0.1", connectPort: actualFwdPort });
           } else if (content.useGgpoRelay) {
             // WAN mode: GGPO guest conecta a forwarder local
             const fwdPort = ggpoForwarderPortRef.current;
@@ -445,7 +441,6 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
       // 2c. GUEST READY (host receives guest's IP, launches GGPO)
       if (content._type === CHALLENGE_GUEST_READY_MSG_TYPE && engine === "ggpo") {
         const relayPort = ggpoRelayPortRef.current;
-        const isBootstrap = currentChallenge?.isBootstrapChallenge;
         try {
           const electron = (window as any).electron;
           if (relayPort > 0) {
@@ -453,9 +448,6 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
             await electron.ipcRenderer.invoke("ggpo-launch", {
               rom: "kof98", localPort: 6003, remoteIp: "127.0.0.1", remotePort: relayPort, playerNumber: 0,
             });
-            if (isBootstrap) {
-              await electron.ipcRenderer.invoke("bootstrap-ggpo-relay-close");
-            }
           } else {
             // LAN mode: conectar directo al guest
             const guestIp = content.guestIp;

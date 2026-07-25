@@ -1,71 +1,29 @@
-# Requerimientos - Reestructuración UI de Conexión
+# Requerimientos - Reestructuración UI de Conexión (PLAN ACTUAL)
 
 ## Problema
 
-La pantalla principal de Emu Latam tiene **6 botones** de conexión divididos en 3 secciones de colores distintos:
+La pantalla principal tiene 6 botones en 3 secciones redundantes. Además, el flujo verde "CONEXIÓN VÍA P2P" (bootstrap) **no funciona correctamente para la pelea** — GGPO se queda en "connecting..." y RetroArch da error de red. Esto se debe a que el P2P module usa UDP hole-punching que falla entre NATs estrictos en WAN, y el relay TCP↔UDP con segundo bore (implementado en el módulo 20) está sin probar end-to-end.
 
-1. **Sala Tailscale** (cyan/primary): CREAR SALA + UNIRSE A SALA
-2. **Sala P2P (sin terceros)** (fucsia #f0f): CREAR SALA P2P + UNIRSE A SALA P2P
-3. **Conexión vía P2P (sin Tailscale)** (verde #0f0): CREAR CONEXIÓN P2P + CONECTAR VÍA P2P
+## Objetivo (en 2 fases)
 
-Además, una vez conectado, hay una sección colapsable "OTROS MÉTODOS DE CONEXIÓN" con 5 secciones más:
-- Modo Tailscale (P2P directo)
-- Modo Directo (LAN)
-- Modo Bore (túnel)
-- Modo P2P Propio (hole punching)
-- Modo Debug
+### Fase A (Prioritaria): Hacer que el flujo verde funcione
+- Debuggear y corregir el relay TCP↔UDP + segundo túnel bore para GGPO/RetroArch en WAN
+- Probar end-to-end: host crea conexión verde, guest ingresa código, host envía reto por P2P, la pelea se conecta
+- Documentar el estado actual de cada componente
 
-Y el **MethodPicker** (modal de retos) lista 4 métodos:
-- P2P Automático (#f0f)
-- Tailscale (P2P) (#00f3ff)
-- Bore (Túnel) (#0af)
-- LAN Directo (#0f0)
+### Fase B: Simplificar la UI
+- Unificar el botón fucsia "SALA P2P" y el verde "CONEXIÓN VÍA P2P" en una sola sección "SALA P2P" (verde)
+- Pantalla principal: 4 botones (Tailscale crear/unirse, P2P crear/unirse)
+- MethodPicker dinámico según `salaType` + `engine`
+- Eliminar la sección colapsable "OTROS MÉTODOS DE CONEXIÓN"
+- Mantener la funcionalidad completa, solo reorganizar visualmente
 
-**Resultado:** La interfaz es confusa, tiene redundancia, y el usuario no sabe qué botón presionar.
+### Excluido de Fase B
+- No se crean nuevas funcionalidades
+- No se modifican IPC handlers del main process
+- No se modifica el p2p-module
+- El toggle GGPO/RetroArch sigue igual
 
-## Objetivo
+## Priorización
 
-Reestructurar la UI para que:
-
-1. **La pantalla principal tenga solo 4 botones**, organizados en 2 secciones:
-   - **SALA TAILSCALE:** CREAR SALA + UNIRSE A SALA (para jugadores que ambos tienen Tailscale)
-   - **SALA P2P:** CREAR SALA + UNIRSE A SALA (para jugadores que NO tienen Tailscale — usa bore/código para "verse" en Nakama)
-
-2. **La detección de LAN vs WAN sea automática** — no necesita botones separados. Si ambos están en la misma red, se detecta y se conecta directo.
-
-3. **El toggle RETROARCH/GGPO** sea el que determina cómo se conecta la pelea una vez aceptado el reto.
-
-4. **El MethodPicker** (modal de retos) se adapte dinámicamente según:
-   - Si se creó sala con Tailscale o con P2P
-   - Si el toggle está en GGPO o RetroArch
-
-## Alcance
-
-### Incluido
-- Refactorización de la pantalla principal (pre-autenticación)
-- Refactorización del MethodPicker y ChallengeModal
-- Lógica de auto-detección LAN/WAN
-- Adaptación del MethodPicker según contexto (Tailscale vs P2P, GGPO vs RetroArch)
-- Remoción de la sección "OTROS MÉTODOS DE CONEXIÓN" colapsable
-- Unificación visual (2 colores principales: cyan para Tailscale, verde para P2P)
-
-### Excluido
-- Cambios en el Main Process de Electron (los IPC handlers se mantienen)
-- Cambios en el p2p-module
-- Cambios en el backend de Nakama
-- Nuevas funcionalidades (solo reorganización de las existentes)
-
-## Restricciones
-
-1. **NO tocar los IPC handlers** que ya funcionan (`launch-game`, `tailscale-host`, `p2p-host`, `bootstrap-host`, etc.)
-2. **NO romper los flujos estables** documentados en AGENTS.md sección 15
-3. **Mantener compatibilidad** con el engine toggle (GGPO/RetroArch)
-4. **El toggle GGPO/RetroArch** debe seguir visible y funcional después de autenticarse
-5. **Mantener la sidebar** con jugadores y el sistema de retos intacto
-6. **No eliminar funcionalidades existentes**, solo reorganizar cómo se accede a ellas
-
-## Definiciones
-
-- **"Sala"** = Conexión al servidor Nakama (donde los jugadores se "ven" y chatean). No es la pelea.
-- **"Pelea"** = La partida de RetroArch o FBNeo/GGPO que se inicia después de aceptar un reto.
-- **"Método de conexión de pelea"** = Cómo se transmiten los inputs (Tailscale IP directa, Bore túnel, P2P hole-punching, LAN directo).
+Fase A > Fase B. No tiene sentido simplificar la UI si el flujo subyacente no funciona.

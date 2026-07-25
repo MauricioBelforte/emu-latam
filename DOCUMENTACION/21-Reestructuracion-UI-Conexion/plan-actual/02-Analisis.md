@@ -1,119 +1,92 @@
-# Análisis - Reestructuración UI de Conexión
+# Análisis - Reestructuración UI de Conexión (PLAN ACTUAL)
 
-## Estado Actual
+## Estado Actual del Sistema
 
-### Pantalla Principal (pre-autenticación) — App.tsx L793-L971
+### Flujos que funcionan (AGENTS.md §15 - NO TOCAR)
+| Flujo | Descripción |
+|-------|-------------|
+| Host directo (sin bore) | RetroArch local, funcional |
+| Host con bore manual | RetroArch + forwarder + proxy + bore, funcional |
+| Join directo (lee relay file) | Guest se conecta a host, funcional |
+| Tailscale + GGPO | Ambos con Tailscale, funcional |
+| Tailscale + RetroArch | Ambos con Tailscale, funcional |
 
-La pantalla muestra 3 secciones con 6 botones cuando `joinMode === null`:
+### Flujos que NO funcionan en WAN
 
-| Sección | Color | Botones | Función Real |
-|---------|-------|---------|-------------|
-| SALA TAILSCALE | #00f3ff (cyan) | CREAR SALA + UNIRSE A SALA | Conecta a Nakama localhost (crear) o a IP remota vía Tailscale (unirse) |
-| SALA P2P (SIN TERCEROS) | #f0f (fucsia) | CREAR SALA P2P + UNIRSE A SALA P2P | Igual que Tailscale pero con broadcast UDP en LAN para descubrimiento |
-| CONEXIÓN VÍA P2P (SIN TAILSCALE) | #0f0 (verde) | CREAR CONEXIÓN P2P + CONECTAR VÍA P2P | Bootstrap via bore.pub + paste service (código numérico de sala) |
+| Flujo | Problema |
+|-------|----------|
+| Bootstrap verde + GGPO P2P | El P2P module hace UDP hole-punching. En WAN con NATs estrictos, falla. GGPO se queda en "connecting..." |
+| Bootstrap verde + RetroArch P2P | Mismo problema: el P2P transport no puede establecer conexión entre NATs distintos |
+| Bootstrap verde + RetroArch (no P2P) | Los otros métodos (LAN, bore, tailscale) no aplican porque la sala ya está creada con bootstrap |
 
-### Post-autenticación — App.tsx L1063-L1315
+### Causa Raíz
 
-Una vez dentro de la sala, se muestra:
-- Info de la sala (IP, código, jugadores)
-- **GgpoToggle** (RETROARCH ↔ GGPO)
-- Sección colapsable "OTROS MÉTODOS DE CONEXIÓN" con 5 sub-secciones
+El P2P module (`p2p-module/`) fue diseñado para hacer hole-punching UDP directo entre peers. Funciona en LAN (misma subred, detectado por `anySameSubnet()`), pero en WAN real entre NATs estrictos el hole-punching falla porque no hay un relay server en la nube.
 
-### Problemas Identificados
+#### Solución intentada (Módulo 20 - bootstrapGgpoRelay.ts)
 
-1. **Redundancia:** "SALA P2P" (fucsia) y "CONEXIÓN VÍA P2P" (verde) hacen cosas similares pero el usuario no sabe la diferencia.
-2. **Confusión semántica:** "Sala P2P" suena como P2P pero es solo descubrimiento LAN. "Conexión P2P" suena igual pero usa bore.
-3. **Demasiados métodos post-conexión:** LAN, Tailscale, Bore, P2P Propio, Debug... el usuario promedio no necesita elegir manualmente.
-4. **Duplicación de código:** Handlers similares para funciones parecidas.
-5. **El MethodPicker no considera el contexto:** Siempre muestra 4 opciones sin importar cómo se conectó.
-
-## Estado Deseado
-
-### Pantalla Principal: 4 Botones en 2 Secciones
+Se implementó un relay TCP↔UDP que usa un **segundo túnel bore** para transportar datos de GGPO/RetroArch:
 
 ```
-┌──────────────────────────────────────────────────┐
-│              READY TO FIGHT?                      │
-│           EMU LATAM v2.0 — RETROARCH NETPLAY      │
-│                                                    │
-│  ┌─ SALA TAILSCALE ─────────────────────────────┐ │
-│  │  [CREAR SALA]        [UNIRSE A SALA]          │ │
-│  │  Ambos necesitan      Conectate a la sala     │ │
-│  │  Tailscale instalado  de un amigo             │ │
-│  └──────────────────────────────────────────────┘ │
-│                                                    │
-│  ┌─ SALA P2P ───────────────────────────────────┐ │
-│  │  [CREAR SALA]        [UNIRSE A SALA]          │ │
-│  │  Creá tu sala y       Ingresá el código       │ │
-│  │  compartí el código   que te dió tu amigo     │ │
-│  └──────────────────────────────────────────────┘ │
-│                                                    │
-└──────────────────────────────────────────────────┘
+GGPO guest → UDP forwarder → TCP bridge → bore TCP → TCP host bridge → UDP relay → GGPO host
 ```
 
-### Lógica de "SALA P2P"
+**Estado actual:** Implementado pero no verificado end-to-end. Problemas potenciales:
 
-**CREAR SALA P2P:**
-1. Inicia Nakama en localhost
-2. Inicia bootstrap-host (bore + paste) → genera código numérico
-3. Simultáneamente, inicia p2p-start-broadcast para LAN
-4. Muestra el código al usuario
-5. LoginGhost automático
+1. **Segundo bore puede fallar** si ya hay un bore corriendo (conflicto de procesos)
+2. **Latencia TCP extra** puede ser demasiado alta para GGPO (tiempo real)
+3. **El forwarder UDP del guest** puede no estar correctamente conectado al bridge TCP
+4. **El relay UDP del host** puede estar mal enrutado al puerto 6003 de GGPO
 
-**UNIRSE A SALA P2P:**
-1. Primero intenta auto-descubrimiento LAN (p2p-discover-host, 4 segundos)
-2. Si encuentra sala LAN → conecta automático (como la sala P2P fucsia actual)
-3. Si NO encuentra → pide código numérico (como la conexión verde actual)
-4. Resuelve el código → conecta a Nakama remoto vía bore
-5. LoginGhost automático
+## Alternativas para la Fase A
 
-### Auto-detección LAN/WAN (para la pelea)
+### Alternativa A1: Debuggear y arreglar bootstrapGgpoRelay.ts
+- **Pros:** Ya está implementado, solo necesita debug
+- **Contras:** Latencia TCP extra, complejidad de mantenimiento
+- **Veredicto:** Intentar primero, es lo más rápido
 
-Cuando se acepta un reto, el sistema detecta automáticamente:
-- **LAN:** Si ambos están en la misma subred (IPs 192.168.x.x iguales en primeros 3 octetos) → conexión directa
-- **WAN con Tailscale:** Si la sala es Tailscale → usa IP Tailscale directa
-- **WAN sin Tailscale:** Si la sala es P2P → usa P2P hole punching + relay fallback
+### Alternativa A2: Usar el mismo túnel bore de Nakama para datos
+- Mandar datos de juego a través del WebSocket de Nakama
+- **Pros:** No necesita segundo bore, más simple
+- **Contras:** Nakama usa WebSocket/TCP, latencia muy alta para GGPO
+- **Veredicto:** Inviable para GGPO, tal vez para RetroArch
 
-### MethodPicker Dinámico
+### Alternativa A3: Relay server en Fly.io (cloud)
+- **Pros:** Latencia UDP real, robusto
+- **Contras:** Requiere deploy externo, costo, mantenimiento
+- **Veredicto:** Para después, no ahora
 
-El MethodPicker ya NO muestra todas las opciones. Se adapta así:
+### Alternativa A4: Simplificar — solo LAN + Tailscale
+- Quitar bootstrap WAN y requerir Tailscale o LAN para P2P
+- **Pros:** Elimina complejidad
+- **Contras:** Reduce funcionalidad, va contra el objetivo del proyecto
+- **Veredicto:** Descartado
 
-| Sala | Toggle | Métodos Disponibles |
-|------|--------|-------------------|
-| Tailscale | RetroArch | Tailscale (directo), LAN (auto-detectado) |
-| Tailscale | GGPO | Tailscale (directo) — GGPO solo funciona con IP directa |
-| P2P | RetroArch | P2P Automático (hole punch + relay), LAN (auto-detectado), Bore (túnel) |
-| P2P | GGPO | P2P Automático (hole punch + relay WAN), LAN (auto-detectado) |
+### Decisión Fase A
+Intentar **Alternativa A1** con debug sistemático:
+1. Verificar que `startGgpoBore()` no mate el primer bore de Nakama
+2. Verificar que el relay UDP del host reciba datos de GGPO
+3. Verificar que el bridge TCP del guest conecte correctamente al bore
+4. Probar con RetroArch primero (más tolerante a latencia), luego GGPO
 
-> **Nota:** Bore NO aparece con GGPO porque Bore es TCP y GGPO usa UDP.
+## Análisis para la Fase B (UI)
 
-## Decisiones de Diseño
+### Alternativa B1: Refactor masivo (plan inicial)
+- Cambiar TODOS los estados de golpe (`isP2pSala`, `isBootstrapSala` → `salaType`)
+- Reestructurar App.tsx completo
+- **Riesgo:** Alto de romper flujos estables
 
-### 1. Unificar fucsia + verde = verde
-- El verde (#0f0) se usa para "P2P" porque es el color del bootstrap (código numérico) que es la funcionalidad principal.
-- El broadcast LAN sigue funcionando pero es transparente al usuario.
+### Alternativa B2: Refactor incremental
+- **Paso 1:** Agregar `salaType` junto a los estados existentes (no reemplazar)
+- **Paso 2:** Cambiar la UI para que use `salaType` visualmente
+- **Paso 3:** Una vez verificado, eliminar `isP2pSala`/`isBootstrapSala`
+- **Riesgo:** Bajo, se puede hacer commit por commit
 
-### 2. No eliminar la sección colapsable completa
-- Mover "Modo Debug" a un lugar accesible (puede quedar como botón pequeño al fondo).
-- Los métodos manuales (Bore directo, LAN manual) desaparecen de la UI pero siguen funcionando como handlers IPC por si se necesitan.
+### Decisión Fase B
+**Alternativa B2** — refactor incremental, validando con tests después de cada cambio.
 
-### 3. El toggle GGPO/RetroArch sigue igual
-- Es una decisión del usuario, no del sistema.
-- Afecta qué métodos de pelea están disponibles en el MethodPicker.
+## Conclusión
 
-## Archivos Afectados
-
-| Archivo | Cambios |
-|---------|---------|
-| `client/src/App.tsx` | Refactorizar completamente la sección pre-autenticación y post-autenticación |
-| `client/src/components/ui/MethodPicker.tsx` | Hacer dinámico según contexto (sala tipo + engine) |
-| `client/src/components/ui/ChallengeModal.tsx` | Actualizar METHOD_META para reflejar nuevos métodos |
-| `client/src/context/ChallengeContext.tsx` | Ajustar selectMethod para auto-detectar LAN/WAN |
-| `client/src/ggpo/components/GgpoToggle.tsx` | Sin cambios (se mantiene igual) |
-| `client/src/ggpo/context/GgpoContext.tsx` | Sin cambios (se mantiene igual) |
-
-## Riesgos
-
-1. **Romper flujos estables:** El flujo de bore manual y host directo están blindados (AGENTS.md §15). No se deben modificar los handlers, solo la UI.
-2. **Regresión en retos:** El ChallengeContext es complejo (502 líneas). Cambios mal hechos pueden romper el flujo de retos.
-3. **Estado compartido excesivo:** App.tsx tiene ~40 estados. La refactorización debería reducirlos, no aumentarlos.
+1. Primero arreglar el data path (Fase A) — lo verde debe funcionar
+2. Luego simplificar la UI (Fase B) — unificar botones
+3. Cada paso con commit + test + verificación

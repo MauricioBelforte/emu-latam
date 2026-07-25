@@ -1,83 +1,81 @@
-# Checklist - Reestructuración UI de Conexión
+# Checklist - Reestructuración UI de Conexión (PLAN ACTUAL)
 
-## Fase 1: Preparación
+## Estado: PENDIENTE
 
-- [ ] Leer AGENTS.md completo
-- [ ] Leer documentación de este módulo (01-07)
-- [ ] Leer el mensaje en `Mensajes entre modelos/02-Reestructuracion-UI-Conexion/`
-- [ ] Hacer backup de App.tsx en `Obsoletos/`
-- [ ] Hacer backup de MethodPicker.tsx en `Obsoletos/`
-- [ ] Hacer backup de ChallengeModal.tsx en `Obsoletos/`
-- [ ] Hacer backup de ChallengeContext.tsx en `Obsoletos/`
+## Fase A: Debug del Data Path Bootstrap
 
-## Fase 2: Refactorizar Variables de Estado (App.tsx)
+### A.1 Verificar infraestructura
+- [ ] Verificar que `startBoreTunnel` NO use `taskkill /f /im bore.exe` (no mate el bore de Nakama)
+- [ ] Verificar que `handleBootstrapGgpoRelayHost` cree bien el UDP relay + TCP server
+- [ ] Verificar que `handleBootstrapGgpoRelayGuest` conecte TCP al bore y cree forwarder UDP
+- [ ] Verificar que los IPCs (`bootstrap-ggpo-relay-host/guest/close`) estén registrados en `index.ts`
 
-- [ ] Eliminar estado `isP2pSala`
-- [ ] Eliminar estado `isBootstrapSala`
-- [ ] Eliminar estado `showOtherMethods`
-- [ ] Agregar estado `salaType: "tailscale" | "p2p" | null`
-- [ ] Actualizar todos los usos de `isP2pSala` → `salaType === "p2p"`
-- [ ] Actualizar todos los usos de `isBootstrapSala` → `salaType === "p2p"`
-- [ ] Actualizar `joinMode` para incluir `"p2p-code"` como opción
-- [ ] Actualizar el handler de `onBack` para resetear `salaType`
+### A.2 Pruebas locales (una máquina)
+- [ ] Probar `bootstrap-ggpo-relay-host` solo (crear relay + verificar que escuche)
+- [ ] Probar `bootstrap-ggpo-relay-guest` solo (conectar a bore + verificar forwarder)
+- [ ] Probar loop local: guest → forwarder → TCP → host TCP → relay → UDP eco
+- [ ] Verificar que GGPO host conecte a `127.0.0.1:relayPort`
+- [ ] Verificar que GGPO guest conecte a `127.0.0.1:forwarderPort`
 
-## Fase 3: Refactorizar Pantalla Principal (Pre-Auth)
+### A.3 Pruebas con el flujo completo
+- [ ] Crear sala verde como host
+- [ ] Unirse desde guest (misma máquina, con código)
+- [ ] Enviar reto P2P (fuccia) con GGPO toggle activo
+- [ ] Verificar que connection_info se reciba en guest
+- [ ] Verificar que `bootstrap-ggpo-relay-guest` se ejecute
+- [ ] Verificar que `ggpo-launch` se ejecute en ambos lados
+- [ ] Si falla: capturar logs y diagnosticar
 
-- [ ] Eliminar sección "SALA P2P (SIN TERCEROS)" (fucsia, L836-L886)
-- [ ] Eliminar sección "CONEXIÓN VÍA P2P (SIN TAILSCALE)" (verde, L889-L970)
-- [ ] Mantener sección "SALA TAILSCALE" (L797-L835) → agregar `setSalaType("tailscale")`
-- [ ] Crear nueva sección "SALA P2P" (verde #0f0)
-- [ ] Implementar botón "CREAR SALA" P2P con handler `handleCreateSalaP2p`
-- [ ] Implementar botón "UNIRSE A SALA" P2P con handler `handleJoinSalaP2p`
-- [ ] Implementar vista de "código P2P" cuando `joinMode === "p2p-code"`
-- [ ] Verificar que la auto-detección LAN funcione en `handleJoinSalaP2p`
+### A.4 Pruebas entre 2 PCs
+- [ ] Probar con RetroArch (más tolerante a latencia)
+- [ ] Probar con GGPO
+- [ ] Verificar que la pelea se conecte correctamente
 
-## Fase 4: Refactorizar Post-Autenticación
+## Fase B: Simplificar UI
 
-- [ ] Simplificar info de sala usando `salaType` en vez de `isP2pSala`/`isBootstrapSala`
-- [ ] Eliminar sección colapsable "OTROS MÉTODOS DE CONEXIÓN" completa
-- [ ] Mantener GgpoToggle
-- [ ] Mantener vistas GGPO host/guest
-- [ ] Agregar botón pequeño "DEBUG" al fondo (reemplaza sección Debug)
-- [ ] Verificar que el toggle RETROARCH/GGPO sigue funcional
+### B.1 Preparación
+- [ ] Hacer backup de `App.tsx` en `Obsoletos/`
+- [ ] Hacer backup de `ChallengeContext.tsx` en `Obsoletos/`
+- [ ] Ejecutar `npm run dev` y verificar que todo funciona ANTES de cambios
 
-## Fase 5: MethodPicker Dinámico
+### B.2 Agregar salaType (sin eliminar nada)
+- [ ] Agregar `salaType: "tailscale" | "p2p" | null` state en App.tsx
+- [ ] Sincronizar `salaType` con `setIsBootstrapSala` y `setIsP2pSala`
+- [ ] Agregar `(window as any).SALA_TYPE__ = salaType` para que ChallengeContext lo lea
 
-- [ ] Agregar props `salaType` y `engine` a MethodPicker
-- [ ] Implementar función `getAvailableMethods(salaType, engine)`
-- [ ] Verificar filtrado: Tailscale+RA → [Tailscale, LAN]
-- [ ] Verificar filtrado: Tailscale+GGPO → [Tailscale]
-- [ ] Verificar filtrado: P2P+RA → [P2P, LAN, Bore]
-- [ ] Verificar filtrado: P2P+GGPO → [P2P, LAN]
-- [ ] Actualizar ChallengeModal para pasar props al MethodPicker
+### B.3 Reemplazar secciones fucsia + verde
+- [ ] Eliminar la sección "SALA P2P (SIN TERCEROS)" (fucsia)
+- [ ] Eliminar la sección "CONEXIÓN VÍA P2P (SIN TAILSCALE)" (verde)
+- [ ] Crear nueva sección unificada "SALA P2P" (verde)
+- [ ] Botón "CREAR SALA" → llama `handleCreateP2pSala`
+- [ ] Botón "UNIRSE A SALA" → muestra input de código
+- [ ] Verificar que el host vea el código generado
+- [ ] Verificar que el guest pueda ingresar código y conectar
 
-## Fase 6: ChallengeContext
+### B.4 Eliminar colapsable
+- [ ] Eliminar `showOtherMethods` state
+- [ ] Eliminar el bloque `<Collapsible title="OTROS MÉTODOS"...>`
+- [ ] Agregar botón DEBUG pequeño al fondo
 
-- [ ] Agregar `salaType` a `ChallengeData`
-- [ ] Actualizar `selectMethod` para usar `salaType` en vez de `__BOOTSTRAP_ACTIVE__`
-- [ ] Verificar que `acceptChallenge` funcione con el nuevo esquema
-- [ ] Verificar que `connection_info` (host→guest) funcione correctamente
-- [ ] Verificar que `challenge_guest_ready` (GGPO) funcione correctamente
+### B.5 MethodPicker dinámico
+- [ ] Leer `salaType` (desde window o desde las props)
+- [ ] Leer `engine` del toggle GGPO/RetroArch
+- [ ] Filtrar métodos disponibles según la tabla de 03-Diseno.md
 
-## Fase 7: Testing
+### B.6 Limpiar estados viejos
+- [ ] Una vez verificado que todo anda, eliminar `isP2pSala`
+- [ ] Eliminar `isBootstrapSala`
+- [ ] Reemplazar todos los usos por `salaType === "p2p"` o `salaType === "tailscale"`
 
-- [ ] Ejecutar `npm run dev` sin errores
-- [ ] Verificar que la pantalla principal muestra 4 botones (2 secciones)
-- [ ] Verificar "CREAR SALA" Tailscale funciona
-- [ ] Verificar "UNIRSE A SALA" Tailscale funciona
-- [ ] Verificar "CREAR SALA" P2P genera código
-- [ ] Verificar "UNIRSE A SALA" P2P intenta LAN y luego pide código
-- [ ] Verificar toggle RETROARCH/GGPO funciona post-auth
-- [ ] Verificar MethodPicker muestra opciones correctas según contexto
-- [ ] Verificar que el sistema de retos funciona end-to-end
-- [ ] Verificar que no se rompieron flujos estables (AGENTS.md §15)
+### B.7 Testing final
+- [ ] `npm run dev` sin errores
+- [ ] `test_stable_flows.js` — 50/51 (mismo fail preexistente)
+- [ ] `test_p2p_ggpo.js` — 39/39
+- [ ] `test_ggpo_p2p_wan.js` — 17/17
+- [ ] `test_bootstrap.js` — 45/45 (o más si se agregaron tests)
+- [ ] Probar flujo Tailscale completo
+- [ ] Probar flujo P2P completo (crear sala, unirse, retar, pelear)
 
-## Fase 8: Documentación
+## Prioridad
 
-- [ ] Copiar plan-inicial a plan-actual
-- [ ] Actualizar 04-Codigo.md con cambios reales
-- [ ] Actualizar 05-Checklist.md marcando completados
-- [ ] Crear log en `Logs/`
-- [ ] Actualizar `Logs/ULTIMO_NUMERO.txt`
-- [ ] Actualizar `DOCUMENTACION/README.md` con nuevo módulo
-- [ ] Actualizar `DOCUMENTACION/2-DOCUMENTO-DISENO-ACTUAL.md`
+**Fase A es requisito para Fase B.** No empezar B hasta que A esté completado.

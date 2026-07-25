@@ -1064,6 +1064,10 @@ app.whenReady().then(() => {
     return { success: true };
   });
 
+  registerCleanup("bootstrap-ggpo-relay", () => {
+    handleBootstrapGgpoRelayCleanup();
+  });
+
   logInfo("Monitor", "Handlers Bootstrap WAN registrados");
 
   launchNakama();
