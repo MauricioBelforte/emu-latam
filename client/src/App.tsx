@@ -1179,6 +1179,41 @@ function App() {
                     VOLVER
                   </Btn>
                 </div>
+              ) : isP2pSala && p2pWanHostPublic === "___MANUAL___" ? (
+                <div style={{ marginTop: 16, width: "100%", maxWidth: 400 }}>
+                  <p style={{ color: "#f0f", fontFamily: "monospace", fontSize: "0.6rem", marginBottom: 8, textAlign: "center" }}>
+                    Ingresá la IP:puerto del host
+                  </p>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", justifyContent: "center" }}>
+                    <Input $accent="#f0f" type="text" value={p2pWanGuestInput}
+                      onChange={e => setP2pWanGuestInput(e.target.value)}
+                      placeholder="203.0.113.5:54321" style={{ width: 200, fontSize: "0.65rem", padding: "6px 8px" }} />
+                    <Btn onClick={async () => {
+                      setLoadingP2pWan(true);
+                      setP2pWanStatus("Conectando...");
+                      const result = await (window as any).electron.ipcRenderer.invoke("p2p-guest-wan", { hostAddress: p2pWanGuestInput.trim() });
+                      if (result.success) {
+                        const mode = result.status?.includes('direct') ? 'directo' : 'relay';
+                        setP2pWanStatus(`✅ Conectado (${mode}). Iniciando RetroArch...`);
+                        const gameResult = await (window as any).electron.ipcRenderer.invoke("launch-game", {
+                          useRelay: false, isHost: false, directConnectIp: "127.0.0.1",
+                          connectPort: result.forwarderPort || 55435,
+                        });
+                        if (!gameResult?.success) setP2pWanStatus("Error RA: " + (gameResult?.error || "desconocido"));
+                        else setP2pWanStatus("✅ Conectado! RetroArch iniciado.");
+                      } else {
+                        setP2pWanStatus(`Error: ${result.error}`);
+                      }
+                      setLoadingP2pWan(false);
+                    }} disabled={loadingP2pWan || !p2pWanGuestInput.trim()} $accent="#f0f" $bg="#f0f022" style={{ fontSize: "0.55rem", padding: "8px 14px" }}>
+                      {loadingP2pWan ? "..." : "CONECTAR"}
+                    </Btn>
+                  </div>
+                  {p2pWanStatus && <StatusText $color="#f0f" style={{ fontSize: "0.6rem", marginTop: 4 }}>{p2pWanStatus}</StatusText>}
+                  <Btn onClick={() => { setP2pWanHostPublic(""); setP2pWanGuestInput(""); setP2pStatus(""); setJoinMode(null); setIsP2pSala(false); }} $accent="#555" $bg="transparent" style={{ marginTop: 8, padding: "6px", fontSize: "0.5rem" }}>
+                    VOLVER
+                  </Btn>
+                </div>
               ) : (
                 <div style={{ marginTop: 16, width: "100%", maxWidth: 400 }}>
                   <p style={{ color: "#888", fontFamily: "monospace", fontSize: "0.6rem", marginBottom: 8, textAlign: "center" }}>
