@@ -218,6 +218,7 @@ function App() {
   const [nakamaPort, setNakamaPort] = useState("7350");
   const [joinMode, setJoinMode] = useState<"create" | "join" | null>(null);
   const [isP2pSala, setIsP2pSala] = useState(false);
+  const [isBootstrapSala, setIsBootstrapSala] = useState(false);
   const [copiedIp, setCopiedIp] = useState(false);
   const [peerReachable, setPeerReachable] = useState<boolean | null>(null);
   const [showOtherMethods, setShowOtherMethods] = useState(false);
@@ -555,10 +556,11 @@ function App() {
     setBootstrapStatus("Cerrando sala pública...");
     try {
       await (window as any).electron.ipcRenderer.invoke("bootstrap-close");
+      setIsBootstrapSala(false);
       setBootstrapRoomCode("");
       setBootstrapBoreUrl("");
       setBootstrapRoomInput("");
-      setBootstrapStatus("Sala pública cerrada. Nakama restaurado a localhost.");
+      setBootstrapStatus("Conexión P2P cerrada. Nakama restaurado a localhost.");
     } catch (e: any) {
       setBootstrapStatus("Error cerrando sala: " + String(e));
     }
@@ -751,6 +753,7 @@ function App() {
           setStatusText("");
           setPeerReachable(null);
           setIsP2pSala(false);
+          setIsBootstrapSala(false);
           setMyTailscaleIp("");
           setTailscaleHostIp("");
           setCopiedIp(false);
@@ -917,8 +920,9 @@ function App() {
                             setBootstrapRoomCode(result.roomCode);
                             setBootstrapBoreUrl(result.boreUrl || "");
                             setBootstrapStatus("Conexión P2P activa — Compartí el código");
-                            setJoinMode("create");
+                            setIsBootstrapSala(true);
                             setIsP2pSala(false);
+                            setJoinMode("create");
                             discoveryDoneRef.current = false;
                             await (window as any).electron.ipcRenderer.invoke("set-nakama-server", { host: "127.0.0.1", port: "7350" });
                             setNakamaHost("127.0.0.1"); setNakamaPort("7350");
@@ -974,6 +978,7 @@ function App() {
                       setBootstrapLoading(false);
                       if (result.success) {
                         setBootstrapBoreUrl(result.boreUrl);
+                        setIsBootstrapSala(true);
                         const ok = await (window as any).electron.ipcRenderer.invoke("check-nakama-health");
                         if (ok) {
                           setNakamaReady(true);
@@ -1044,12 +1049,31 @@ function App() {
                 {`> ${username} CONECTADO <`}
               </p>
 
-              {isHostingSala && (myTailscaleIp || isP2pSala) && (
-                <Section $accent={isP2pSala ? "#f0f" : "#0af"} style={{ borderStyle: "solid", borderWidth: 3, borderColor: isP2pSala ? "#f0f" : "#0af" }}>
-                  <p style={{ color: isP2pSala ? "#f0f" : "#0af", fontFamily: theme.fonts.arcade, fontSize: "1rem", marginBottom: 8, textShadow: isP2pSala ? "0 0 20px #f0f" : "0 0 20px #0af" }}>
-                    {isP2pSala ? "🏠 SALA P2P CREADA" : "🏠 SALA CREADA"}
+              {isHostingSala && (myTailscaleIp || isP2pSala || isBootstrapSala) && (
+                <Section $accent={isBootstrapSala ? "#0f0" : isP2pSala ? "#f0f" : "#0af"} style={{ borderStyle: "solid", borderWidth: 3, borderColor: isBootstrapSala ? "#0f0" : isP2pSala ? "#f0f" : "#0af" }}>
+                  <p style={{ color: isBootstrapSala ? "#0f0" : isP2pSala ? "#f0f" : "#0af", fontFamily: theme.fonts.arcade, fontSize: "1rem", marginBottom: 8, textShadow: isBootstrapSala ? "0 0 20px #0f0" : isP2pSala ? "0 0 20px #f0f" : "0 0 20px #0af" }}>
+                    {isBootstrapSala ? "🟢 CONEXIÓN P2P ACTIVA" : isP2pSala ? "🏠 SALA P2P CREADA" : "🏠 SALA CREADA"}
                   </p>
-                  {isP2pSala ? (
+                  {isBootstrapSala ? (
+                    <div style={{ textAlign: "center" }}>
+                      <StatusText $color="#0f0" style={{ fontSize: "1.5rem", fontWeight: "bold", margin: "8px 0" }}>
+                        CÓDIGO: {bootstrapRoomCode}
+                      </StatusText>
+                      <StatusText $color="#888" style={{ fontSize: "0.55rem", marginBottom: 4 }}>
+                        Compartí este código con tu amigo
+                      </StatusText>
+                      <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 6 }}>
+                        <Btn onClick={() => { navigator.clipboard.writeText(bootstrapRoomCode); }} $accent="#0f0" $bg="#0f022" style={{ fontSize: "0.6rem" }}>
+                          📋 COPIAR CÓDIGO
+                        </Btn>
+                        <Btn onClick={async () => {
+                          await handleBootstrapClose();
+                        }} $accent="#f00" $bg="#500" style={{ fontSize: "0.5rem", padding: "6px" }}>
+                          CERRAR CONEXIÓN
+                        </Btn>
+                      </div>
+                    </div>
+                  ) : isP2pSala ? (
                     <StatusText $color="#888" style={{ fontSize: "0.6rem" }}>
                       {onlineUsers.filter(u => u.userId !== userId).length > 0
                         ? `Jugadores: ${onlineUsers.filter(u => u.userId !== userId).map(u => u.username).join(", ")}`
@@ -1072,9 +1096,9 @@ function App() {
               )}
 
               {!isHostingSala && (
-                <Section $accent={isP2pSala ? "#f0f" : "#0a0"} style={{ borderStyle: "dashed", borderColor: isP2pSala ? "#f0f" : undefined }}>
-                  <p style={{ color: isP2pSala ? "#f0f" : "#0f0", fontFamily: theme.fonts.arcade, fontSize: "0.7rem", marginBottom: 4 }}>
-                    {isP2pSala ? "CONECTADO A SALA P2P" : "CONECTADO A SALA"}
+                <Section $accent={isBootstrapSala ? "#0f0" : isP2pSala ? "#f0f" : "#0a0"} style={{ borderStyle: "dashed", borderColor: isBootstrapSala ? "#0f0" : isP2pSala ? "#f0f" : undefined }}>
+                  <p style={{ color: isBootstrapSala ? "#0f0" : isP2pSala ? "#f0f" : "#0f0", fontFamily: theme.fonts.arcade, fontSize: "0.7rem", marginBottom: 4 }}>
+                    {isBootstrapSala ? "CONECTADO VÍA P2P" : isP2pSala ? "CONECTADO A SALA P2P" : "CONECTADO A SALA"}
                   </p>
                   <StatusText $color="#888" style={{ fontSize: "0.6rem" }}>
                     Servidor: {nakamaHost}:{nakamaPort}
