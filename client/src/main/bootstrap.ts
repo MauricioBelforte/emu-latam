@@ -210,7 +210,7 @@ export async function handleBootstrapGuest(roomCode: string, lanIp?: string): Pr
   try {
     let host = "bore.pub";
     let port = roomCode.trim();
-    if (lanIp) {
+    if (lanIp && !boreUrlFromRoomCode(roomCode.trim())) {
       host = lanIp;
       port = "7350";
     } else {
