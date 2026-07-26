@@ -67,7 +67,9 @@ export function restoreNakamaLocalhost(): void {
   }
 }
 
-function spawnBoreOnce(): Promise<{ success: boolean; url?: string; error?: string }> {
+const BORE_PREFERRED_PORTS = [8080, 8888, 8443, 9000];
+
+function spawnBoreOnce(preferredPort?: number): Promise<{ success: boolean; url?: string; error?: string }> {
   return new Promise((resolve) => {
     const borePath = path.join(getRelayDir(), "bore.exe");
     if (!fs.existsSync(borePath)) return resolve({ success: false, error: "bore.exe no encontrado en relay-server/" });
@@ -79,8 +81,11 @@ function spawnBoreOnce(): Promise<{ success: boolean; url?: string; error?: stri
     let stderrLog = "";
     let child: ChildProcess;
 
+    const args = ["local", "7350", "--to", "bore.pub"];
+    if (preferredPort) args.push("--port", String(preferredPort));
+
     try {
-      child = spawn(borePath, ["local", "7350", "--to", "bore.pub"], {
+      child = spawn(borePath, args, {
         cwd: getRelayDir(),
         windowsHide: true,
         stdio: ["ignore", "pipe", "pipe"],
@@ -131,9 +136,22 @@ function spawnBoreOnce(): Promise<{ success: boolean; url?: string; error?: stri
 export async function startNakamaBore(): Promise<{ success: boolean; url?: string; error?: string }> {
   let lastError = "";
 
+  // Primero intenta con puertos preferidos (menos bloqueados por carriers)
+  for (const port of BORE_PREFERRED_PORTS) {
+    console.log(`[BOOTSTRAP] Intentando bore con puerto preferido ${port}...`);
+    const result = await spawnBoreOnce(port);
+    if (result.success) {
+      console.log(`[BOOTSTRAP] bore conectado con puerto preferido ${port}: ${result.url}`);
+      return result;
+    }
+    lastError = result.error || `Puerto ${port} no disponible`;
+    console.log(`[BOOTSTRAP] Puerto ${port} falló: ${lastError}`);
+  }
+
+  console.log("[BOOTSTRAP] Puertos preferidos agotados, usando puerto aleatorio...");
   for (let attempt = 0; attempt < BORE_MAX_RETRIES; attempt++) {
     if (attempt > 0) {
-      console.log(`[BOOTSTRAP] Reintentando bore (intento ${attempt + 1}/${BORE_MAX_RETRIES}) en ${RETRY_DELAYS[attempt]}ms...`);
+      console.log(`[BOOTSTRAP] Reintentando bore aleatorio (intento ${attempt + 1}/${BORE_MAX_RETRIES}) en ${RETRY_DELAYS[attempt]}ms...`);
       await sleep(RETRY_DELAYS[attempt]);
     }
 
@@ -141,10 +159,10 @@ export async function startNakamaBore(): Promise<{ success: boolean; url?: strin
     if (result.success) return result;
 
     lastError = result.error || "Error desconocido";
-    console.log(`[BOOTSTRAP] Intento ${attempt + 1} falló: ${lastError}`);
+    console.log(`[BOOTSTRAP] Intento aleatorio ${attempt + 1} falló: ${lastError}`);
   }
 
-  return { success: false, error: `bore falló tras ${BORE_MAX_RETRIES} intentos. Último error: ${lastError}` };
+  return { success: false, error: `bore falló tras todos los intentos. Último error: ${lastError}` };
 }
 
 export function stopNakamaBore(): void {
