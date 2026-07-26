@@ -908,71 +908,6 @@ function App() {
                       </SalaButton>
                     </Row>
                   </Section>
-                  <Section $accent="#f0f" style={{ borderStyle: "solid", borderWidth: 2, borderColor: "#f0f88", padding: "16px" }}>
-                    <p style={{ color: "#f0f", fontFamily: theme.fonts.arcade, fontSize: "0.65rem", marginBottom: 10, textAlign: "center" }}>
-                      ▸ SALA P2P (SIN TERCEROS) ◂
-                    </p>
-                    <Row style={{ maxWidth: 480, margin: "0 auto" }}>
-                      <SalaButton onClick={async () => {
-                        setJoinMode("create");
-                        setIsP2pSala(true);
-                        setP2pStatus("Iniciando sala P2P...");
-                        discoveryDoneRef.current = false;
-                        // Iniciar P2P host para obtener IP por STUN
-                        const hostResult = await (window as any).electron.ipcRenderer.invoke("p2p-host");
-                        if (hostResult.success && hostResult.nat) {
-                          const pub = `${hostResult.nat.publicIp}:${hostResult.nat.publicPort}`;
-                          const lanIps = hostResult.candidate?.privateIps || [];
-                          const realLan = lanIps.find((ip: string) => !ip.startsWith('100.'));
-                          setP2pWanHostPublic(pub);
-                          setP2pWanLanAddr(realLan ? `${realLan}:${hostResult.nat.publicPort}` : "");
-                          setP2pWanUpnp(hostResult.upnpOk === true);
-                        }
-                        // También broadcast + Nakama para compatibilidad LAN
-                        await (window as any).electron.ipcRenderer.invoke("set-nakama-server", { host: "127.0.0.1", port: "7350" });
-                        setNakamaHost("127.0.0.1"); setNakamaPort("7350");
-                        await loginGhost();
-                        await (window as any).electron.ipcRenderer.invoke("open-firewall-port");
-                        const lan = await (window as any).electron.ipcRenderer.invoke("get-lan-ip");
-                        if (lan.ip) await (window as any).electron.ipcRenderer.invoke("p2p-start-broadcast", { host: lan.ip, port: "7350" });
-                        setP2pStatus("Sala lista. Compartí la IP de abajo.");
-                      }} $accent="#f0f">
-                        CREAR SALA P2P
-                        <span style={{ display: "block", fontSize: "0.5rem", opacity: 0.6, marginTop: 6, fontFamily: "Inter" }}>
-                          Creá tu sala y retá a otros con P2P automático
-                        </span>
-                      </SalaButton>
-                      <SalaButton onClick={async () => {
-                        setIsP2pSala(true);
-                        setP2pStatus("🔍 Buscando sala P2P en la red...");
-                        const result = await (window as any).electron.ipcRenderer.invoke("p2p-discover-host");
-                        if (result.success) {
-                          await (window as any).electron.ipcRenderer.invoke("set-nakama-server", { host: result.host, port: result.port });
-                          const ok = await (window as any).electron.ipcRenderer.invoke("check-nakama-health");
-                          if (ok) {
-                            setNakamaHost(result.host);
-                            setNakamaPort(result.port);
-                            setNakamaReady(true);
-                            setP2pStatus("");
-                            await loginGhost();
-                          } else {
-                            setP2pStatus("❌ Sala encontrada pero no responde");
-                          }
-                        } else {
-                          // No hay broadcast → modo WAN manual
-                          setP2pWanHostPublic("___MANUAL___");
-                          setP2pStatus("⚠ No se encontró en LAN. Ingresá la IP del host manualmente.");
-                          setJoinMode("join");
-                        }
-                      }} $accent="#f0f">
-                        UNIRSE A SALA P2P
-                        <span style={{ display: "block", fontSize: "0.5rem", opacity: 0.6, marginTop: 6, fontFamily: "Inter" }}>
-                          Busca automáticamente salas en tu red
-                        </span>
-                      </SalaButton>
-                    </Row>
-                  </Section>
-                  {p2pStatus && <StatusText $color="#f0f" style={{ fontSize: "0.65rem", textAlign: "center", marginTop: 4 }}>{p2pStatus}</StatusText>}
 
                   {/* ─── CONEXIÓN VÍA P2P (propia, sin Tailscale) ─── */}
                   <Section $accent="#0f0" style={{ borderStyle: "solid", borderWidth: 2, borderColor: "#0f08", padding: "16px" }}>
@@ -1016,26 +951,6 @@ function App() {
                         }} $accent="#f00" $bg="#500" style={{ marginTop: 6, fontSize: "0.5rem", padding: "6px" }}>
                           CERRAR
                         </Btn>
-                </div>
-              ) : isP2pSala && p2pWanHostPublic === "___MANUAL___" ? (
-                <div style={{ marginTop: 16, width: "100%", maxWidth: 400 }}>
-                  <p style={{ color: "#f0f", fontFamily: "monospace", fontSize: "0.6rem", marginBottom: 8, textAlign: "center" }}>
-                    Ingresá la IP:puerto del host (amigo que creó la sala P2P)
-                  </p>
-                  <div style={{ display: "flex", gap: 6, alignItems: "center", justifyContent: "center" }}>
-                    <input type="text" value={p2pWanGuestInput}
-                      onChange={e => setP2pWanGuestInput(e.target.value)}
-                      placeholder="203.0.113.5:54321"
-                      style={{ width: 200, padding: "6px", borderRadius: 4, border: "1px solid #f0f", background: "#111", color: "#f0f", fontSize: "0.65rem", outline: "none", textAlign: "center", fontFamily: "monospace" }}
-                    />
-                    <Btn onClick={handleP2pGuestWan} disabled={loadingP2pWan || !p2pWanGuestInput.trim()} $accent="#f0f" $bg="#f0f022" style={{ fontSize: "0.55rem", padding: "8px 14px" }}>
-                      {loadingP2pWan ? "..." : "CONECTAR"}
-                    </Btn>
-                  </div>
-                  {p2pWanStatus && <StatusText $color="#f0f" style={{ fontSize: "0.6rem", marginTop: 4 }}>{p2pWanStatus}</StatusText>}
-                  <Btn onClick={() => { setP2pWanHostPublic(""); setP2pWanGuestInput(""); setP2pStatus(""); setJoinMode(null); setIsP2pSala(false); }} $accent="#555" $bg="transparent" style={{ marginTop: 8, padding: "6px", fontSize: "0.5rem" }}>
-                    VOLVER
-                  </Btn>
                 </div>
               ) : (
                       <Row style={{ maxWidth: 480, margin: "0 auto" }}>
@@ -1083,6 +998,69 @@ function App() {
                       </StatusText>
                     )}
                   </Section>
+
+                  <Section $accent="#f0f" style={{ borderStyle: "solid", borderWidth: 2, borderColor: "#f0f88", padding: "16px" }}>
+                    <p style={{ color: "#f0f", fontFamily: theme.fonts.arcade, fontSize: "0.65rem", marginBottom: 10, textAlign: "center" }}>
+                      ▸ SALA P2P (SIN TERCEROS) ◂
+                    </p>
+                    <Row style={{ maxWidth: 480, margin: "0 auto" }}>
+                      <SalaButton onClick={async () => {
+                        setJoinMode("create");
+                        setIsP2pSala(true);
+                        setP2pStatus("Iniciando sala P2P...");
+                        discoveryDoneRef.current = false;
+                        const hostResult = await (window as any).electron.ipcRenderer.invoke("p2p-host");
+                        if (hostResult.success && hostResult.nat) {
+                          const pub = `${hostResult.nat.publicIp}:${hostResult.nat.publicPort}`;
+                          const lanIps = hostResult.candidate?.privateIps || [];
+                          const realLan = lanIps.find((ip: string) => !ip.startsWith('100.'));
+                          setP2pWanHostPublic(pub);
+                          setP2pWanLanAddr(realLan ? `${realLan}:${hostResult.nat.publicPort}` : "");
+                          setP2pWanUpnp(hostResult.upnpOk === true);
+                        }
+                        await (window as any).electron.ipcRenderer.invoke("set-nakama-server", { host: "127.0.0.1", port: "7350" });
+                        setNakamaHost("127.0.0.1"); setNakamaPort("7350");
+                        await loginGhost();
+                        await (window as any).electron.ipcRenderer.invoke("open-firewall-port");
+                        const lan = await (window as any).electron.ipcRenderer.invoke("get-lan-ip");
+                        if (lan.ip) await (window as any).electron.ipcRenderer.invoke("p2p-start-broadcast", { host: lan.ip, port: "7350" });
+                        setP2pStatus("Sala lista. Compartí la IP de abajo.");
+                      }} $accent="#f0f">
+                        CREAR SALA P2P
+                        <span style={{ display: "block", fontSize: "0.5rem", opacity: 0.6, marginTop: 6, fontFamily: "Inter" }}>
+                          Creá tu sala y retá a otros con P2P automático
+                        </span>
+                      </SalaButton>
+                      <SalaButton onClick={async () => {
+                        setIsP2pSala(true);
+                        setP2pStatus("🔍 Buscando sala P2P en la red...");
+                        const result = await (window as any).electron.ipcRenderer.invoke("p2p-discover-host");
+                        if (result.success) {
+                          await (window as any).electron.ipcRenderer.invoke("set-nakama-server", { host: result.host, port: result.port });
+                          const ok = await (window as any).electron.ipcRenderer.invoke("check-nakama-health");
+                          if (ok) {
+                            setNakamaHost(result.host);
+                            setNakamaPort(result.port);
+                            setNakamaReady(true);
+                            setP2pStatus("");
+                            await loginGhost();
+                          } else {
+                            setP2pStatus("❌ Sala encontrada pero no responde");
+                          }
+                        } else {
+                          setP2pWanHostPublic("___MANUAL___");
+                          setP2pStatus("⚠ No se encontró en LAN. Ingresá la IP del host manualmente.");
+                          setJoinMode("join");
+                        }
+                      }} $accent="#f0f">
+                        UNIRSE A SALA P2P
+                        <span style={{ display: "block", fontSize: "0.5rem", opacity: 0.6, marginTop: 6, fontFamily: "Inter" }}>
+                          Busca automáticamente salas en tu red
+                        </span>
+                      </SalaButton>
+                    </Row>
+                  </Section>
+                  {p2pStatus && <StatusText $color="#f0f" style={{ fontSize: "0.65rem", textAlign: "center", marginTop: 4 }}>{p2pStatus}</StatusText>}
                 </>
               ) : joinMode === "create" ? (
                 isP2pSala ? (
