@@ -17,7 +17,7 @@ import { spawnFcadefbneo, killGgpo, findFcadefbneo, getGgpoProcess, spawnLocalTe
 import { handleP2PHost, handleP2PGuest, handleP2PGuestWan, handleP2PHostRegisterGuest, handleP2PDisconnect } from "./p2pBridge";
 import { handleGGPOP2PHost, handleGGPOP2PGuest, handleGGPOP2PHostRegisterGuest, handleGGPOP2PDisconnect } from "./ggpoP2PBridge";
 import { startBroadcast, stopBroadcast, discoverHost } from "./discovery";
-import { handleBootstrapHost, handleBootstrapGuest, handleBootstrapClose } from "./bootstrap";
+import { handleBootstrapHost, handleBootstrapGuest, handleBootstrapClose, startGameBoreTunnel, stopGameBoreTunnel } from "./bootstrap";
 import { handleBootstrapGgpoRelayHost, handleBootstrapGgpoRelayGuest, handleBootstrapGgpoRelayCleanup } from "./bootstrapGgpoRelay";
 
 // ========================================
@@ -1070,6 +1070,19 @@ app.whenReady().then(() => {
 
   registerCleanup("bootstrap-ggpo-relay", () => {
     handleBootstrapGgpoRelayCleanup();
+  });
+
+  ipcMain.handle("bootstrap-start-game-relay", async () => {
+    return startGameBoreTunnel();
+  });
+
+  ipcMain.handle("bootstrap-stop-game-relay", async () => {
+    stopGameBoreTunnel();
+    return { success: true };
+  });
+
+  registerCleanup("bootstrap-game-relay", () => {
+    stopGameBoreTunnel();
   });
 
   logInfo("Monitor", "Handlers Bootstrap WAN registrados");

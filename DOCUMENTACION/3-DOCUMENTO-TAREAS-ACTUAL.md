@@ -401,6 +401,11 @@ Con run_ahead=false + buffer dinámico 1-2, no es necesario check_frames porque 
 - [x] Regresión: test_stable_flows.js 50/51, test_p2p_ggpo.js 39/39, test_ggpo_p2p_wan.js 17/17
 - [x] Build TypeScript + Vite sin errores
 - [x] Documentación completa en `DOCUMENTACION/20-Bootstrap-WAN/` con 7 archivos
+- [x] Fix 26-Jul: RA host→guest return path (relay UDP roto → proxy TCP estable)
+- [x] Fix 26-Jul: `startGameBoreTunnel()` en bootstrap.ts — bore game relay 55436 sin taskkill global
+- [x] Fix 26-Jul: `bootstrap-start-game-relay` / `bootstrap-stop-game-relay` IPC handlers + cleanup
+- [x] Fix 26-Jul: `ChallengeContext.tsx` RA host usa game bore + forwarder; RA guest usa proxy existente
+- [x] Fix 26-Jul: `bootstrapGgpoRelay.ts` — sockets UDP persistentes, handler duplicado eliminado
 
 ---
 

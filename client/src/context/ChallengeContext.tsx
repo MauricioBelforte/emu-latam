@@ -297,17 +297,14 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
           const acceptedBy = content.acceptedBy;
           try {
             if (currentChallenge?.isBootstrapChallenge) {
-              // Bootstrap: relay TCP↔UDP + bore (como GGPO)
-              await (window as any).electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: true });
-              const relayResult = await (window as any).electron.ipcRenderer.invoke("bootstrap-ggpo-relay-host", { targetUdpPort: 55435 });
-              if (relayResult.success) {
-                await sendConnectionInfo(content.acceptedBy, {
-                  useBootstrapRetroarchRelay: true, relayPort: relayResult.relayPort,
-                  bootstrapBoreUrl: relayResult.boreUrl, hostName: username,
-                });
-              } else {
-                console.error("Error relay bootstrap RetroArch:", relayResult.error);
-              }
+              // Bootstrap RA: túnel bore dedicado + forwarder TCP (mismo mecanismo estable)
+              const tunnel = await (window as any).electron.ipcRenderer.invoke("bootstrap-start-game-relay");
+              if (!tunnel.success) { alert("Error creando túnel para RA: " + (tunnel.error || "desconocido")); resetChallenge(); return; }
+              await (window as any).electron.ipcRenderer.invoke("save-relay-url", tunnel.url);
+              await (window as any).electron.ipcRenderer.invoke("launch-game", { isHost: true, useRelay: true, relayIp: tunnel.url });
+              await sendConnectionInfo(content.acceptedBy, {
+                useBootstrapRetroarchRelay: true, bootstrapBoreUrl: tunnel.url, hostName: username,
+              });
             } else {
               await (window as any).electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: true });
               if (guestCandidate) {
@@ -388,14 +385,8 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
             const ipResult = await electron.ipcRenderer.invoke("get-lan-ip");
             await sendToLobby(CHALLENGE_GUEST_READY_MSG_TYPE, { targetId: content.senderId, guestIp: ipResult.ip || "127.0.0.1" });
           } else if (content.useBootstrapRetroarchRelay) {
-            // Bootstrap WAN: RetroArch guest conecta bridge TCP ↔ forwarder
-            const electron = (window as any).electron;
-            const bridgeResult = await electron.ipcRenderer.invoke("bootstrap-ggpo-relay-guest", {
-              forwarderUdpPort: 0, boreUrl: content.bootstrapBoreUrl, targetUdpPort: 55435,
-            });
-            if (!bridgeResult.success) { alert("Error conectando relay: " + (bridgeResult.error || "")); resetChallenge(); return; }
-            const actualFwdPort = bridgeResult.forwarderUdpPort || 0;
-            await electron.ipcRenderer.invoke("launch-game", { useRelay: false, isHost: false, directConnectIp: "127.0.0.1", connectPort: actualFwdPort });
+            // Bootstrap WAN: proxy TCP existente (guest RA → proxy → bore.pub)
+            await (window as any).electron.ipcRenderer.invoke("launch-game", { useRelay: true, isHost: false, relayIp: content.bootstrapBoreUrl });
           } else if (content.useGgpoRelay) {
             // WAN mode: GGPO guest conecta a forwarder local
             const fwdPort = ggpoForwarderPortRef.current;

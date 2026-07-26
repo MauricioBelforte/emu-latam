@@ -237,9 +237,80 @@ export async function handleBootstrapGuest(roomCode: string, lanIp?: string): Pr
   }
 }
 
+let gameBoreProcess: ChildProcess | null = null;
+
+export function startGameBoreTunnel(): Promise<{ success: boolean; url?: string; error?: string }> {
+  return new Promise((resolve) => {
+    const borePath = path.join(getRelayDir(), "bore.exe");
+    if (!fs.existsSync(borePath)) return resolve({ success: false, error: "bore.exe no encontrado en relay-server/" });
+
+    if (gameBoreProcess) { try { gameBoreProcess.kill(); } catch {} }
+    gameBoreProcess = null;
+
+    let resolved = false;
+    let stderrLog = "";
+    let child: ChildProcess;
+
+    try {
+      child = spawn(borePath, ["local", "55436", "--to", "bore.pub"], {
+        cwd: getRelayDir(),
+        windowsHide: true,
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+    } catch (e: any) {
+      return resolve({ success: false, error: "Error al spawn bore: " + String(e) });
+    }
+
+    if (!child.stdout) return resolve({ success: false, error: "bore stdout no disponible" });
+    gameBoreProcess = child;
+
+    const timeout = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        if (gameBoreProcess) gameBoreProcess.kill();
+        resolve({ success: false, error: "Timeout esperando bore game relay (15s). stderr: " + stderrLog });
+      }
+    }, 15000);
+
+    child.stdout.on("data", (data: Buffer) => {
+      try {
+        const output = data.toString().trim();
+        console.log(`[BORE GAME] ${output}`);
+        const match = output.match(/listening at ([\w.-]+:\d+)/);
+        if (match && !resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          resolve({ success: true, url: match[1] });
+        }
+      } catch {}
+    });
+
+    child.stderr?.on("data", (data: Buffer) => {
+      stderrLog += data.toString().trim() + " | ";
+    });
+
+    child.on("error", (err) => {
+      if (!resolved) { resolved = true; clearTimeout(timeout); resolve({ success: false, error: err.message + " | stderr: " + stderrLog }); }
+    });
+
+    child.on("close", (code) => {
+      gameBoreProcess = null;
+      if (!resolved) { resolved = true; clearTimeout(timeout); resolve({ success: false, error: `bore game termin con cdigo ${code} | stderr: ${stderrLog}` }); }
+    });
+  });
+}
+
+export function stopGameBoreTunnel(): void {
+  if (gameBoreProcess) {
+    try { gameBoreProcess.kill(); } catch {}
+    gameBoreProcess = null;
+  }
+  console.log("[BOOTSTRAP] bore game relay detenido");
+}
+
 export async function handleBootstrapClose(): Promise<HandlerResult> {
   stopNakamaBore();
   restoreNakamaLocalhost();
-  console.log("[BOOTSTRAP] Conexión P2P cerrada");
+  console.log("[BOOTSTRAP] Conexin P2P cerrada");
   return { success: true };
 }
