@@ -3,6 +3,18 @@ import { P2PManager } from "../../../p2p-module/src/index";
 import { RETROARCH_PORT, PacketType } from "../../../p2p-module/src/protocol/types";
 import { encodePacket, decodePacket } from "../../../p2p-module/src/protocol/packet";
 import { tryMapPort, tryUnmapPort } from "./services/upnp";
+import { execSync } from "child_process";
+
+function tryOpenWindowsFirewall(port: number, protocol: string, name: string): boolean {
+  try {
+    execSync(`netsh advfirewall firewall add rule name="${name}" dir=in action=allow protocol=${protocol} localport=${port}`, { stdio: "ignore", timeout: 5000 });
+    console.log(`[FIREWALL] Regla creada: ${name} (${port}/${protocol})`);
+    return true;
+  } catch {
+    console.log(`[FIREWALL] No se pudo crear regla para ${name} (${port}/${protocol}) — quizás no admin`);
+    return false;
+  }
+}
 
 interface StoredManager {
   manager: P2PManager;
@@ -79,6 +91,8 @@ export async function handleP2PHost(): Promise<any> {
   let upnpOk = false;
   if (candidate?.publicPort) {
     upnpOk = await tryMapPort(candidate.publicPort, 'UDP', 'EmuLatam-P2P', 0);
+    // También intentar abrir Windows Firewall para el puerto P2P
+    tryOpenWindowsFirewall(candidate.publicPort, 'UDP', 'EmuLatam-P2P');
   }
 
   console.log(`[P2P-HOST] Started on port ${candidate?.publicPort}, local IPs: ${candidate?.privateIps?.join(',')}, public IP: ${candidate?.publicIp}, UPnP: ${upnpOk ? 'OK' : 'FAIL'}`);
