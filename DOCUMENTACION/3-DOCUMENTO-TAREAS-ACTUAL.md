@@ -430,5 +430,21 @@ Con run_ahead=false + buffer dinámico 1-2, no es necesario check_frames porque 
 - [ ] Actualizar `ChallengeModal.tsx` y `ChallengeContext.tsx`
 - [ ] Ejecutar plan de testings (`06-Plan-Testings.md`) y volcar en `07-Resultados-Testings.md`
 
+---
 
+## ✅ Módulo 22 — NAT Traversal (STUN + Hole Punching) (26-Jul-2026)
+
+- [x] Módulo `natTraversal.ts` con STUN client (RFC 5389), hole punch, keep-alive, bridge
+- [x] 4 IPC handlers registrados: `nat-traversal-discover`, `nat-traversal-punch`, `nat-traversal-keepalive`, `nat-traversal-stop`
+- [x] Canales whitelisteados en `ipcChannels.ts`
+- [x] Integración en `ChallengeContext.tsx`: método NAT prioritario antes de bore (GGPO)
+- [x] Detección NAT simétrica (2 requests STUN, si puerto cambia → saltear)
+- [x] Host: discover → conn_info → guest_ready → punch → launch GGPO
+- [x] Guest: conn_info → discover → punch → guest_ready → launch GGPO
+- [x] 37 tests, 100% (unitarios + integración localhost + verificación archivos)
+- [x] Regresión: test_stable_flows.js 50/51, build sin errores
+- [x] Documentación completa en `DOCUMENTACION/22-NAT-Traversal-STUN-HolePunching/` con 7 archivos
+- [ ] Pendiente: prueba WAN real entre 2 PCs en distintas redes
+- [ ] Pendiente: fallback automático a bore si NAT falla (actualmente alerta)
+- [ ] Pendiente: soporte para RA (TCP hole punching)
 

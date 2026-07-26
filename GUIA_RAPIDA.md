@@ -19,7 +19,7 @@ tailscale up --shields-up=false
 
 ## 2. Host — Solo PC1
 
-- Instalar PostgreSQL 14+ de https://www.postgresql.org/download/windows/
+- Instalar PostgreSQL 14+ (Esta probado con Postgres 17) de https://www.postgresql.org/download/windows/
 - Default port 5432, la contraseña no importa
 - Abrir Emu Latam (`Emu Latam.exe` o `npm run dev`)
 

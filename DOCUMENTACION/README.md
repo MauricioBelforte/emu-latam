@@ -30,4 +30,5 @@
 | 19-GGPO-P2P-WAN | Relay WAN para GGPO via P2P: túnel UDP entre países sin configuración de router | ✅ Completado | 2026-07-24 | 17 tests, 100% (ver 07-Resultados-Testings.md) | dgram, P2PManager (p2p-module) |
 | 20-Bootstrap-WAN | Conexión remota a Nakama via túnel bore público + paste service para room code | ✅ Completado | 2026-07-24 | 34 tests, 100% (ver 07-Resultados-Testings.md) | bore, dpaste.org, Node.js https |
 | 21-Reestructuracion-UI-Conexion | Reestructuración UI: 4 botones pre-auth, auto LAN/WAN, MethodPicker dinámico | 🔄 Plan inicial | 2026-07-24 | 45 tests planificados (ver 06-Plan-Testings.md) | React, Electron IPC, ChallengeContext |
+| 22-NAT-Traversal-STUN-HolePunching | NAT traversal vía STUN + UDP hole punching con fallback automático a bore | 🔄 Plan inicial | 2026-07-26 | — | dgram, Nakama, ChallengeContext |
 

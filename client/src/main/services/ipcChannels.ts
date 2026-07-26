@@ -50,6 +50,10 @@ export const IPC_CHANNELS = {
   BOOTSTRAP_GGPO_RELAY_CLOSE: "bootstrap-ggpo-relay-close",
   BOOTSTRAP_START_GAME_RELAY: "bootstrap-start-game-relay",
   BOOTSTRAP_STOP_GAME_RELAY: "bootstrap-stop-game-relay",
+  NAT_TRAVERSAL_DISCOVER: "nat-traversal-discover",
+  NAT_TRAVERSAL_PUNCH: "nat-traversal-punch",
+  NAT_TRAVERSAL_KEEPALIVE: "nat-traversal-keepalive",
+  NAT_TRAVERSAL_STOP: "nat-traversal-stop",
 } as const
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS]

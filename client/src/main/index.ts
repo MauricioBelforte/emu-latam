@@ -19,6 +19,7 @@ import { handleGGPOP2PHost, handleGGPOP2PGuest, handleGGPOP2PHostRegisterGuest, 
 import { startBroadcast, stopBroadcast, discoverHost } from "./discovery";
 import { handleBootstrapHost, handleBootstrapGuest, handleBootstrapClose, startGameBoreTunnel, stopGameBoreTunnel } from "./bootstrap";
 import { handleBootstrapGgpoRelayHost, handleBootstrapGgpoRelayGuest, handleBootstrapGgpoRelayCleanup } from "./bootstrapGgpoRelay";
+import { discoverEndpoint, attemptHolePunch, startKeepAlive, closeAll as closeNatTraversal } from "./natTraversal";
 
 // ========================================
 // CONSTANTES DE AYUDA
@@ -1085,7 +1086,29 @@ app.whenReady().then(() => {
     stopGameBoreTunnel();
   });
 
-  logInfo("Monitor", "Handlers Bootstrap WAN registrados");
+  ipcMain.handle("nat-traversal-discover", async () => {
+    return discoverEndpoint();
+  });
+
+  ipcMain.handle("nat-traversal-punch", async (_e, { localPort, peerIp, peerPort }: { localPort: number; peerIp: string; peerPort: number }) => {
+    return attemptHolePunch(localPort, peerIp, peerPort);
+  });
+
+  ipcMain.handle("nat-traversal-keepalive", async (_e, { intervalMs }: { intervalMs?: number }) => {
+    startKeepAlive(intervalMs);
+    return { success: true };
+  });
+
+  ipcMain.handle("nat-traversal-stop", async () => {
+    closeNatTraversal();
+    return { success: true };
+  });
+
+  registerCleanup("nat-traversal", () => {
+    closeNatTraversal();
+  });
+
+  logInfo("Monitor", "Handlers NAT Traversal registrados");
 
   launchNakama();
   startNakamaHealthCheck();

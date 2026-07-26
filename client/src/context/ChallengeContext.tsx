@@ -57,6 +57,8 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
   const isLaunchingRef = useRef(false);
   const ggpoForwarderPortRef = useRef<number>(0);
   const ggpoRelayPortRef = useRef<number>(0);
+  const natPendingRef = useRef<{ targetPort: number; engine: string } | null>(null);
+  const natBridgePortRef = useRef<number>(0);
   const { engine } = useGgpo();
 
   const resetChallenge = useCallback(() => {
@@ -66,6 +68,7 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
     isLaunchingRef.current = false;
     ggpoForwarderPortRef.current = 0;
     ggpoRelayPortRef.current = 0;
+    natPendingRef.current = null;
     if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
   }, []);
 
@@ -273,14 +276,42 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
                 ggpoRelayPortRef.current = regResult.relayPort || 0;
 
                 if (currentChallenge?.isBootstrapChallenge) {
-                  // Bootstrap WAN: iniciar relay TCP↔UDP + segundo bore
-                  const relayResult = await (window as any).electron.ipcRenderer.invoke("bootstrap-ggpo-relay-host", { targetUdpPort: 6003 });
-                  if (!relayResult.success) { alert("Error iniciando relay bootstrap: " + (relayResult.error || "desconocido")); resetChallenge(); return; }
-                  ggpoRelayPortRef.current = relayResult.relayPort;
-                  await sendConnectionInfo(content.acceptedBy, {
-                    useBootstrapGgpoRelay: true, relayPort: relayResult.relayPort,
-                    bootstrapBoreUrl: relayResult.boreUrl, hostName: username,
-                  });
+                  // Intentar NAT traversal primero (P2P directo, sin bore)
+                  let natOk = false;
+                  try {
+                    const myEp = await (window as any).electron.ipcRenderer.invoke("nat-traversal-discover");
+                    if (myEp.natType === "compatible") {
+                      natPendingRef.current = { targetPort: 6003, engine: "ggpo" };
+                      await sendConnectionInfo(content.acceptedBy, {
+                        useNatTraversal: true, hostPublicIp: myEp.publicIp,
+                        hostPublicPort: myEp.publicPort, targetPort: 6003, hostName: username,
+                      });
+                      // Esperar guest_ready (se maneja en el handler correspondiente)
+                      natOk = true;
+                    }
+                  } catch (e) {
+                    console.log("NAT traversal no disponible, fallback a relay:", e);
+                  }
+
+                  if (natOk) {
+                    // Timeout por si el guest no responde
+                    setTimeout(() => {
+                      if (natPendingRef.current) {
+                        natPendingRef.current = null;
+                        console.error("NAT: guest no respondi, cancelando");
+                        resetChallenge();
+                      }
+                    }, 15000);
+                  } else {
+                    // Fallback: relay TCP↔UDP + segundo bore
+                    const relayResult = await (window as any).electron.ipcRenderer.invoke("bootstrap-ggpo-relay-host", { targetUdpPort: 6003 });
+                    if (!relayResult.success) { alert("Error iniciando relay bootstrap: " + (relayResult.error || "desconocido")); resetChallenge(); return; }
+                    ggpoRelayPortRef.current = relayResult.relayPort;
+                    await sendConnectionInfo(content.acceptedBy, {
+                      useBootstrapGgpoRelay: true, relayPort: relayResult.relayPort,
+                      bootstrapBoreUrl: relayResult.boreUrl, hostName: username,
+                    });
+                  }
                 } else {
                   await sendConnectionInfo(content.acceptedBy, { useGgpoRelay: true, relayPort: regResult.relayPort, hostName: username });
                 }
@@ -288,7 +319,9 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
                 console.error("Error en P2P GGPO WAN host:", e); resetChallenge();
               }
             }
-            setTimeout(() => resetChallenge(), 5000);
+            if (!natPendingRef.current) {
+              setTimeout(() => resetChallenge(), 5000);
+            }
             return;
           }
 
@@ -371,7 +404,32 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
         const method = currentChallenge?.method || "bore";
 
         try {
-          if (content.useBootstrapGgpoRelay) {
+          if (content.useNatTraversal) {
+            // NAT traversal: descubrir endpoint, hacer hole punch, luego lanzar GGPO
+            const electron = (window as any).electron;
+            try {
+              const myEp = await electron.ipcRenderer.invoke("nat-traversal-discover");
+              if (myEp.natType !== "compatible") throw new Error("NAT incompatible");
+              const punch = await electron.ipcRenderer.invoke("nat-traversal-punch", {
+                localPort: 0, peerIp: content.hostPublicIp, peerPort: content.hostPublicPort,
+              });
+              if (!punch.success) throw new Error("Hole punch fall");
+              const bridgePort = punch.localPort;
+              await electron.ipcRenderer.invoke("nat-traversal-keepalive");
+              await electron.ipcRenderer.invoke("ggpo-launch", {
+                rom: "kof98", localPort: 6004, remoteIp: "127.0.0.1", remotePort: bridgePort, playerNumber: 1,
+              });
+              const ipResult = await electron.ipcRenderer.invoke("get-lan-ip");
+              await sendToLobby(CHALLENGE_GUEST_READY_MSG_TYPE, {
+                targetId: content.senderId, guestIp: ipResult.ip || "127.0.0.1",
+                natPublicIp: myEp.publicIp, natPublicPort: myEp.publicPort, natBridgePort: bridgePort,
+              });
+            } catch (e) {
+              console.error("NAT traversal guest fall:", e);
+              alert("Conexin P2P directa no disponible. El host intentar con relay. Reintent");
+              resetChallenge();
+            }
+          } else if (content.useBootstrapGgpoRelay) {
             // Bootstrap WAN: conectar TCP bridge + bore antes de lanzar GGPO
             const electron = (window as any).electron;
             const bridgeResult = await electron.ipcRenderer.invoke("bootstrap-ggpo-relay-guest", {
@@ -432,9 +490,24 @@ export const ChallengeProvider: React.FC<{ children: ReactNode }> = ({ children 
       // 2c. GUEST READY (host receives guest's IP, launches GGPO)
       if (content._type === CHALLENGE_GUEST_READY_MSG_TYPE && engine === "ggpo") {
         const relayPort = ggpoRelayPortRef.current;
+        const natTarget = natPendingRef.current;
         try {
           const electron = (window as any).electron;
-          if (relayPort > 0) {
+          if (natTarget && content.natBridgePort) {
+            // NAT traversal mode: host punch hacia guest, lanzar GGPO con bridge
+            const punch = await electron.ipcRenderer.invoke("nat-traversal-punch", {
+              localPort: natTarget.targetPort, peerIp: content.natPublicIp, peerPort: content.natPublicPort,
+            });
+            if (punch.success) {
+              await electron.ipcRenderer.invoke("nat-traversal-keepalive");
+              await electron.ipcRenderer.invoke("ggpo-launch", {
+                rom: "kof98", localPort: natTarget.targetPort, remoteIp: "127.0.0.1", remotePort: punch.localPort, playerNumber: 0,
+              });
+            } else {
+              throw new Error("NAT punch fall en host");
+            }
+            natPendingRef.current = null;
+          } else if (relayPort > 0) {
             // WAN mode: GGPO host conecta a relay local
             await electron.ipcRenderer.invoke("ggpo-launch", {
               rom: "kof98", localPort: 6003, remoteIp: "127.0.0.1", remotePort: relayPort, playerNumber: 0,
