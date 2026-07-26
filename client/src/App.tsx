@@ -1117,8 +1117,9 @@ function App() {
                       const lanIp = bootstrapGuestLanIp.trim();
                       const result = await (window as any).electron.ipcRenderer.invoke("bootstrap-guest", { roomCode: bootstrapRoomInput.trim(), lanIp: lanIp || undefined });
                       if (result.success) {
-                        const nakamaHost = lanIp || "bore.pub";
-                        const nakamaPort = lanIp ? "7350" : bootstrapRoomInput.trim();
+                        const parsedUrl = new URL(`http://${result.boreUrl}`);
+                        const nakamaHost = parsedUrl.hostname;
+                        const nakamaPort = parsedUrl.port || "7350";
                         await (window as any).electron.ipcRenderer.invoke("set-nakama-server", { host: nakamaHost, port: nakamaPort });
                         setNakamaHost(nakamaHost);
                         setNakamaPort(nakamaPort);
