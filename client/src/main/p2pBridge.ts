@@ -92,9 +92,11 @@ export async function handleP2PHost(): Promise<any> {
   if (candidate?.publicPort) {
     // Usar IP LAN real (excluir Tailscale 100.x.x.x) para el mapping UPnP
     const lanIp = candidate.privateIps?.find((ip: string) => !ip.startsWith('100.'));
-    upnpOk = await tryMapPort(candidate.publicPort, 'UDP', 'EmuLatam-P2P', 0, lanIp);
-    // También intentar abrir Windows Firewall para el puerto P2P
-    tryOpenWindowsFirewall(candidate.publicPort, 'UDP', 'EmuLatam-P2P');
+    // El puerto privado es el bound real del transporte (no el STUN)
+    const localPort = manager.getTransport().port;
+    upnpOk = await tryMapPort(candidate.publicPort, 'UDP', 'EmuLatam-P2P', 0, lanIp, localPort);
+    // También intentar abrir Windows Firewall para el puerto local real (el UPnP reenvía a este puerto)
+    tryOpenWindowsFirewall(localPort, 'UDP', 'EmuLatam-P2P');
   }
 
   console.log(`[P2P-HOST] Started on port ${candidate?.publicPort}, local IPs: ${candidate?.privateIps?.join(',')}, public IP: ${candidate?.publicIp}, UPnP: ${upnpOk ? 'OK' : 'FAIL'}`);
