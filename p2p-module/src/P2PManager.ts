@@ -292,6 +292,7 @@ export class P2PManager {
       case PacketType.RELAY_REQUEST: {
         // Guest solicita relay → registrar peer + responder RELAY_ACK
         if (this._role !== 'host') break;
+        console.log(`[P2P-RELAY] RELAY_REQUEST from ${rinfo.address}:${rinfo.port}`);
         const guestToken = pkt.sessionToken;
         const guestId = `wan-${rinfo.address}-${rinfo.port}`;
         this.remoteAddr = rinfo.address;
@@ -379,6 +380,6 @@ function waitForRelayAck(transport: UDPTransport, timeoutMs: number): Promise<vo
         resolve();
       }
     };
-    transport.on('message', handler);
+    transport.on('raw-message', handler);
   });
 }
