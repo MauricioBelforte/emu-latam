@@ -909,10 +909,10 @@ function App() {
                     </Row>
                   </Section>
 
-                  {/* ─── CONEXIÓN VÍA P2P (propia, sin Tailscale) ─── */}
+                  {/* ─── CONEXIÓN VÍA P2P (sin Tailscale, con bore) ─── */}
                   <Section $accent="#0f0" style={{ borderStyle: "solid", borderWidth: 2, borderColor: "#0f08", padding: "16px" }}>
                     <p style={{ color: "#0f0", fontFamily: theme.fonts.arcade, fontSize: "0.65rem", marginBottom: 10, textAlign: "center" }}>
-                      ▸ CONEXIÓN VÍA P2P (SIN TAILSCALE) ◂
+                      ▸ SALA PÚBLICA (SIN TAILSCALE, CON BORE) ◂
                     </p>
                     {bootstrapRoomCode ? (
                       <div style={{ textAlign: "center" }}>
