@@ -90,7 +90,9 @@ export async function handleP2PHost(): Promise<any> {
   // Intentar abrir puerto vía UPnP
   let upnpOk = false;
   if (candidate?.publicPort) {
-    upnpOk = await tryMapPort(candidate.publicPort, 'UDP', 'EmuLatam-P2P', 0);
+    // Usar IP LAN real (excluir Tailscale 100.x.x.x) para el mapping UPnP
+    const lanIp = candidate.privateIps?.find((ip: string) => !ip.startsWith('100.'));
+    upnpOk = await tryMapPort(candidate.publicPort, 'UDP', 'EmuLatam-P2P', 0, lanIp);
     // También intentar abrir Windows Firewall para el puerto P2P
     tryOpenWindowsFirewall(candidate.publicPort, 'UDP', 'EmuLatam-P2P');
   }

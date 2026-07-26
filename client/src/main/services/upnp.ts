@@ -8,20 +8,22 @@ function getClient(): Client {
   return client;
 }
 
-export async function tryMapPort(port: number, protocol: 'UDP' | 'TCP', description: string, ttl: number = 0): Promise<boolean> {
+export async function tryMapPort(port: number, protocol: 'UDP' | 'TCP', description: string, ttl: number = 0, localIp?: string): Promise<boolean> {
   try {
     const c = getClient();
+    const opts: any = {
+      public: port,
+      private: port,
+      protocol,
+      description,
+      ttl,
+    };
+    if (localIp) opts.local = localIp;
     await new Promise<void>((resolve, reject) => {
-      c.portMapping({
-        public: port,
-        private: port,
-        protocol,
-        description,
-        ttl,
-      }, (err) => err ? reject(err) : resolve());
+      c.portMapping(opts, (err) => err ? reject(err) : resolve());
     });
     mappedPorts.set(port, { description, ttl });
-    console.log(`[UPnP] Puerto ${port}/${protocol} abierto: ${description}`);
+    console.log(`[UPnP] Puerto ${port}/${protocol} abierto: ${description}${localIp ? ` (local: ${localIp})` : ''}`);
     return true;
   } catch (err: any) {
     console.log(`[UPnP] No se pudo abrir puerto ${port}/${protocol}: ${err.message}`);
