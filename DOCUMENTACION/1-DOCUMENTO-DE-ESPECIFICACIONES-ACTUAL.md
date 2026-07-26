@@ -80,3 +80,18 @@ netplay_check_frames = "0"
 ### getLanIp() — Exclusión de Tailscale
 - `getLanIp()` en `index.ts:286` ahora prioriza IPs LAN reales (192.168.x.x, 10.x.x.x)
 - Excluye IPs de Tailscale (100.x.x.x) que antes causaban broadcasts con IP incorrecta
+
+### P2P Propio WAN — UPnP + Windows Firewall
+- Al crear sala P2P, se abre puerto UDP vía UPnP (`nat-upnp`) en el router
+- Se crea regla de entrada en Windows Firewall (`netsh advfirewall`)
+- UPnP usa IP LAN real (excluye Tailscale) y puerto bound real del transporte
+- **Limitación:** El router ISP puede ignorar UPnP aunque devuelva éxito
+- Si UPnP falla, la UI muestra advertencia y sugiere usar Tailscale o Sala Pública
+
+### Bug corregido: waitForRelayAck (26-Jul-2026)
+- `waitForRelayAck()` en `P2PManager.ts` escuchaba `transport.on('message', ...)` pero el transporte emite `'raw-message'`
+- El handler nunca se ejecutaba → siempre timeout a los 8s
+- Fix: cambiar a `transport.on('raw-message', handler)`
+
+### UI Reorder (26-Jul-2026)
+- Orden en ventana principal: 1. Tailscale 2. Bootstrap verde 3. P2P fucsia

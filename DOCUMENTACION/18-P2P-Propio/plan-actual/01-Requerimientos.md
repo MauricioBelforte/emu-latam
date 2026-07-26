@@ -1,9 +1,9 @@
 # 01 - Requerimientos del Sistema P2P Propio (Actualizado)
 
 > **Módulo:** 18-P2P-Propio
-> **Fecha:** 2026-07-23
-> **Versión:** 1.1
-> **Cambios:** Clasificación NAT simplificada a 2 buckets (Cone/Symmetric). Keepalive unificado con 3-strikes. Timeout de punching reducido a ~2.8s.
+> **Fecha:** 2026-07-26
+> **Versión:** 1.2
+> **Cambios:** Documentación de la investigación WAN desde celular (conexión fallida por router ISP no aplica UPnP). Fix crítico en `waitForRelayAck` (evento incorrecto).
 
 ---
 
@@ -27,17 +27,17 @@ Emu Latam actualmente depende de servicios externos para conectar jugadores: Tai
 - ✅ 29 tests unitarios
 - ✅ Relay en el host como fallback sin terceros
 
-### WAN Manual (Nuevo - Julio 2026)
+### WAN Manual (Investigado - Julio 2026)
 - Conexión WAN vía IP pública + puerto P2P (sin Nakama, sin bore, sin Tailscale)
 - Host muestra IP pública detectada vía STUN
 - Guest ingresa IP:puerto manualmente
 - Hole punching automático con relay fallback
-- Funciona desde datos móviles (el guest solo necesita salida UDP)
-- Sin servidores externos, sin dependencias de red
+- ⚠️ **REALIDAD:** Funciona solo si el router del ISP aplica UPnP. En nuestro test, el router reporta UPnP OK pero no forwardea el puerto (puerto cerrado desde internet).
+- ❌ **No funciona desde celular** porque el router del host no reenvía el puerto a pesar de UPnP exitoso.
 
 ### Largo Plazo
 - Cifrado opcional con `tweetnacl`
-- UPnP / NAT-PMP como mejora
+- UPnP / NAT-PMP como mejora (ya implementado pero router no coopera)
 - Host migration básica
 
 ---
@@ -63,6 +63,10 @@ Emu Latam actualmente depende de servicios externos para conectar jugadores: Tai
 | RF-15 | Estados visuales | Eventos IPC con progreso: descubriendo, señalizando, punching, conectado (direct/relay) | Media |
 | RF-16 | Versionado de protocolo | Header binario con campo de versión | Media |
 | RF-17 | Aviso de caída de host | Detectar vía presencia Nakama y notificar a guests | Baja |
+| RF-18 | UPnP automático | Al crear sala P2P, abrir puerto UDP vía UPnP en el router | Alta |
+| RF-19 | Windows Firewall automático | Al crear sala P2P, crear regla de entrada en Windows Firewall vía netsh | Alta |
+| RF-20 | WAN manual sin Nakama | Guest ingresa IP:puerto del host manualmente cuando no hay broadcast LAN | Alta |
+| RF-21 | RELAY_REQUEST/ACK | Protocolo para que guest solicite relay al host cuando hole punch falla en WAN | Alta |
 
 ---
 
@@ -74,9 +78,10 @@ Emu Latam actualmente depende de servicios externos para conectar jugadores: Tai
 | RNF-02 | Tiempo de punching | ≤ 3 intentos, ~2.8s total (backoff exp: 400/800/1600ms) |
 | RNF-03 | Concurrencia | 16 peers, CPU < 5% |
 | RNF-04 | Memoria | < 15 MB RAM |
-| RNF-05 | Sin binarios externos | Solo npm: `stun`, opcional `tweetnacl` |
+| RNF-05 | Sin binarios externos | Solo npm: `stun`, `nat-upnp`, opcional `tweetnacl` |
 | RNF-06 | Validación de paquetes | Header con versión + sessionToken. Descartar inválidos. |
 | RNF-07 | Detección de caída | ≤ 60s (3 keepalives perdidos a ~18s) |
+| RNF-08 | UPnP no bloqueante | Si UPnP falla, el host sigue funcionando (solo LAN o con advertencia) |
 
 ---
 
@@ -93,4 +98,19 @@ Emu Latam actualmente depende de servicios externos para conectar jugadores: Tai
 | CA-07 | RetroArch sin cambios | Apunta a 127.0.0.1:proxy, no modificado |
 | CA-08 | Overhead relay | < 5ms en localhost |
 | CA-09 | GGPO+P2P en LAN | Guest descubre host via P2P, ambos lanzan GGPO con IPs LAN | Prioritaria |
-| CA-10 | GGPO+P2P en WAN | Host envía IP propia via connection_info, guest lanza GGPO | Futura |
+| CA-10 | WAN manual (IP:puerto) | Guest desde internet se conecta al host via relay 🔄 **No verificado** |
+| CA-11 | UPnP abre puerto en router | Puerto UDP visible desde internet | ⚠️ **Router ISP no aplica UPnP** |
+| CA-12 | Windows Firewall no bloquea | Regla netsh creada para el puerto P2P | ✅ |
+
+---
+
+## 6. Estado Real de Conexiones (Jul-2026)
+
+| Método | Estado | Funciona en |
+|:---|:---|:---|
+| **Tailscale** | ✅ Funcional | Cualquier red (WAN/LAN) |
+| **Bore (túnel público)** | ⚠️ Depende de bore.pub | Solo si red no bloquea bore.pub |
+| **LAN directo** | ✅ Funcional | Misma red local (sin AP isolation) |
+| **P2P Propio LAN** (broadcast) | ✅ Funcional | Misma red local |
+| **P2P Propio WAN** (IP manual) | ❌ No funciona | Router ISP ignora UPnP, puerto cerrado |
+| **Bootstrap verde** (Sala Pública) | ✅ Funcional | Con bore (WAN) o IP local (LAN) |

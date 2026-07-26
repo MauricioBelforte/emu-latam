@@ -1,568 +1,192 @@
 # 04 - Especificación de Código (Actualizado)
 
 > **Módulo:** 18-P2P-Propio
-> **Fecha:** 2026-07-23
-> **Versión:** 1.1
+> **Fecha:** 2026-07-26
+> **Versión:** 1.2
+> **Cambios:** Archivos involucrados en UPnP + Firewall + fix waitForRelayAck + UI reorder.
 
 ---
 
-## 1. Types Compartidos (`protocol/types.ts`)
+## 1. Archivos Modificados en esta Sesión
 
+### 1.1 `p2p-module/src/P2PManager.ts` — Fix CRÍTICO
+
+**Bug:** `waitForRelayAck()` escuchaba `transport.on('message', handler)` pero el transporte emite `'raw-message'`.
+
+**Línea 382 (antes):**
 ```typescript
-export type NatType = 'cone' | 'symmetric';
-
-export type PeerRole = 'host' | 'guest';
-
-export type PeerState =
-  | 'idle' | 'discovering' | 'signaling' | 'lan_check'
-  | 'lan_connected' | 'punching' | 'direct_connected'
-  | 'relay_connected' | 'game_running' | 'disconnected' | 'failed';
-
-export enum PacketType {
-  PUNCH = 0x01,
-  PUNCH_ACK = 0x02,
-  KEEPALIVE = 0x03,
-  KEEPALIVE_ACK = 0x04,
-  RELAY_DATA = 0x05,
-  DISCONNECT = 0x06,
-}
-
-export interface PeerCandidate {
-  peerId: string;
-  publicIp: string;
-  publicPort: number;
-  privateIps: string[];
-  natType: NatType;
-  protocolVersion: number;
-}
-
-export interface NatResult {
-  publicIp: string;
-  publicPort: number;
-  natType: NatType;
-}
-
-export interface DecodedPacket {
-  version: number;
-  type: PacketType;
-  sessionToken: number;
-  payload: Buffer;
-}
-
-export interface GuestRoute {
-  peerId: string;
-  remoteAddr: string;
-  remotePort: number;
-  localForwardSocket: import('dgram').Socket;
-  lastSeen: number;
-}
-
-export interface P2PConfig {
-  role: PeerRole;
-  localPeerId: string;
-  roomId: string;
-  signaling: SignalingChannel;
-}
-
-export interface P2PStatus {
-  state: PeerState;
-  progress: number;
-  message: string;
-  mode: 'lan' | 'direct' | 'relay' | null;
-}
-
-export const PROTOCOL_VERSION = 1;
-export const RETROARCH_PORT = 55435;
-export const KEEPALIVE_INTERVAL = 18000;    // 18s
-export const KEEPALIVE_MAX_MISSED = 3;       // ~54s total
+transport.on('message', handler);
 ```
 
----
-
-## 2. Protocolo Binario (`protocol/packet.ts`)
-
+**Línea 382 (después):**
 ```typescript
-import { PacketType, DecodedPacket, PROTOCOL_VERSION } from './types';
+transport.on('raw-message', handler);
+```
 
-const HEADER_SIZE = 4; // version(1) + type(1) + sessionToken(2)
+**Impacto:** `waitForRelayAck()` NUNCA recibía el evento, siempre timeout a los 8s. Este es el bug que causaba `RELAY_ACK timeout` en todas las conexiones WAN.
 
-export function encodePacket(
-  type: PacketType,
-  sessionToken: number,
-  payload?: Buffer,
-  version = PROTOCOL_VERSION,
-): Buffer {
-  const data = payload ?? Buffer.alloc(0);
-  const buf = Buffer.alloc(HEADER_SIZE + data.length);
-  buf.writeUInt8(version, 0);
-  buf.writeUInt8(type, 1);
-  buf.writeUInt16BE(sessionToken, 2);
-  data.copy(buf, HEADER_SIZE);
-  return buf;
-}
+**Además:** Se agregó log `[P2P-RELAY] RELAY_REQUEST from {ip}:{port}` en el handler `RELAY_REQUEST` (línea 294) para diagnosticar si el host recibe paquetes del guest.
 
-export function decodePacket(buf: Buffer): DecodedPacket | null {
-  if (buf.length < HEADER_SIZE) return null;
-  return {
-    version: buf.readUInt8(0),
-    type: buf.readUInt8(1) as PacketType,
-    sessionToken: buf.readUInt16BE(2),
-    payload: buf.subarray(HEADER_SIZE),
-  };
+**Funciones clave:**
+- `handlePacket()` (línea 272): maneja todos los tipos de paquete. Caso `RELAY_REQUEST` (línea 292) registra peer + envía RELAY_ACK. Caso `RELAY_ACK` (línea 307) confirma relay en guest.
+- `startJoinWan()` (línea 191): flujo WAN completo: hole punch → fallback → RELAY_REQUEST → waitForRelayAck.
+- `sendRelayRequest()` (línea 324): envía RELAY_REQUEST al host.
+- `waitForRelayAck()` (línea 367): helper que espera RELAY_ACK con timeout 8s.
+
+### 1.2 `client/src/main/services/upnp.ts` — UPnP con IP y puerto privado
+
+**Antes:**
+```typescript
+export async function tryMapPort(port, protocol, description, ttl=0, localIp?): Promise<boolean> {
+  const opts = { public: port, private: port, protocol, description, ttl };
+  if (localIp) opts.local = localIp;
+  ...
 }
 ```
 
----
-
-## 3. Detector NAT (`NatDetector.ts`)
-
+**Después:**
 ```typescript
-import { NatResult, NatType } from './protocol/types';
-
-const STUN_SERVERS = [
-  { host: 'stun.l.google.com', port: 19302 },
-  { host: 'stun1.l.google.com', port: 19302 },
-];
-
-async function stunBindingRequest(
-  transport: UDPTransport,
-  server: { host: string; port: number },
-): Promise<{ address: string; port: number } | null> {
-  try {
-    const response = await transport.sendStunRequest(server, {
-      timeoutMs: 1500,
-      retries: 2,
-    });
-    return { address: response.address, port: response.port };
-  } catch {
-    return null;
-  }
-}
-
-export async function detectNATType(transport: UDPTransport): Promise<NatResult> {
-  const [r1, r2] = await Promise.all([
-    stunBindingRequest(transport, STUN_SERVERS[0]),
-    stunBindingRequest(transport, STUN_SERVERS[1]),
-  ]);
-
-  if (!r1 || !r2) {
-    return { publicIp: r1?.address ?? '', publicPort: r1?.port ?? 0, natType: 'symmetric' };
-  }
-
-  const natType: NatType = r1.port === r2.port ? 'cone' : 'symmetric';
-  return { publicIp: r1.address, publicPort: r1.port, natType };
+export async function tryMapPort(port, protocol, description, ttl=0, localIp?, privatePort?): Promise<boolean> {
+  const opts = { public: port, private: privatePort ?? port, protocol, description, ttl };
+  if (localIp) opts.local = localIp;
+  ...
 }
 ```
 
----
+**Parámetros:**
+- `port`: Puerto público (detectado por STUN) — se abre en el router
+- `privatePort`: Puerto local bound del transporte (diferente del STUN si el NAT no preserva puertos)
+- `localIp`: IP LAN real (192.168.x.x, excluye Tailscale 100.x.x.x)
 
-## 4. Socket P2P (`HolePuncher.ts`)
+### 1.3 `client/src/main/p2pBridge.ts` — Integración UPnP + Firewall
 
+**handleP2PHost()** (línea 69):
 ```typescript
-import { encodePacket, decodePacket } from './protocol/packet';
-import { PacketType, PeerCandidate } from './protocol/types';
+// UPnP
+const lanIp = candidate.privateIps?.find((ip: string) => !ip.startsWith('100.'));
+const localPort = manager.getTransport().port;  // bound real del transporte
+upnpOk = await tryMapPort(candidate.publicPort, 'UDP', 'EmuLatam-P2P', 0, lanIp, localPort);
+tryOpenWindowsFirewall(localPort, 'UDP', 'EmuLatam-P2P');  // Firewall para puerto bound real
+```
 
-export async function doHolePunch(
-  transport: UDPTransport,
-  localCandidate: PeerCandidate,
-  remoteCandidate: PeerCandidate,
-  sessionToken: number,
-): Promise<boolean> {
-  // Symmetric-Symmetric: no intentar
-  if (localCandidate.natType === 'symmetric' && remoteCandidate.natType === 'symmetric') {
-    return false;
-  }
+**handleP2PGuestWan()** (línea 171): Crea P2PManager con hostCandidate desde IP:puerto manual, llama `startJoinWan()`, crea forwarder.
 
-  const ATTEMPTS = [
-    { delay: 0, timeout: 400 },
-    { delay: 400, timeout: 800 },
-    { delay: 1200, timeout: 1600 },
-  ]; // ~2.8s total
-
-  for (const attempt of ATTEMPTS) {
-    await new Promise((r) => setTimeout(r, attempt.delay));
-    transport.send(
-      encodePacket(PacketType.PUNCH, sessionToken),
-      remoteCandidate.publicPort,
-      remoteCandidate.publicIp,
-    );
-
-    const ack = await transport.waitFor(
-      (pkt, rinfo) =>
-        pkt.type === PacketType.PUNCH_ACK &&
-        rinfo.address === remoteCandidate.publicIp,
-      attempt.timeout,
-    );
-
-    if (ack) {
-      transport.send(
-        encodePacket(PacketType.PUNCH_ACK, sessionToken),
-        remoteCandidate.publicPort,
-        remoteCandidate.publicIp,
-      );
-      return true;
-    }
-  }
-
-  return false;
+**tryOpenWindowsFirewall()** (línea 8):
+```typescript
+function tryOpenWindowsFirewall(port, protocol, name) {
+  execSync(`netsh advfirewall firewall add rule name="${name}" dir=in action=allow protocol=${protocol} localport=${port}`, ...);
 }
 ```
 
+### 1.4 `client/src/App.tsx` — UI Reorder
+
+**Orden de secciones en `joinMode === null`:**
+1. Sala Tailscale (accent primary) — primero
+2. Conexión Vía P2P verde (accent #0f0) — segundo
+3. Sala P2P fucsia (accent #f0f) — tercero
+
+**Vista de Sala Creada:** Muestra IP pública + IP LAN + estado UPnP ✅/⚠️ + botón COPIAR + CERRAR SALA.
+
+**Vista Guest WAN:** Cuando no hay broadcast LAN, muestra input IP:puerto + CONECTAR + VOLVER.
+
+### 1.5 `client/src/main/services/ipcChannels.ts`
+
+Agregado: `P2P_GUEST_WAN = "p2p-guest-wan"`
+
+### 1.6 `client/src/main/index.ts`
+
+Registrado: IPC handler `p2p-guest-wan` importando `handleP2PGuestWan` de `p2pBridge.ts`.
+
 ---
 
-## 5. Relay Server (`RelayServer.ts`)
+## 2. Archivos Nuevos
 
-Cada guest tiene su propio socket local dedicado hacia RetroArch:
+### 2.1 `client/src/main/services/upnp.ts` (NUEVO — 25-Jul-2026)
 
-```typescript
-import dgram from 'dgram';
-import { encodePacket, decodePacket } from './protocol/packet';
-import { PacketType, GuestRoute, RETROARCH_PORT } from './protocol/types';
+Módulo UPnP completo:
+- `tryMapPort(port, protocol, description, ttl?, localIp?, privatePort?)` → abre puerto en router
+- `tryUnmapPort(port, protocol)` → cierra puerto en router
+- `getExternalIp()` → consulta IP pública vía UPnP
+- `cleanupAllMappings()` → cierra todos los mappings registrados
 
-export class RelayServer {
-  private routes = new Map<string, GuestRoute>();
-  private tokensByPeer = new Map<string, number>();
-  private peerIdByToken = new Map<number, string>();
+### 2.2 `client/src/main/services/upnp.ts` modificado con `privatePort` (26-Jul-2026)
 
-  constructor(private transport: UDPTransport) {
-    transport.onMessage((data, rinfo) => this.handleIncoming(data, rinfo));
-  }
+---
 
-  registerAuthorizedPeer(peerId: string, sessionToken: number) {
-    this.tokensByPeer.set(peerId, sessionToken);
-    this.peerIdByToken.set(sessionToken, peerId);
-  }
+## 3. Dependencias Agregadas
 
-  private async handleIncoming(
-    data: Buffer,
-    rinfo: { address: string; port: number },
-  ) {
-    const packet = decodePacket(data);
-    if (!packet || packet.type !== PacketType.RELAY_DATA) return;
-
-    const peerId = this.peerIdByToken.get(packet.sessionToken);
-    if (!peerId) return;
-
-    let route = this.routes.get(peerId);
-    if (!route) {
-      route = await this.createRoute(peerId, rinfo);
-      this.routes.set(peerId, route);
-    }
-
-    route.lastSeen = Date.now();
-    route.remoteAddr = rinfo.address;
-    route.remotePort = rinfo.port;
-    route.localForwardSocket.send(packet.payload, RETROARCH_PORT, '127.0.0.1');
-  }
-
-  private async createRoute(
-    peerId: string,
-    rinfo: { address: string; port: number },
-  ): Promise<GuestRoute> {
-    const localSocket = dgram.createSocket('udp4');
-    await new Promise<void>((resolve) => localSocket.bind(0, '127.0.0.1', () => resolve()));
-
-    const token = this.tokensByPeer.get(peerId)!;
-    localSocket.on('message', (reply) => {
-      const wrapped = encodePacket(PacketType.RELAY_DATA, token, reply);
-      this.transport.send(wrapped, rinfo.port, rinfo.address);
-    });
-
-    return {
-      peerId,
-      remoteAddr: rinfo.address,
-      remotePort: rinfo.port,
-      localForwardSocket: localSocket,
-      lastSeen: Date.now(),
-    };
-  }
-
-  removeRoute(peerId: string) {
-    this.routes.get(peerId)?.localForwardSocket.close();
-    this.routes.delete(peerId);
-    const token = this.tokensByPeer.get(peerId);
-    if (token) this.peerIdByToken.delete(token);
-    this.tokensByPeer.delete(peerId);
-  }
-
-  removeAll() {
-    for (const id of this.routes.keys()) this.removeRoute(id);
+```json
+{
+  "dependencies": {
+    "nat-upnp": "^1.1.1"
   }
 }
 ```
 
+Instalado el 25-Jul-2026 para abrir puertos automáticamente en el router vía UPnP.
+
 ---
 
-## 6. Keepalive Service (`KeepAliveService.ts`)
+## 4. Funciones Clave por Archivo
 
-```typescript
-import { encodePacket } from './protocol/packet';
-import { PacketType, KEEPALIVE_INTERVAL, KEEPALIVE_MAX_MISSED } from './protocol/types';
+### `p2p-module/src/P2PManager.ts`
 
-export class KeepAliveService {
-  private timers = new Map<string, NodeJS.Timeout>();
-  private missed = new Map<string, number>();
+| Función | Línea | Propósito |
+|:---|:---:|:---|
+| `startHost()` | 77 | Inicia como host: bind + STUN + candidate |
+| `startJoinWan(hostCandidate)` | 191 | Guest WAN: hole punch → RELAY_REQUEST → espera ACK |
+| `sendRelayRequest()` | 324 | Envía RELAY_REQUEST al host |
+| `waitForRelayAck()` | 367 | Espera RELAY_ACK con timeout 8s (⚠️ fix: 'raw-message' no 'message') |
+| `handlePacket()` | 272 | Dispatcher de paquetes. Maneja RELAY_REQUEST (host) y RELAY_ACK (guest) |
 
-  start(
-    peerId: string,
-    sendTo: (buf: Buffer) => void,
-    sessionToken: number,
-    onTimeout: (peerId: string) => void,
-  ) {
-    this.missed.set(peerId, 0);
+### `client/src/main/p2pBridge.ts`
 
-    const timer = setInterval(() => {
-      const m = this.missed.get(peerId) ?? 0;
-      if (m >= KEEPALIVE_MAX_MISSED) {
-        this.stop(peerId);
-        onTimeout(peerId);
-        return;
-      }
-      sendTo(encodePacket(PacketType.KEEPALIVE, sessionToken));
-      this.missed.set(peerId, m + 1);
-    }, KEEPALIVE_INTERVAL);
+| Función | Línea | Propósito |
+|:---|:---:|:---|
+| `handleP2PHost()` | 69 | Host: UPnP + Firewall + broadcast + candidate |
+| `handleP2PGuest()` | 120 | Guest: broadcast LAN + Nakama candidate |
+| `handleP2PGuestWan(hostAddress)` | 171 | Guest WAN manual: IP:puerto → startJoinWan |
+| `handleP2PDisconnect()` | 239 | Cleanup: cierra forwarder + UPnP unmapping |
+| `tryOpenWindowsFirewall()` | 8 | Crea regla Windows Firewall para puerto |
 
-    this.timers.set(peerId, timer);
-  }
+### `client/src/main/services/upnp.ts`
 
-  onAckReceived(peerId: string) {
-    this.missed.set(peerId, 0);
-  }
+| Función | Línea | Propósito |
+|:---|:---:|:---|
+| `tryMapPort()` | 11 | Mapping UPnP en router |
+| `tryUnmapPort()` | 34 | Remove UPnP mapping |
+| `getExternalIp()` | 52 | Consulta IP pública vía UPnP IGD |
+| `cleanupAllMappings()` | 64 | Cleanup completo al salir |
 
-  stop(peerId: string) {
-    clearInterval(this.timers.get(peerId));
-    this.timers.delete(peerId);
-    this.missed.delete(peerId);
-  }
+---
 
-  stopAll() {
-    for (const id of this.timers.keys()) this.stop(id);
-  }
-}
+## 5. Logs Relevantes
+
+### Host (éxito)
+```
+[P2P-HOST] NAT: cone → 198.12.40.29:53084
+[UPnP] Puerto 53084/UDP abierto: EmuLatam-P2P (local: 192.168.1.14) (private: 53084)
+[FIREWALL] Regla creada: EmuLatam-P2P (53084/UDP)
+[P2P-HOST] Started on port 53084, local IPs: 100.98.148.11,192.168.1.14, UPnP: OK
+```
+
+### Guest (error, antes del fix)
+```
+App.tsx:1211 Uncaught Error: Error invoking remote method 'p2p-guest-wan': Error: RELAY_ACK timeout
+```
+
+### Host cuando guest conecta (después del fix, si el router coopera)
+```
+[P2P-RELAY] RELAY_REQUEST from <guest_ip>:<guest_port>
 ```
 
 ---
 
-## 7. Orquestador (`P2PManager.ts`)
+## 6. Commits Relacionados
 
-```typescript
-export class P2PManager {
-  private transport!: UDPTransport;
-  private relay?: RelayServer;
-  private keepalive = new KeepAliveService();
-  private state = new StateMachine();
-  private mode: 'lan' | 'direct' | 'relay' | null = null;
-  private connections = new Map<string, PeerConnection>();
-
-  constructor(
-    private nakama: SignalingChannel,
-    private emitToUI: (status: P2PStatus) => void,
-  ) {}
-
-  async startAsHost(roomId: string): Promise<P2PStatus> {
-    this.state.transition('discovering');
-    this.transport = await UDPTransport.create();
-
-    const nat = await detectNATType(this.transport);
-    const candidate: PeerCandidate = {
-      peerId: this.nakama.localPeerId,
-      publicIp: nat.publicIp,
-      publicPort: nat.publicPort,
-      privateIps: NATDetector.getLocalIps(),
-      natType: nat.natType,
-      protocolVersion: PROTOCOL_VERSION,
-    };
-
-    await this.nakama.publishCandidate(candidate);
-    this.relay = new RelayServer(this.transport);
-
-    this.state.transition('signaling');
-    this.emitStatus(100, 'SALA LISTA');
-    return this.getStatus();
-  }
-
-  async joinAsGuest(roomId: string): Promise<P2PStatus> {
-    this.state.transition('discovering');
-    this.transport = await UDPTransport.create();
-    const nat = await detectNATType(this.transport);
-
-    const myCandidate: PeerCandidate = {
-      peerId: this.nakama.localPeerId,
-      publicIp: nat.publicIp,
-      publicPort: nat.publicPort,
-      privateIps: NATDetector.getLocalIps(),
-      natType: nat.natType,
-      protocolVersion: PROTOCOL_VERSION,
-    };
-    await this.nakama.publishCandidate(myCandidate);
-
-    const hostCandidate = await this.nakama.waitForCandidate();
-
-    // LAN check
-    if (hostCandidate.publicIp === nat.publicIp) {
-      const lanOk = await this.tryLan(hostCandidate);
-      if (lanOk) return this.connectDone('lan', hostCandidate);
-    }
-
-    // Hole punch
-    this.state.transition('punching');
-    const sessionToken = Math.floor(Math.random() * 65535);
-    const punched = await doHolePunch(this.transport, myCandidate, hostCandidate, sessionToken);
-
-    if (punched) {
-      return this.connectDone('direct', hostCandidate, sessionToken);
-    }
-
-    // Relay fallback
-    await this.nakama.publishReady(hostCandidate.peerId, sessionToken);
-    this.relay?.registerAuthorizedPeer(hostCandidate.peerId, sessionToken);
-    return this.connectDone('relay', hostCandidate, sessionToken);
-  }
-
-  private async connectDone(
-    mode: 'lan' | 'direct' | 'relay',
-    peer: PeerCandidate,
-    token?: number,
-  ): Promise<P2PStatus> {
-    this.mode = mode;
-    this.state.transition(mode === 'relay' ? 'relay_connected' : 'direct_connected');
-
-    if (mode !== 'lan' && token) {
-      this.keepalive.start(
-        peer.peerId,
-        (buf) => this.transport.send(buf, peer.publicPort, peer.publicIp),
-        token,
-        (id) => this.handleDisconnect(id),
-      );
-    }
-
-    this.state.transition('game_running');
-    return this.getStatus();
-  }
-
-  private emitStatus(progress: number, message: string) {
-    this.emitToUI({
-      state: this.state.current,
-      progress,
-      message,
-      mode: this.mode,
-    });
-  }
-
-  private getStatus(): P2PStatus {
-    return {
-      state: this.state.current,
-      progress: 0,
-      message: '',
-      mode: this.mode,
-    };
-  }
-
-  private handleDisconnect(peerId: string) {
-    this.keepalive.stop(peerId);
-    this.relay?.removeRoute(peerId);
-    this.state.transition('disconnected');
-    this.emitToUI({ state: 'disconnected', progress: 0, message: 'Peer desconectado', mode: this.mode });
-  }
-
-  cancel() {
-    this.keepalive.stopAll();
-    this.relay?.removeAll();
-    this.transport?.close();
-    this.state.transition('idle');
-  }
-}
-```
-
----
-
-## 8. IPC Handlers (`ipc/handlers.ts`)
-
-```typescript
-import { ipcMain, BrowserWindow } from 'electron';
-import { P2PManager } from '../P2PManager';
-
-export function registerP2PHandlers(ipcMain: IpcMain, ctx: AppContext) {
-  const manager = new P2PManager(ctx.nakamaClient, (status) => {
-    ctx.mainWindow.webContents.send('p2p:status', status);
-  });
-
-  ipcMain.handle('p2p:host-start', (_, { roomId }) => manager.startAsHost(roomId));
-  ipcMain.handle('p2p:guest-join', (_, { roomId }) => manager.joinAsGuest(roomId));
-  ipcMain.handle('p2p:cancel', () => { manager.cancel(); return { success: true }; });
-}
-```
-
----
-
-## 9. Integración GGPO + P2P (ChallengeContext.tsx)
-
-### 9.1 acceptChallenge (Guest side, P2P+GGPO)
-
-```typescript
-// Dentro de acceptChallenge(), después de p2p-guest:
-if (method === "p2p" && currentChallenge.hostCandidate) {
-  const guestResult = await p2p-guest(hostCandidate);
-
-  if (engine === "ggpo") {
-    const ipResult = await electron.ipcRenderer.invoke("get-lan-ip");
-    const guestOwnIp = ipResult.ip;
-    await sendToLobby(CHALLENGE_ACCEPT_MSG_TYPE, {
-      targetId: challengerId,
-      acceptedBy: userId,
-      acceptedByName: username,
-      guestIp: guestOwnIp,
-    });
-    // No lanza GGPO aún — espera connection_info del host
-    setTimeout(() => resetChallenge(), 5000);
-    return;
-  }
-
-  // --- resto del flujo RetroArch P2P existente ---
-  if (guestResult.isLan) { ... }
-  else { ... }
-}
-```
-
-### 9.2 ACCEPT handler (Host side, P2P+GGPO)
-
-```typescript
-// Dentro del handler CHALLENGE_ACCEPT_MSG_TYPE, al inicio del bloque method==="p2p":
-if (content._type === CHALLENGE_ACCEPT_MSG_TYPE) {
-  if (method === "p2p") {
-
-    if (engine === "ggpo") {
-      // Host detecta su IP y la envía al guest via connection_info
-      const ipResult = await electron.ipcRenderer.invoke("get-lan-ip");
-      const myIp = ipResult.ip;
-      if (!myIp) { alert("No se pudo detectar IP"); resetChallenge(); return; }
-      await sendConnectionInfo(content.acceptedBy, {
-        ggpoHostIp: myIp,
-        hostName: username,
-        useGgpo: true,
-      });
-      // El guest lanzará GGPO y enviará guest_ready
-      // El handler existente de guest_ready lanza GGPO en host
-      return;
-    }
-
-    // --- resto del flujo RetroArch P2P existente ---
-    await (window as any).electron.ipcRenderer.invoke("launch-game", ...);
-    ...
-  }
-}
-```
-
-### 9.3 Flujo Completo (sin modificar lo existente)
-
-Los handlers existentes que **ya funcionan** y no se tocan:
-- `CHALLENGE_ACCEPT_MSG_TYPE + "_conn"` (líneas 295-329): guest recibe connection_info con ggpoHostIp → `ggpo-launch` → envía guest_ready
-- `CHALLENGE_GUEST_READY_MSG_TYPE` (líneas 332-345): host recibe guestIp → `ggpo-launch` como P0
-
-Solo se agregan 2 bifurcaciones `engine === "ggpo"` en el flujo P2P, sin modificar la lógica RetroArch existente.
-
----
-
-## 10. Integración con Sistema Existente
-
-Tal como el plan-inicial: `SignalingChannel` recibe la sesión Nakama ya abierta, no abre conexión nueva. React llama via `window.electron.invoke('p2p:host-start')`. Para GGPO, la integración se hace exclusivamente en `ChallengeContext.tsx`.
+| Commit | Fecha | Descripción |
+|:---|:---|:---|
+| `9c64b80` | 26-Jul | UPnP: local IP usa LAN real (no Tailscale) |
+| `089d698` | 26-Jul | UPnP: private port = bound real del transporte |
+| `8a8b177` | 26-Jul | **Fix crítico**: waitForRelayAck escucha 'raw-message' |
+| `db64d6b` | 26-Jul | UI: reorden de botones (Tailscale → Bootstrap → P2P fucsia) |

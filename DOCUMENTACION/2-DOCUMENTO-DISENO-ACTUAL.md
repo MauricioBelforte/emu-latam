@@ -119,6 +119,25 @@ ChallengeModal muestra el método (Tailscale, P2P, etc.) y maneja la conexión.
 ### Regla
 No crear nuevos botones en nivel 1. Integrar dentro de los 6 existentes.
 
+### Orden Actual (26-Jul-2026)
+1. **SALA TAILSCALE** (primero, recomendado)
+2. **CONEXIÓN VÍA P2P** (verde, bootstrap — segundo)
+3. **SALA P2P (SIN TERCEROS)** (fucsia, experimental — al fondo)
+
+## UPnP + Windows Firewall
+### UPnP (`client/src/main/services/upnp.ts`)
+- `tryMapPort(port, protocol, desc, ttl, localIp?, privatePort?)` → mapping en router
+- `tryUnmapPort(port, protocol)` → remove mapping
+- `cleanupAllMappings()` → cleanup general
+- **Importante:** El router puede aceptar el mapping pero no aplicarlo
+
+### Windows Firewall (`client/src/main/p2pBridge.ts`)
+- `tryOpenWindowsFirewall(port, protocol, name)` → `netsh advfirewall firewall add rule ...`
+- Requiere admin. Si falla, se ignora (try/catch).
+
+## Bug corregido: waitForRelayAck (26-Jul-2026)
+En `p2p-module/src/P2PManager.ts:382`. `waitForRelayAck()` escuchaba `transport.on('message', handler)` pero el transporte emite `'raw-message'`. El handler nunca se ejecutaba, siempre timeout. Fix: `transport.on('raw-message', handler)`.
+
 ## Cleanup de Servidores
 - `proxyServers[]`: Se limpia cuando el GUEST RA cierra (`stopAllProxies()`)
 - `forwarderServers[]`: Se limpia cuando el HOST RA cierra (`stopAllForwarders()`)

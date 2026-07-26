@@ -332,21 +332,37 @@ Con run_ahead=false + buffer dinámico 1-2, no es necesario check_frames porque 
 - [x] getLanIp() corregido para excluir IPs Tailscale del broadcast
 - [ ] Pendiente: probar entre PCs en distintas redes (WAN con Nakama)
 
-## ✅ Módulo 18b — P2P Propio WAN Manual (25-Jul-2026)
+## ✅ Módulo 18b — P2P Propio WAN Manual + UPnP + Firewall (26-Jul-2026)
 
+### Implementación
 - [x] RELAY_REQUEST (0x07) / RELAY_ACK (0x08) agregados a protocol/types.ts
-- [x] P2PManager.handlePacket maneja RELAY_REQUEST: host registra peer + envía RELAY_ACK
-- [x] P2PManager.handlePacket maneja RELAY_ACK: guest recibe confirmación relay
+- [x] P2PManager.handlePacket maneja RELAY_REQUEST/RELAY_ACK
 - [x] P2PManager.startJoinWan(): hole punch + fallback RELAY_REQUEST con timeout 8s
 - [x] waitForRelayAck(): helper para esperar RELAY_ACK en guest
 - [x] handleP2PGuestWan() en p2pBridge.ts: parsea IP:puerto manual, llama startJoinWan
 - [x] IPC handler p2p-guest-wan registrado en index.ts + ipcChannels.ts
-- [x] UI fucsia: host muestra IP pública (STUN), guest input IP:puerto + botón CONECTAR
-- [x] UI fucsia: botón CREAR SALA WAN para iniciar host sin Nakama
+- [x] UI fucsia: host muestra IP pública + LAN + UPnP status; guest input IP:puerto
+- [x] UPnP automático: `nat-upnp` abre puerto al crear sala (IP LAN real excluye Tailscale)
+- [x] Windows Firewall automático: `netsh` crea regla para puerto P2P
 - [x] Build TypeScript + Vite sin errores
 - [x] p2p-module 29/29 tests pasando
-- [x] Stable flows 50/51 (misma tolerancia preexistente)
-- [ ] Pendiente: test manual WAN real entre PCs con puerto abierto
+- [x] Stable flows 50/51
+
+### Bugs corregidos (26-Jul-2026)
+- [x] **waitForRelayAck bug:** Escuchaba `'message'` en vez de `'raw-message'` → nunca se ejecutaba
+- [x] **UPnP local IP:** Mapeaba a IP Tailscale (100.x.x.x) en vez de LAN real
+- [x] **UPnP private port:** Usaba puerto STUN en vez del bound real del transporte
+- [x] **Firewall regla:** Usaba puerto STUN en vez del bound real
+
+### UI Reorder (26-Jul-2026)
+- [x] Tailscale primero
+- [x] Bootstrap verde segundo
+- [x] P2P fucsia tercero (al fondo)
+
+### Test manual WAN desde celular (26-Jul-2026)
+- [ ] ❌ **FALLÓ** — Router ISP no aplica UPnP (puerto cerrado desde internet)
+- [ ] Pendiente: probar con port forwarding manual en router
+- [ ] Pendiente: probar en otro ISP que sí aplique UPnP
 
 ---
 
