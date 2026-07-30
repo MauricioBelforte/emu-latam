@@ -406,6 +406,16 @@ Con run_ahead=false + buffer dinámico 1-2, no es necesario check_frames porque 
 - [x] Fix 26-Jul: `bootstrap-start-game-relay` / `bootstrap-stop-game-relay` IPC handlers + cleanup
 - [x] Fix 26-Jul: `ChallengeContext.tsx` RA host usa game bore + forwarder; RA guest usa proxy existente
 - [x] Fix 26-Jul: `bootstrapGgpoRelay.ts` — sockets UDP persistentes, handler duplicado eliminado
+- [x] Fix 26-Jul: `handleBootstrapGuest` prioriza bore cuando hay roomCode válido (antes si lanIp presente, ignoraba bore)
+- [x] Fix 26-Jul: bore Nakama prueba puertos preferidos (8080→8888→8443→9000) antes de aleatorio
+
+### 20.1. Testing Sala Pública WAN (26-Jul-2026)
+- [ ] **No probado WAN real:** Se requiere 2 PCs en redes distintas para validar
+- [x] **LAN funciona:** PC1 + PC2 mismo WiFi → conexión exitosa, Nakama verde, usuarios visibles
+- [ ] **🚧 WAN con datos del celu:** El carrier (Personal Argentina) bloquea puertos aleatorios de bore.pub. Incluso con puertos preferidos (8080, 8888, etc.) puede no funcionar si el carrier los bloquea también.
+- [ ] **🐛 Tailscale + datos del celu:** No probado. El guest no pudo conectar por Tailscale desde el celu. Posible causa: Tailscale no instalado/configurado en PC2, o el carrier bloquea WireGuard.
+- [ ] **Pendiente:** Agregar fallback automático a relay cuando bore falle (actualmente solo alerta "no accesible")
+- [ ] **Pendiente:** Probar con otro carrier (ej: WiFi de otro proveedor) para descartar bloqueo específico de Personal
 
 ---
 
