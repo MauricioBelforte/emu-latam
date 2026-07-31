@@ -420,8 +420,10 @@ Con run_ahead=false + buffer dinámico 1-2, no es necesario check_frames porque 
 - [ ] **Tailscale + datos del celu: ✅ FUNCIONA (31-Jul-2026)**
   - Ping 100.x.x.x desde PC2 (datos del celu): 0ms, 0% pérdida
   - **GGPO + Tailscale + retos: ✅ verificado end-to-end** — sala turquesa, reto, aceptación, fcadefbneo conecta player 0/1
+  - **RetroArch + Tailscale (JOIN directo): ✅ verificado** — primer reto puede fallar por timeout 8s insuficiente en primera carga de RA, retos siguientes conectan ok
+  - **Fix:** timeout `waitForPort` en `tailscale-host` subido de 8s a 20s (commit `1ed5cc0`)
   - Tailscale atraviesa el bloqueo del carrier (fallback DERP puerto 443)
-  - Pendiente: probar RetroArch + Tailscale WAN (JOIN directo)
+  - **Conclusión: Tailscale es el método oficial y el único que funciona WAN con datos del celu**
 - [ ] **Relay propio en VPS con puerto 443: ALTERNATIVA DEFINITIVA**
   - Necesita VPS. Nadie bloquea 443.
 - [ ] **Pendiente:** Agregar fallback automático a relay cuando bore falle (actualmente solo alerta "no accesible")
