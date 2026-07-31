@@ -409,13 +409,22 @@ Con run_ahead=false + buffer dinámico 1-2, no es necesario check_frames porque 
 - [x] Fix 26-Jul: `handleBootstrapGuest` prioriza bore cuando hay roomCode válido (antes si lanIp presente, ignoraba bore)
 - [x] Fix 26-Jul: bore Nakama prueba puertos preferidos (8080→8888→8443→9000) antes de aleatorio
 
-### 20.1. Testing Sala Pública WAN (26-Jul-2026)
-- [ ] **No probado WAN real:** Se requiere 2 PCs en redes distintas para validar
+### 20.1. Testing Sala Pública WAN (26-Jul-2026 / 31-Jul-2026)
 - [x] **LAN funciona:** PC1 + PC2 mismo WiFi → conexión exitosa, Nakama verde, usuarios visibles
-- [ ] **🚧 WAN con datos del celu:** El carrier (Personal Argentina) bloquea puertos aleatorios de bore.pub. Incluso con puertos preferidos (8080, 8888, etc.) puede no funcionar si el carrier los bloquea también.
-- [ ] **🐛 Tailscale + datos del celu:** No probado. El guest no pudo conectar por Tailscale desde el celu. Posible causa: Tailscale no instalado/configurado en PC2, o el carrier bloquea WireGuard.
+- [x] **WAN con datos del celu: ❌ NO FUNCIONA con Personal Argentina (CONCLUIDO)**
+  - El carrier bloquea tráfico TCP a puertos no estándar desde datos del celu
+  - Probados: puertos aleatorios (13494, 30211) y preferidos (8080, 8888, 8443, 9000)
+  - Test definitivo: `Test-NetConnection bore.pub -Port 8888` → `TcpTestSucceeded: False` desde datos del celu; `True` desde WiFi
+  - bore.pub solo ofrece puertos aleatorios/altos → **imposible que bore funcione desde datos del celu**
+  - El DNS celular es además inestable (a veces "Name resolution failed", a veces resuelve)
+- [ ] **Tailscale + datos del celu: PENDIENTE DE PROBAR BIEN**
+  - Primer intento falló con "no se pudo conectar al servidor verifica la ip"
+  - Causa probable: se usó IP LAN (192.168.1.x) en vez de IP Tailscale (100.x.x.x), o PC2 sin Tailscale
+  - Tailscale usa puerto 443 como fallback (DERP) → no bloqueado por carriers
+  - **PRÓXIMO PASO:** probar Tailscale bien (instalar en PC2, usar IP 100.x.x.x)
+- [ ] **Relay propio en VPS con puerto 443: ALTERNATIVA DEFINITIVA**
+  - Necesita VPS. Nadie bloquea 443.
 - [ ] **Pendiente:** Agregar fallback automático a relay cuando bore falle (actualmente solo alerta "no accesible")
-- [ ] **Pendiente:** Probar con otro carrier (ej: WiFi de otro proveedor) para descartar bloqueo específico de Personal
 
 ---
 
