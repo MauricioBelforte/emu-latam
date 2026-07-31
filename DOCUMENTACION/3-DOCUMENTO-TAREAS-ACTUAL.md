@@ -417,11 +417,11 @@ Con run_ahead=false + buffer dinámico 1-2, no es necesario check_frames porque 
   - Test definitivo: `Test-NetConnection bore.pub -Port 8888` → `TcpTestSucceeded: False` desde datos del celu; `True` desde WiFi
   - bore.pub solo ofrece puertos aleatorios/altos → **imposible que bore funcione desde datos del celu**
   - El DNS celular es además inestable (a veces "Name resolution failed", a veces resuelve)
-- [ ] **Tailscale + datos del celu: PENDIENTE DE PROBAR BIEN**
-  - Primer intento falló con "no se pudo conectar al servidor verifica la ip"
-  - Causa probable: se usó IP LAN (192.168.1.x) en vez de IP Tailscale (100.x.x.x), o PC2 sin Tailscale
-  - Tailscale usa puerto 443 como fallback (DERP) → no bloqueado por carriers
-  - **PRÓXIMO PASO:** probar Tailscale bien (instalar en PC2, usar IP 100.x.x.x)
+- [ ] **Tailscale + datos del celu: ✅ FUNCIONA (31-Jul-2026)**
+  - Ping 100.x.x.x desde PC2 (datos del celu): 0ms, 0% pérdida
+  - **GGPO + Tailscale + retos: ✅ verificado end-to-end** — sala turquesa, reto, aceptación, fcadefbneo conecta player 0/1
+  - Tailscale atraviesa el bloqueo del carrier (fallback DERP puerto 443)
+  - Pendiente: probar RetroArch + Tailscale WAN (JOIN directo)
 - [ ] **Relay propio en VPS con puerto 443: ALTERNATIVA DEFINITIVA**
   - Necesita VPS. Nadie bloquea 443.
 - [ ] **Pendiente:** Agregar fallback automático a relay cuando bore falle (actualmente solo alerta "no accesible")
