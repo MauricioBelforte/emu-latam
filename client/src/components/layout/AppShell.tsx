@@ -121,7 +121,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children, showBack, onBack, 
       </ContentArea>
       <TickerBar>
         <TickerText>
-          - KOF LATAM V2 - SERVIDOR ONLINE - CHAT ACTIVO - ¡PREPÁRATE PARA LA PELEA!
+          - EX MAURYCADE - SERVIDOR ONLINE - CHAT ACTIVO - ¡YO JUEGO CON CHOI WATITITITI! - A VOCE SE LE ENTENDE MASOMENITO - MR YAMA ES FOERTE SOLO CON ATRAPASA
         </TickerText>
       </TickerBar>
     </ShellContainer>

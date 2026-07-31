@@ -82,7 +82,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <HeaderContainer>
       <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-        <Logo>KOF LATAM V2</Logo>
+        <Logo>EMULATRANS v1.0</Logo>
         <ToggleGroup>
           <ToggleBtn $active={sidebarOpen} $side="left" onClick={onToggleSidebar}>
             ☰ PLAYERS

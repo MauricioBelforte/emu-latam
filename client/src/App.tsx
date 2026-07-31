@@ -863,8 +863,8 @@ function App() {
         onToggleNetplayConfig={() => setShowNetplayConfig((o) => !o)}
       >
         <GameCard>
-          <GameTitle>READY TO <span>FIGHT?</span></GameTitle>
-          <DebugInfo>EMU LATAM v2.0 — RETROARCH NETPLAY</DebugInfo>
+          <GameTitle>READY<span> GO!</span></GameTitle>
+          <DebugInfo>EMULATRANS v1.0</DebugInfo>
 
           {!isAuthenticated ? (
             <>
