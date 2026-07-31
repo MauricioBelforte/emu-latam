@@ -222,6 +222,7 @@ function App() {
   const [copiedIp, setCopiedIp] = useState(false);
   const [peerReachable, setPeerReachable] = useState<boolean | null>(null);
   const [showOtherMethods, setShowOtherMethods] = useState(false);
+  const [showAltMethods, setShowAltMethods] = useState(false);
   const [showNetplayConfig, setShowNetplayConfig] = useState(false);
   const [showNamePicker, setShowNamePicker] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -909,6 +910,12 @@ function App() {
                     </Row>
                   </Section>
 
+                  {/* ─── OTROS MÉTODOS DE CONEXIÓN (colapsado) ─── */}
+                  <ToggleBtn $isOpen={showAltMethods} onClick={() => setShowAltMethods((p) => !p)}>
+                    {showAltMethods ? "▲ OCULTAR OTROS MÉTODOS" : "▼ OTROS MÉTODOS DE CONEXIÓN"}
+                  </ToggleBtn>
+
+                  <Collapsible $open={showAltMethods}>
                   {/* ─── CONEXIÓN VÍA P2P (sin Tailscale, con bore) ─── */}
                   <Section $accent="#0f0" style={{ borderStyle: "solid", borderWidth: 2, borderColor: "#0f08", padding: "16px" }}>
                     <p style={{ color: "#0f0", fontFamily: theme.fonts.arcade, fontSize: "0.65rem", marginBottom: 10, textAlign: "center" }}>
@@ -1060,6 +1067,7 @@ function App() {
                       </SalaButton>
                     </Row>
                   </Section>
+                  </Collapsible>
                   {p2pStatus && <StatusText $color="#f0f" style={{ fontSize: "0.65rem", textAlign: "center", marginTop: 4 }}>{p2pStatus}</StatusText>}
                 </>
               ) : joinMode === "create" ? (
