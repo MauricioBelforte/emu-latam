@@ -687,7 +687,7 @@ app.whenReady().then(() => {
       const host = spawn(retroArchPath, args, { cwd: retroArchDir, detached: true, stdio: "ignore" });
       host.unref();
 
-      const ready = await waitForPort(55435, 8000);
+      const ready = await waitForPort(55435, 20000);
       if (!ready) return { success: false, error: "RA no abrió puerto 55435" };
 
       const msg = isLocalFallback
